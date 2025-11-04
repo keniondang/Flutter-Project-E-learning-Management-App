@@ -1,0 +1,35 @@
+name: elearning_management_app
+description: E-learning Management Application
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Supabase for backend
+  supabase_flutter: ^2.5.0
+  
+  # Local database
+  sqflite: ^2.3.0
+  path: ^1.9.0
+  
+  # State management
+  provider: ^6.1.1
+  
+  # UI components
+  google_fonts: ^6.1.0
+  
+  # Storage
+  shared_preferences: ^2.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
