@@ -13,6 +13,29 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+Widget _buildCredentialRow(String label, String credentials) {
+  return Row(
+    children: [
+      Text(
+        label,
+        style: GoogleFonts.poppins(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey[700],
+        ),
+      ),
+      const SizedBox(width: 8),
+      Text(
+        credentials,
+        style: GoogleFonts.poppins(
+          fontSize: 12,
+          color: Colors.grey[600],
+        ),
+      ),
+    ],
+  );
+}
+
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
@@ -216,24 +239,42 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: BoxDecoration(
                         color: Colors.blue[50],
                         borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue[200]!),
                       ),
                       child: Column(
                         children: [
-                          Text(
-                            'Test Credentials:',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Test Credentials',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: Colors.blue[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Instructor: admin/admin',
-                            style: GoogleFonts.poppins(fontSize: 12),
-                          ),
-                          Text(
-                            'Student: student1/student1',
-                            style: GoogleFonts.poppins(fontSize: 12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildCredentialRow('Instructor:', 'admin / admin'),
+                                const SizedBox(height: 4),
+                                _buildCredentialRow('Student 1:', 'student1 / student1'),
+                                const SizedBox(height: 4),
+                                _buildCredentialRow('Student 2:', 'student2 / student2'),
+                              ],
+                            ),
                           ),
                         ],
                       ),

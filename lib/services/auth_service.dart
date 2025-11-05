@@ -1,7 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -10,7 +9,7 @@ class AuthService {
   UserModel? _currentUser;
   UserModel? get currentUser => _currentUser;
 
-  // Login method
+  // Login method with proper password checking
   Future<UserModel?> login(String username, String password) async {
     try {
       // Query users table to check credentials
@@ -18,21 +17,19 @@ class AuthService {
           .from('users')
           .select()
           .eq('username', username)
-          .single();
+          .eq('password', password)  // Check both username AND password
+          .maybeSingle();  // Use maybeSingle instead of single to avoid errors
 
       if (response != null) {
-        // For this simple implementation, we check if password equals username
-        // In production, use proper authentication
-        if (password == username) {
-          _currentUser = UserModel.fromJson(response);
-          
-          // Save login state
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('user_id', _currentUser!.id);
-          await prefs.setString('user_role', _currentUser!.role);
-          
-          return _currentUser;
-        }
+        _currentUser = UserModel.fromJson(response);
+        
+        // Save login state
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_id', _currentUser!.id);
+        await prefs.setString('user_role', _currentUser!.role);
+        await prefs.setString('username', _currentUser!.username);
+        
+        return _currentUser;
       }
       return null;
     } catch (e) {
@@ -58,5 +55,29 @@ class AuthService {
   Future<String?> getUserRole() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('user_role');
+  }
+
+  // Load current user from storage
+  Future<UserModel?> loadCurrentUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id');
+    
+    if (userId != null) {
+      try {
+        final response = await _supabase
+            .from('users')
+            .select()
+            .eq('id', userId)
+            .single();
+        
+        if (response != null) {
+          _currentUser = UserModel.fromJson(response);
+          return _currentUser;
+        }
+      } catch (e) {
+        print('Error loading user: $e');
+      }
+    }
+    return null;
   }
 }
