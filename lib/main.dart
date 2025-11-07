@@ -5,7 +5,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
 import 'providers/semester_provider.dart';
 import 'providers/course_provider.dart';
+import 'providers/group_provider.dart';
+import 'providers/student_provider.dart';
+import 'providers/content_provider.dart';
+import 'providers/question_bank_provider.dart';
 import 'screens/login_screen.dart';
+import 'providers/notification_provider.dart';
+import 'services/sync_service.dart';
+import 'services/offline_database_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +35,11 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => SemesterProvider()),
         ChangeNotifierProvider(create: (_) => CourseProvider()),
+        ChangeNotifierProvider(create: (_) => GroupProvider()),
+        ChangeNotifierProvider(create: (_) => StudentProvider()),
+        ChangeNotifierProvider(create: (_) => ContentProvider()),
+        ChangeNotifierProvider(create: (_) => QuestionBankProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: MaterialApp(
         title: 'E-Learning Management',
@@ -55,7 +67,12 @@ class MyApp extends StatelessWidget {
               ),
             ),
           ),
-        ),
+          tabBarTheme: const TabBarThemeData(
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+          ),
+                  ),
         home: const LoginScreen(),
         debugShowCheckedModeBanner: false,
       ),

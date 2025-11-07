@@ -4,7 +4,7 @@ import '../models/semester.dart';
 
 class SemesterProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   List<Semester> _semesters = [];
   Semester? _currentSemester;
   bool _isLoading = false;
@@ -31,14 +31,18 @@ class SemesterProvider extends ChangeNotifier {
           .map((json) => Semester.fromJson(json))
           .toList();
 
-      // Find current semester
-      _currentSemester = _semesters.firstWhere(
-        (s) => s.isCurrent,
-        orElse: () => _semesters.isNotEmpty ? _semesters.first : null!,
-      );
+      // ✅ Safely set current semester (may remain null if none exist)
+      if (_semesters.isEmpty) {
+        _currentSemester = null;
+      } else {
+        _currentSemester = _semesters.firstWhere(
+          (s) => s.isCurrent,
+          orElse: () => _semesters.first,
+        );
+      }
     } catch (e) {
       _error = e.toString();
-      print('Error loading semesters: $e');
+      debugPrint('Error loading semesters: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
