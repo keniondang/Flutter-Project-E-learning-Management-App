@@ -3,11 +3,15 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../models/course.dart';
 import '../../models/semester.dart';
+import '../../models/user_model.dart';
 import '../../providers/course_provider.dart';
 import '../../providers/semester_provider.dart';
+import '../course_detail_screen.dart';
 
 class CourseManagementScreen extends StatefulWidget {
-  const CourseManagementScreen({Key? key}) : super(key: key);
+  final UserModel user; // ✅ Pass logged-in user
+
+  const CourseManagementScreen({Key? key, required this.user}) : super(key: key);
 
   @override
   State<CourseManagementScreen> createState() => _CourseManagementScreenState();
@@ -25,13 +29,13 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
   Future<void> _loadInitialData() async {
     final semesterProvider = context.read<SemesterProvider>();
     await semesterProvider.loadSemesters();
-    
+
     if (semesterProvider.semesters.isNotEmpty) {
       setState(() {
-        _selectedSemester = semesterProvider.currentSemester ?? 
-                           semesterProvider.semesters.first;
+        _selectedSemester = semesterProvider.currentSemester ??
+            semesterProvider.semesters.first;
       });
-      
+
       if (_selectedSemester != null) {
         context.read<CourseProvider>().loadCourses(_selectedSemester!.id);
       }
@@ -117,7 +121,8 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (codeController.text.isEmpty || nameController.text.isEmpty) {
+                if (codeController.text.isEmpty ||
+                    nameController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Please fill all fields'),
@@ -129,7 +134,7 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
 
                 final provider = context.read<CourseProvider>();
                 bool success;
-                
+
                 if (isEdit) {
                   success = await provider.updateCourse(
                     id: course.id,
@@ -151,7 +156,9 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        isEdit ? 'Course updated successfully' : 'Course added successfully',
+                        isEdit
+                            ? 'Course updated successfully'
+                            : 'Course added successfully',
                       ),
                       backgroundColor: Colors.green,
                     ),
@@ -182,10 +189,9 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final success = await context
-                  .read<CourseProvider>()
-                  .deleteCourse(course.id);
-              
+              final success =
+                  await context.read<CourseProvider>().deleteCourse(course.id);
+
               if (success && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -208,7 +214,7 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final semesterProvider = context.watch<SemesterProvider>();
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -293,7 +299,7 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
               ],
             ),
           ),
-          
+
           // Course list
           Expanded(
             child: Consumer<CourseProvider>(
@@ -349,7 +355,8 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                         Text(provider.error!),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                          onPressed: () => provider.loadCourses(_selectedSemester!.id),
+                          onPressed: () =>
+                              provider.loadCourses(_selectedSemester!.id),
                           child: const Text('Retry'),
                         ),
                       ],
@@ -397,7 +404,8 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                 return GridView.builder(
                   padding: const EdgeInsets.all(16),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: MediaQuery.of(context).size.width > 800 ? 3 : 2,
+                    crossAxisCount:
+                        MediaQuery.of(context).size.width > 800 ? 3 : 2,
                     childAspectRatio: 1.5,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
@@ -409,7 +417,15 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                       elevation: 3,
                       child: InkWell(
                         onTap: () {
-                          // Navigate to course detail
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CourseDetailScreen(
+                                course: course,
+                                user: widget.user, // ✅ use passed-in user
+                              ),
+                            ),
+                          );
                         },
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -452,9 +468,13 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                                           value: 'delete',
                                           child: Row(
                                             children: [
-                                              Icon(Icons.delete, size: 20, color: Colors.red),
+                                              Icon(Icons.delete,
+                                                  size: 20,
+                                                  color: Colors.red),
                                               SizedBox(width: 8),
-                                              Text('Delete', style: TextStyle(color: Colors.red)),
+                                              Text('Delete',
+                                                  style: TextStyle(
+                                                      color: Colors.red)),
                                             ],
                                           ),
                                         ),
@@ -466,7 +486,8 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                                           _confirmDelete(course);
                                         }
                                       },
-                                      icon: const Icon(Icons.more_vert, color: Colors.white),
+                                      icon: const Icon(Icons.more_vert,
+                                          color: Colors.white),
                                     ),
                                   ),
                                 ],
@@ -478,10 +499,12 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                                 padding: const EdgeInsets.all(12),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           course.code,
@@ -503,7 +526,8 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                                     ),
                                     Row(
                                       children: [
-                                        Icon(Icons.schedule, size: 14, color: Colors.grey[600]),
+                                        Icon(Icons.schedule,
+                                            size: 14, color: Colors.grey[600]),
                                         const SizedBox(width: 4),
                                         Text(
                                           '${course.sessions} sessions',
@@ -513,7 +537,8 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                                           ),
                                         ),
                                         const Spacer(),
-                                        Icon(Icons.group, size: 14, color: Colors.grey[600]),
+                                        Icon(Icons.group,
+                                            size: 14, color: Colors.grey[600]),
                                         const SizedBox(width: 4),
                                         Text(
                                           '${course.groupCount ?? 0}',
@@ -523,7 +548,8 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                                           ),
                                         ),
                                         const SizedBox(width: 8),
-                                        Icon(Icons.person, size: 14, color: Colors.grey[600]),
+                                        Icon(Icons.person,
+                                            size: 14, color: Colors.grey[600]),
                                         const SizedBox(width: 4),
                                         Text(
                                           '${course.studentCount ?? 0}',

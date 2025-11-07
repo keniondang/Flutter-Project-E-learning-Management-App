@@ -13,29 +13,6 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-Widget _buildCredentialRow(String label, String credentials) {
-  return Row(
-    children: [
-      Text(
-        label,
-        style: GoogleFonts.poppins(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Colors.grey[700],
-        ),
-      ),
-      const SizedBox(width: 8),
-      Text(
-        credentials,
-        style: GoogleFonts.poppins(
-          fontSize: 12,
-          color: Colors.grey[600],
-        ),
-      ),
-    ],
-  );
-}
-
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
@@ -48,6 +25,29 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _loadSavedCredentials();
+  }
+
+  Widget _buildCredentialRow(String label, String credentials) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          credentials,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _loadSavedCredentials() async {
@@ -233,6 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Test credentials hint
                     // Test credentials hint
                     Container(
                       padding: const EdgeInsets.all(12),

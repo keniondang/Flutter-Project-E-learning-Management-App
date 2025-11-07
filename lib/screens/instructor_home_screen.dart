@@ -7,6 +7,9 @@ import '../providers/semester_provider.dart';
 import 'login_screen.dart';
 import 'instructor/semester_management_screen.dart';
 import 'instructor/course_management_screen.dart';
+import 'instructor/group_management_screen.dart';
+import 'instructor/student_management_screen.dart';
+import 'course_detail_screen.dart';
 
 class InstructorHomeScreen extends StatelessWidget {
   final UserModel user;
@@ -191,7 +194,21 @@ class InstructorHomeScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const CourseManagementScreen(),
+                        builder: (_) => CourseManagementScreen(user: user),
+                      ),
+                    );
+                  },
+                ),
+                _buildActionButton(
+                  context,
+                  'Manage Groups',
+                  Icons.group_work,
+                  Colors.orange,
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const GroupManagementScreen(),
                       ),
                     );
                   },
@@ -200,26 +217,26 @@ class InstructorHomeScreen extends StatelessWidget {
                   context,
                   'Manage Students',
                   Icons.people,
-                  Colors.orange,
+                  Colors.purple,
                   () {
-                    // TODO: Navigate to student management
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Student management coming soon'),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const StudentManagementScreen(),
                       ),
                     );
                   },
                 ),
                 _buildActionButton(
                   context,
-                  'Import CSV',
-                  Icons.upload_file,
-                  Colors.purple,
+                  'View Courses',
+                  Icons.class_,
+                  Colors.indigo,
                   () {
-                    // TODO: Navigate to CSV import
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('CSV import coming soon'),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CourseManagementScreen(user: user),
                       ),
                     );
                   },
