@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
@@ -233,51 +234,58 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Test credentials hint
-                    // Test credentials hint
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue[200]!),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Test Credentials',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                  color: Colors.blue[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                    Visibility(
+                      // Test credentials hint
+                      visible: kDebugMode,
+                      // Test credentials hint
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue[200]!),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                _buildCredentialRow('Instructor:', 'admin / admin'),
-                                const SizedBox(height: 4),
-                                _buildCredentialRow('Student 1:', 'student1 / student1'),
-                                const SizedBox(height: 4),
-                                _buildCredentialRow('Student 2:', 'student2 / student2'),
+                                Icon(Icons.info_outline,
+                                    size: 16, color: Colors.blue[700]),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Test Credentials',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    color: Colors.blue[700],
+                                  ),
+                                ),
                               ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildCredentialRow(
+                                      'Instructor:', 'admin / admin'),
+                                  const SizedBox(height: 4),
+                                  _buildCredentialRow(
+                                      'Student 1:', 'student1 / student1'),
+                                  const SizedBox(height: 4),
+                                  _buildCredentialRow(
+                                      'Student 2:', 'student2 / student2'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
