@@ -157,22 +157,24 @@ class StudentProvider extends ChangeNotifier {
   Future<bool> enrollStudentInGroup({
     required String studentId,
     required String groupId,
+    required String courseId,
   }) async {
     try {
-      // Check if already enrolled
-      final existing = await _supabase
+      // Check if student is already enrolled in ANY group for THIS course
+      final existingEnrollment = await _supabase
           .from('enrollments')
-          .select('id')
+          .select('id, groups!inner(course_id)') // Join groups
           .eq('student_id', studentId)
-          .eq('group_id', groupId)
+          .eq('groups.course_id', courseId) // Check course_id on the joined group
           .maybeSingle();
 
-      if (existing != null) {
-        _error = 'Student already enrolled in this group';
+      if (existingEnrollment != null) {
+        _error = 'Student is already enrolled in another group for this course.';
         notifyListeners();
         return false;
       }
 
+      // If no existing enrollment in this course, proceed to add
       await _supabase.from('enrollments').insert({
         'student_id': studentId,
         'group_id': groupId,
@@ -310,6 +312,26 @@ class StudentProvider extends ChangeNotifier {
       _error = e.toString();
       notifyListeners();
       return false;
+    }
+  }
+
+  // ✅ --- NEW METHOD --- ✅
+  // Fetches all students but does NOT notify listeners or change state.
+  // This is for use in dialogs/dropdowns.
+  Future<List<Student>> fetchAllStudents() async {
+    try {
+      final response = await _supabase
+          .from('users')
+          .select()
+          .eq('role', 'student')
+          .order('full_name');
+
+      return (response as List)
+          .map((json) => Student.fromJson(json))
+          .toList();
+    } catch (e) {
+      print('Error fetching all students: $e');
+      return [];
     }
   }
 }

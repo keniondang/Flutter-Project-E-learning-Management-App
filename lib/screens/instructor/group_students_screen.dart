@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/course.dart';
 import '../../models/group.dart';
 import '../../models/student.dart';
+import '../../providers/group_provider.dart';
 import '../../providers/student_provider.dart';
 
 class GroupStudentsScreen extends StatefulWidget {
@@ -28,82 +29,113 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
   }
 
   Future<void> _loadStudents() async {
+    // This populates the provider.students list with ONLY this group's members
     await context.read<StudentProvider>().loadStudentsInGroup(widget.group.id);
   }
 
-  void _showAddStudentDialog() async {
-    // Load all students first
-    final provider = context.read<StudentProvider>();
-    await provider.loadAllStudents();
-    
-    final allStudents = provider.students;
+  void _showAddStudentDialog() {
     Student? selectedStudent;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text(
-            'Add Student to ${widget.group.name}',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<Student>(
-                value: selectedStudent,
-                decoration: InputDecoration(
-                  labelText: 'Select Student',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                items: allStudents.map((student) {
-                  return DropdownMenuItem(
-                    value: student,
-                    child: Text('${student.fullName} (${student.username})'),
-                  );
-                }).toList(),
-                onChanged: (student) {
-                  setState(() => selectedStudent = student);
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text(
+              'Add Student to ${widget.group.name}',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
             ),
-            ElevatedButton(
-              onPressed: selectedStudent == null ? null : () async {
-                final success = await provider.enrollStudentInGroup(
-                  studentId: selectedStudent!.id,
-                  groupId: widget.group.id,
-                );
-
-                if (success && mounted) {
-                  Navigator.pop(context);
-                  await _loadStudents();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Student added successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                } else if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(provider.error ?? 'Failed to add student'),
-                      backgroundColor: Colors.red,
-                    ),
+            content: FutureBuilder<List<Student>>(
+              future: context.read<StudentProvider>().fetchAllStudents(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 100,
+                    child: Center(child: CircularProgressIndicator()),
                   );
                 }
+
+                if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+                  return const Text('Error loading students');
+                }
+
+                // ✅ --- FIX 1: FILTERING --- ✅
+                // Get the list of students already in this group (from the main provider state)
+                final studentsInGroup = context.read<StudentProvider>().students;
+                final studentIdsInGroup = studentsInGroup.map((s) => s.id).toSet();
+
+                // Get all students and filter out the ones already in the group
+                final allStudents = snapshot.data!;
+                final availableStudents = allStudents
+                    .where((student) => !studentIdsInGroup.contains(student.id))
+                    .toList();
+                
+                return DropdownButtonFormField<Student>(
+                  // ✅ --- FIX 2: THE RED SCREEN ERROR --- ✅
+                  // The `hint` property tells the dropdown what to show when
+                  // `value` (selectedStudent) is null. This fixes the assertion error.
+                  value: selectedStudent,
+                  hint: const Text('Select a student'),
+                  
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  
+                  // Use the newly filtered list
+                  items: availableStudents.map((student) {
+                    return DropdownMenuItem(
+                      value: student,
+                      child: Text('${student.fullName} (${student.username})'),
+                    );
+                  }).toList(),
+                  onChanged: (student) {
+                    setState(() => selectedStudent = student);
+                  },
+                );
               },
-              child: const Text('Add'),
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: selectedStudent == null ? null : () async {
+                  final provider = context.read<StudentProvider>();
+                  
+                  final success = await provider.enrollStudentInGroup(
+                    studentId: selectedStudent!.id, 
+                    groupId: widget.group.id,
+                    courseId: widget.course.id,
+                  );
+
+                  if (success && mounted) {
+                    Navigator.pop(context);
+                    await _loadStudents(); 
+                    context.read<GroupProvider>().refreshCurrentCourseGroups();
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Student added successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(provider.error ?? 'Failed to add student'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Add'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -131,7 +163,9 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
               );
 
               if (success && mounted) {
-                await _loadStudents();
+                await _loadStudents(); 
+                context.read<GroupProvider>().refreshCurrentCourseGroups();
+                
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Student removed successfully'),

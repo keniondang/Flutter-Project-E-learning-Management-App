@@ -28,4 +28,15 @@ class UserModel {
 
   bool get isInstructor => role == 'instructor';
   bool get isStudent => role == 'student';
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+  
+    return other is UserModel &&
+      other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }

@@ -8,6 +8,9 @@ class GroupProvider extends ChangeNotifier {
   List<Group> _groups = [];
   bool _isLoading = false;
   String? _error;
+  
+  // This is used to remember which course we are looking at
+  String? _currentCourseId;
 
   List<Group> get groups => _groups;
   bool get isLoading => _isLoading;
@@ -17,6 +20,7 @@ class GroupProvider extends ChangeNotifier {
   Future<void> loadGroups(String courseId) async {
     _isLoading = true;
     _error = null;
+    _currentCourseId = courseId; // Remember this courseId
     notifyListeners();
 
     try {
@@ -162,6 +166,12 @@ class GroupProvider extends ChangeNotifier {
       _error = e.toString();
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<void> refreshCurrentCourseGroups() async {
+    if (_currentCourseId != null) {
+      await loadGroups(_currentCourseId!);
     }
   }
 }
