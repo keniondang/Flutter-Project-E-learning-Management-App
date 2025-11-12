@@ -9,6 +9,8 @@ import 'instructor/create_assignment_screen.dart';
 import 'instructor/create_quiz_screen.dart';
 import 'instructor/create_material_screen.dart';
 import 'instructor/question_bank_screen.dart';
+import 'instructor/quiz_results_screen.dart';
+import 'instructor/assignment_results_screen.dart'; // Make sure this import is here
 import '../models/assignment.dart';
 import '../models/quiz.dart';
 import '../models/course_material.dart';
@@ -18,6 +20,7 @@ import 'student/assignment_submission_screen.dart';
 import 'student/quiz_taking_screen.dart';
 import 'student/material_viewer_screen.dart';
 import 'shared/forum_screen.dart';
+import 'shared/course_people_tab.dart'; // ✅ --- ADD THIS IMPORT --- ✅
 
 class CourseDetailScreen extends StatefulWidget {
   final Course course;
@@ -45,6 +48,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   }
 
   Future<void> _loadContent() async {
+    // Only load content for the first two tabs.
+    // The People tab will load its own data.
     await context.read<ContentProvider>().loadCourseContent(widget.course.id);
   }
 
@@ -217,7 +222,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
         children: [
           _buildStreamTab(),
           _buildClassworkTab(),
-          _buildPeopleTab(),
+          _buildPeopleTab(), // ✅ --- MODIFIED HERE --- ✅
         ],
       ),
     );
@@ -363,6 +368,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
         }
 
         final isStudent = widget.user.role == 'student';
+        final isInstructor = widget.user.role == 'instructor';
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -386,7 +392,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                     style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
-                    'Due: ${_formatDate(assignment.dueDate)}',
+                    isInstructor
+                      ? 'Submissions: ${assignment.submissionCount ?? 0}'
+                      : 'Due: ${_formatDate(assignment.dueDate)}',
                     style: GoogleFonts.poppins(fontSize: 12),
                   ),
                   trailing: assignment.isPastDue
@@ -398,19 +406,30 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                           label: const Text('Open'),
                           backgroundColor: Colors.green[100],
                         ),
-                  onTap: isStudent
-                      ? () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => AssignmentSubmissionScreen(
-                                assignment: assignment,
-                                student: widget.user,
-                              ),
-                            ),
-                          );
-                        }
-                      : null, // instructors can open a different view if needed
+                  onTap: () {
+                    if (isStudent) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AssignmentSubmissionScreen(
+                            assignment: assignment,
+                            student: widget.user,
+                          ),
+                        ),
+                      );
+                    }
+                    if (isInstructor) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AssignmentResultsScreen(
+                            assignment: assignment,
+                            instructor: widget.user,
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 ),
               );
             } else if (type == 'quiz') {
@@ -427,7 +446,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                     style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
-                    'Closes: ${_formatDate(quiz.closeTime)}',
+                    isInstructor
+                      ? 'Submissions: ${quiz.submissionCount ?? 0}'
+                      : 'Closes: ${_formatDate(quiz.closeTime)}',
                     style: GoogleFonts.poppins(fontSize: 12),
                   ),
                   trailing: quiz.isPastDue
@@ -444,19 +465,37 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                               label: const Text('Scheduled'),
                               backgroundColor: Colors.orange[100],
                             ),
-                  onTap: isStudent && quiz.isOpen
-                      ? () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => QuizTakingScreen(
-                                quiz: quiz,
-                                student: widget.user,
-                              ),
+                  onTap: () {
+                    if (isStudent) {
+                      if (quiz.isOpen) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => QuizTakingScreen(
+                              quiz: quiz,
+                              student: widget.user,
                             ),
-                          );
-                        }
-                      : null,
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(quiz.isPastDue
+                                ? 'This quiz is closed.'
+                                : 'This quiz is not open yet.'),
+                          ),
+                        );
+                      }
+                    } else {
+                      // Is instructor
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => QuizResultsScreen(quiz: quiz),
+                        ),
+                      );
+                    }
+                  },
                 ),
               );
             } else {
@@ -498,10 +537,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     );
   }
 
+  // ✅ --- THIS IS THE MODIFIED METHOD --- ✅
   Widget _buildPeopleTab() {
-    // Placeholder - implement based on your group/student structure
-    return const Center(
-      child: Text('People tab - to be implemented'),
+    return CoursePeopleTab(
+      course: widget.course,
+      user: widget.user,
     );
   }
 
