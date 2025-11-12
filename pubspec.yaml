@@ -31,6 +31,7 @@ dependencies:
   csv: ^6.0.0
   file_picker: ^10.3.3
   badges: ^3.1.2
+  universal_html: ^2.2.4
 
 dev_dependencies:
   flutter_test:

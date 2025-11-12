@@ -11,6 +11,8 @@ import 'providers/content_provider.dart';
 import 'providers/question_bank_provider.dart';
 import 'screens/login_screen.dart';
 import 'providers/notification_provider.dart';
+import 'providers/quiz_submission_provider.dart';
+import 'providers/assignment_submission_provider.dart'; // ✅ --- ADDED
 import 'services/sync_service.dart';
 import 'services/offline_database_service.dart';
 
@@ -40,6 +42,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ContentProvider()),
         ChangeNotifierProvider(create: (_) => QuestionBankProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => QuizSubmissionProvider()),
+        ChangeNotifierProvider(create: (_) => AssignmentSubmissionProvider()), // ✅ --- ADDED
       ],
       child: MaterialApp(
         title: 'E-Learning Management',

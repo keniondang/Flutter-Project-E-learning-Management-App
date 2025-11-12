@@ -20,6 +20,9 @@ class Quiz {
   final int? attemptCount;
   final double? highestScore;
   final bool? isCompleted;
+  
+  // ✅ --- ADD THIS FIELD --- ✅
+  final int? submissionCount;
 
   Quiz({
     required this.id,
@@ -41,6 +44,7 @@ class Quiz {
     this.attemptCount,
     this.highestScore,
     this.isCompleted,
+    this.submissionCount, // ✅ Add to constructor
   });
 
   factory Quiz.fromJson(Map<String, dynamic> json) {
@@ -64,6 +68,7 @@ class Quiz {
       attemptCount: json['attempt_count'],
       highestScore: json['highest_score']?.toDouble(),
       isCompleted: json['is_completed'],
+      submissionCount: json['submission_count'], // ✅ Add from JSON
     );
   }
 
@@ -161,5 +166,46 @@ class QuestionOption {
       'text': text,
       'isCorrect': isCorrect,
     };
+  }
+}
+
+class QuizAttempt {
+  final String id;
+  final String quizId;
+  final String studentId;
+  final String studentName;
+  final int attemptNumber;
+  final DateTime startedAt;
+  final DateTime? submittedAt;
+  final double? score;
+  final bool isCompleted;
+
+  QuizAttempt({
+    required this.id,
+    required this.quizId,
+    required this.studentId,
+    required this.studentName,
+    required this.attemptNumber,
+    required this.startedAt,
+    this.submittedAt,
+    this.score,
+    required this.isCompleted,
+  });
+
+  factory QuizAttempt.fromJson(Map<String, dynamic> json) {
+    return QuizAttempt(
+      id: json['id'],
+      quizId: json['quiz_id'],
+      studentId: json['student_id'],
+      // 'users' table is joined in the provider, 'full_name' is nested
+      studentName: json['users']?['full_name'] ?? 'Unknown Student',
+      attemptNumber: json['attempt_number'] ?? 1,
+      startedAt: DateTime.parse(json['started_at']),
+      submittedAt: json['submitted_at'] != null 
+          ? DateTime.parse(json['submitted_at']) 
+          : null,
+      score: json['score']?.toDouble(),
+      isCompleted: json['is_completed'] ?? false,
+    );
   }
 }

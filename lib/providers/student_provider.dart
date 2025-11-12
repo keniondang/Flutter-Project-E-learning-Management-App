@@ -334,4 +334,64 @@ class StudentProvider extends ChangeNotifier {
       return [];
     }
   }
+
+  // ✅ --- NEW FUNCTION FOR PEOPLE TAB --- ✅
+  // Load all students enrolled in a specific course and update state
+  Future<void> loadStudentsForCourse(String courseId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _supabase
+          .from('enrollments')
+          .select('users!enrollments_student_id_fkey(*), groups!inner(course_id, name)')
+          .eq('groups.course_id', courseId);
+      
+      final studentMap = <String, Student>{};
+      for (var row in (response as List)) {
+        if (row['users'] != null) {
+          final student = Student.fromJson({
+            ...row['users'],
+            'group_name': row['groups']?['name']
+          });
+          studentMap[student.id] = student;
+        }
+      }
+      _students = studentMap.values.toList();
+      _students.sort((a, b) => a.fullName.compareTo(b.fullName));
+      
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading students for course: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Load all students enrolled in a specific course
+  Future<List<Student>> loadStudentsInCourse(String courseId) async {
+    // This function fetches and returns a list, 
+    // but does not update the main provider state (_students).
+    // This is ideal for one-off fetches like in the results screen.
+    try {
+      final response = await _supabase
+          .from('enrollments')
+          .select('users!enrollments_student_id_fkey(*), groups!inner(course_id)')
+          .eq('groups.course_id', courseId);
+      
+      // Use a Set to avoid duplicate students
+      final studentSet = <Student>{};
+      for (var row in (response as List)) {
+        if (row['users'] != null) {
+          studentSet.add(Student.fromJson(row['users']));
+        }
+      }
+      return studentSet.toList();
+    } catch (e) {
+      print('Error loading students in course: $e');
+      return [];
+    }
+  }
 }

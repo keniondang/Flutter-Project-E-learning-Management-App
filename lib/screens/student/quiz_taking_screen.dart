@@ -32,11 +32,76 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
   String? _attemptId;
   bool _isLoading = true;
   bool _isSubmitting = false;
+  int _currentAttemptNumber = 1;
 
   @override
   void initState() {
     super.initState();
-    _initializeQuiz();
+    _checkAndStartQuiz();
+  }
+
+  // ✅ --- NEW FUNCTION TO FIX MAX ATTEMPTS BUG --- ✅
+  Future<void> _checkAndStartQuiz() async {
+    try {
+      // 1. Check for existing completed attempts
+      final response = await _supabase
+          .from('quiz_attempts')
+          .select('id')
+          .eq('quiz_id', widget.quiz.id)
+          .eq('student_id', widget.student.id)
+          .eq('is_completed', true);
+
+      final completedAttempts = (response as List).length;
+
+      // 2. Compare to max attempts
+      if (completedAttempts >= widget.quiz.maxAttempts) {
+        // No attempts left
+        setState(() => _isLoading = false);
+        if (mounted) {
+          _showMaxAttemptsDialog();
+        }
+        return;
+      }
+
+      // 3. Set current attempt number
+      _currentAttemptNumber = completedAttempts + 1;
+
+      // 4. Proceed to initialize quiz
+      await _initializeQuiz();
+    } catch (e) {
+      print('Error checking attempts: $e');
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _showMaxAttemptsDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Max Attempts Reached',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          'You have already used all ${widget.quiz.maxAttempts} attempt(s) for this quiz.',
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Close quiz screen
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _initializeQuiz() async {
@@ -56,18 +121,30 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
       _isLoading = false;
     });
 
+    if (_questions.isEmpty) {
+      return; // Stop if no questions
+    }
+
     // Create quiz attempt record
     try {
       final response = await _supabase.from('quiz_attempts').insert({
         'quiz_id': widget.quiz.id,
         'student_id': widget.student.id,
-        'attempt_number': 1, // TODO: Get actual attempt number
+        'attempt_number': _currentAttemptNumber, // ✅ Use correct attempt number
         'started_at': DateTime.now().toIso8601String(),
+        'is_completed': false, // ✅ Set to false initially
       }).select().single();
       
       _attemptId = response['id'];
     } catch (e) {
       print('Error creating quiz attempt: $e');
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+      return;
     }
 
     // Start timer
@@ -110,14 +187,16 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
   }
 
   Future<void> _submitQuiz() async {
-    if (_isSubmitting) return;
+    if (_isSubmitting || _attemptId == null) return;
     
     setState(() => _isSubmitting = true);
     _timer?.cancel();
 
     // Calculate score
     double score = 0;
-    final pointsPerQuestion = widget.quiz.totalPoints / _questions.length;
+    final pointsPerQuestion = _questions.isNotEmpty 
+        ? widget.quiz.totalPoints / _questions.length 
+        : 0.0;
     
     for (var question in _questions) {
       final userAnswer = _answers[question.id];
@@ -135,7 +214,7 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
         'submitted_at': DateTime.now().toIso8601String(),
         'score': score,
         'answers': _answers,
-        'is_completed': true,
+        'is_completed': true, // ✅ Mark as completed
       }).eq('id', _attemptId!);
 
       if (mounted) {
@@ -190,7 +269,7 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '${((score / widget.quiz.totalPoints) * 100).toStringAsFixed(1)}%',
+              '${(widget.quiz.totalPoints > 0 ? (score / widget.quiz.totalPoints) * 100 : 0).toStringAsFixed(1)}%',
               style: GoogleFonts.poppins(fontSize: 16),
             ),
           ],
@@ -198,8 +277,8 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
         actions: [
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Close quiz screen
             },
             child: const Text('Finish'),
           ),
@@ -228,9 +307,21 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
           title: Text('Quiz', style: GoogleFonts.poppins()),
         ),
         body: Center(
-          child: Text(
-            'No questions available for this quiz',
-            style: GoogleFonts.poppins(fontSize: 16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.warning_amber_rounded, size: 60, color: Colors.orange),
+              const SizedBox(height: 16),
+              Text(
+                'No questions available for this quiz',
+                style: GoogleFonts.poppins(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Go Back'),
+              ),
+            ],
           ),
         ),
       );

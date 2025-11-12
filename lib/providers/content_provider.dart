@@ -253,9 +253,50 @@ class ContentProvider extends ChangeNotifier {
       _quizzes = (response as List)
           .map((json) => Quiz.fromJson(json))
           .toList();
+          
+      // ✅ --- ADDED QUIZ STATS LOADING --- ✅
+      for (var quiz in _quizzes) {
+        await _loadQuizStats(quiz);
+      }
     } catch (e) {
       print('Error loading quizzes: $e');
       throw e;
+    }
+  }
+
+  // ✅ --- NEW FUNCTION TO LOAD QUIZ STATS --- ✅
+  Future<void> _loadQuizStats(Quiz quiz) async {
+    try {
+      final submissionResponse = await _supabase
+          .from('quiz_attempts')
+          .select('id')
+          .eq('quiz_id', quiz.id)
+          .eq('is_completed', true); // Only count completed attempts
+
+      final index = _quizzes.indexWhere((q) => q.id == quiz.id);
+      if (index != -1) {
+        _quizzes[index] = Quiz(
+          id: quiz.id,
+          courseId: quiz.courseId,
+          instructorId: quiz.instructorId,
+          title: quiz.title,
+          description: quiz.description,
+          openTime: quiz.openTime,
+          closeTime: quiz.closeTime,
+          durationMinutes: quiz.durationMinutes,
+          maxAttempts: quiz.maxAttempts,
+          easyQuestions: quiz.easyQuestions,
+          mediumQuestions: quiz.mediumQuestions,
+          hardQuestions: quiz.hardQuestions,
+          totalPoints: quiz.totalPoints,
+          scopeType: quiz.scopeType,
+          targetGroups: quiz.targetGroups,
+          createdAt: quiz.createdAt,
+          submissionCount: (submissionResponse as List).length,
+        );
+      }
+    } catch (e) {
+      print('Error loading quiz stats: $e');
     }
   }
 
