@@ -32,9 +32,8 @@ class UserModel {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-  
-    return other is UserModel &&
-      other.id == id;
+
+    return other is UserModel && other.id == id;
   }
 
   @override

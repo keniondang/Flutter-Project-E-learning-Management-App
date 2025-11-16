@@ -11,11 +11,8 @@ class QuizTakingScreen extends StatefulWidget {
   final Quiz quiz;
   final UserModel student;
 
-  const QuizTakingScreen({
-    Key? key,
-    required this.quiz,
-    required this.student,
-  }) : super(key: key);
+  const QuizTakingScreen({Key? key, required this.quiz, required this.student})
+    : super(key: key);
 
   @override
   State<QuizTakingScreen> createState() => _QuizTakingScreenState();
@@ -23,7 +20,7 @@ class QuizTakingScreen extends StatefulWidget {
 
 class _QuizTakingScreenState extends State<QuizTakingScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   List<Question> _questions = [];
   Map<String, String> _answers = {};
   int _currentQuestionIndex = 0;
@@ -106,14 +103,25 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
 
   Future<void> _initializeQuiz() async {
     // Load questions from question bank
-    await context.read<QuestionBankProvider>().loadQuestions(widget.quiz.courseId);
-    
+    await context.read<QuestionBankProvider>().loadQuestions(
+      widget.quiz.courseId,
+    );
+
     // Get random questions based on difficulty
     final provider = context.read<QuestionBankProvider>();
-    final easyQuestions = provider.getQuestionsByDifficulty('easy', widget.quiz.easyQuestions);
-    final mediumQuestions = provider.getQuestionsByDifficulty('medium', widget.quiz.mediumQuestions);
-    final hardQuestions = provider.getQuestionsByDifficulty('hard', widget.quiz.hardQuestions);
-    
+    final easyQuestions = provider.getQuestionsByDifficulty(
+      'easy',
+      widget.quiz.easyQuestions,
+    );
+    final mediumQuestions = provider.getQuestionsByDifficulty(
+      'medium',
+      widget.quiz.mediumQuestions,
+    );
+    final hardQuestions = provider.getQuestionsByDifficulty(
+      'hard',
+      widget.quiz.hardQuestions,
+    );
+
     setState(() {
       _questions = [...easyQuestions, ...mediumQuestions, ...hardQuestions];
       _questions.shuffle(); // Randomize question order
@@ -127,14 +135,19 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
 
     // Create quiz attempt record
     try {
-      final response = await _supabase.from('quiz_attempts').insert({
-        'quiz_id': widget.quiz.id,
-        'student_id': widget.student.id,
-        'attempt_number': _currentAttemptNumber, // ✅ Use correct attempt number
-        'started_at': DateTime.now().toIso8601String(),
-        'is_completed': false, // ✅ Set to false initially
-      }).select().single();
-      
+      final response = await _supabase
+          .from('quiz_attempts')
+          .insert({
+            'quiz_id': widget.quiz.id,
+            'student_id': widget.student.id,
+            'attempt_number':
+                _currentAttemptNumber, // ✅ Use correct attempt number
+            'started_at': DateTime.now().toIso8601String(),
+            'is_completed': false, // ✅ Set to false initially
+          })
+          .select()
+          .single();
+
       _attemptId = response['id'];
     } catch (e) {
       print('Error creating quiz attempt: $e');
@@ -188,20 +201,22 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
 
   Future<void> _submitQuiz() async {
     if (_isSubmitting || _attemptId == null) return;
-    
+
     setState(() => _isSubmitting = true);
     _timer?.cancel();
 
     // Calculate score
     double score = 0;
-    final pointsPerQuestion = _questions.isNotEmpty 
-        ? widget.quiz.totalPoints / _questions.length 
+    final pointsPerQuestion = _questions.isNotEmpty
+        ? widget.quiz.totalPoints / _questions.length
         : 0.0;
-    
+
     for (var question in _questions) {
       final userAnswer = _answers[question.id];
       if (userAnswer != null) {
-        final correctOption = question.options.firstWhere((opt) => opt.isCorrect);
+        final correctOption = question.options.firstWhere(
+          (opt) => opt.isCorrect,
+        );
         if (userAnswer == correctOption.text) {
           score += pointsPerQuestion;
         }
@@ -210,12 +225,15 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
 
     // Save quiz attempt
     try {
-      await _supabase.from('quiz_attempts').update({
-        'submitted_at': DateTime.now().toIso8601String(),
-        'score': score,
-        'answers': _answers,
-        'is_completed': true, // ✅ Mark as completed
-      }).eq('id', _attemptId!);
+      await _supabase
+          .from('quiz_attempts')
+          .update({
+            'submitted_at': DateTime.now().toIso8601String(),
+            'score': score,
+            'answers': _answers,
+            'is_completed': true, // ✅ Mark as completed
+          })
+          .eq('id', _attemptId!);
 
       if (mounted) {
         // Show results
@@ -253,10 +271,7 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
                   : Colors.orange,
             ),
             const SizedBox(height: 16),
-            Text(
-              'Your Score',
-              style: GoogleFonts.poppins(fontSize: 14),
-            ),
+            Text('Your Score', style: GoogleFonts.poppins(fontSize: 14)),
             Text(
               '${score.toStringAsFixed(1)} / ${widget.quiz.totalPoints}',
               style: GoogleFonts.poppins(
@@ -296,16 +311,12 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_questions.isEmpty) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text('Quiz', style: GoogleFonts.poppins()),
-        ),
+        appBar: AppBar(title: Text('Quiz', style: GoogleFonts.poppins())),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -369,7 +380,7 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
             value: (_currentQuestionIndex + 1) / _questions.length,
             backgroundColor: Colors.grey[200],
           ),
-          
+
           // Question counter
           Container(
             padding: const EdgeInsets.all(16),
@@ -389,8 +400,8 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
                   backgroundColor: currentQuestion.difficulty == 'easy'
                       ? Colors.green[100]
                       : currentQuestion.difficulty == 'medium'
-                          ? Colors.orange[100]
-                          : Colors.red[100],
+                      ? Colors.orange[100]
+                      : Colors.red[100],
                 ),
               ],
             ),
@@ -412,15 +423,13 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
                   ),
                   const SizedBox(height: 32),
                   ...currentQuestion.options.map((option) {
-                    final isSelected = _answers[currentQuestion.id] == option.text;
+                    final isSelected =
+                        _answers[currentQuestion.id] == option.text;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       color: isSelected ? Colors.blue[50] : null,
                       child: RadioListTile<String>(
-                        title: Text(
-                          option.text,
-                          style: GoogleFonts.poppins(),
-                        ),
+                        title: Text(option.text, style: GoogleFonts.poppins()),
                         value: option.text,
                         groupValue: _answers[currentQuestion.id],
                         onChanged: (value) {
@@ -454,10 +463,10 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
             child: Row(
               children: [
                 ElevatedButton(
-                  onPressed: _currentQuestionIndex > 0 ? _previousQuestion : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey,
-                  ),
+                  onPressed: _currentQuestionIndex > 0
+                      ? _previousQuestion
+                      : null,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
                   child: const Text('Previous'),
                 ),
                 const Spacer(),
@@ -468,30 +477,32 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
                   )
                 else
                   ElevatedButton(
-                    onPressed: _isSubmitting ? null : () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Submit Quiz?'),
-                          content: Text(
-                            'You have answered ${_answers.length} out of ${_questions.length} questions. Are you sure you want to submit?',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Review'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _submitQuiz();
-                              },
-                              child: const Text('Submit'),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                    onPressed: _isSubmitting
+                        ? null
+                        : () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Submit Quiz?'),
+                                content: Text(
+                                  'You have answered ${_answers.length} out of ${_questions.length} questions. Are you sure you want to submit?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Review'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      _submitQuiz();
+                                    },
+                                    child: const Text('Submit'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                     ),

@@ -9,7 +9,8 @@ class StudentManagementScreen extends StatefulWidget {
   const StudentManagementScreen({Key? key}) : super(key: key);
 
   @override
-  State<StudentManagementScreen> createState() => _StudentManagementScreenState();
+  State<StudentManagementScreen> createState() =>
+      _StudentManagementScreenState();
 }
 
 class _StudentManagementScreenState extends State<StudentManagementScreen> {
@@ -30,15 +31,15 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   void _filterStudents() {
     final provider = context.read<StudentProvider>();
     final query = _searchController.text.toLowerCase();
-    
+
     setState(() {
       if (query.isEmpty) {
         _filteredStudents = provider.students;
       } else {
         _filteredStudents = provider.students.where((student) {
           return student.fullName.toLowerCase().contains(query) ||
-                 student.username.toLowerCase().contains(query) ||
-                 student.email.toLowerCase().contains(query);
+              student.username.toLowerCase().contains(query) ||
+              student.email.toLowerCase().contains(query);
         }).toList();
       }
     });
@@ -46,9 +47,13 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   void _showAddEditDialog([Student? student]) {
     final isEdit = student != null;
-    final usernameController = TextEditingController(text: student?.username ?? '');
+    final usernameController = TextEditingController(
+      text: student?.username ?? '',
+    );
     final emailController = TextEditingController(text: student?.email ?? '');
-    final fullNameController = TextEditingController(text: student?.fullName ?? '');
+    final fullNameController = TextEditingController(
+      text: student?.fullName ?? '',
+    );
     final passwordController = TextEditingController();
 
     showDialog(
@@ -118,10 +123,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (emailController.text.isEmpty || 
+              if (emailController.text.isEmpty ||
                   fullNameController.text.isEmpty ||
-                  (!isEdit && (usernameController.text.isEmpty || 
-                               passwordController.text.isEmpty))) {
+                  (!isEdit &&
+                      (usernameController.text.isEmpty ||
+                          passwordController.text.isEmpty))) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Please fill all fields'),
@@ -132,14 +138,14 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               }
 
               final provider = context.read<StudentProvider>();
-              
+
               if (isEdit) {
                 final success = await provider.updateStudent(
                   id: student.id,
                   email: emailController.text,
                   fullName: fullNameController.text,
                 );
-                
+
                 if (success && mounted) {
                   Navigator.pop(context);
                   _filterStudents();
@@ -157,14 +163,14 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   password: passwordController.text,
                   fullName: fullNameController.text,
                 );
-                
+
                 if (result['success'] && mounted) {
                   Navigator.pop(context);
                   _filterStudents();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(result['message']),
-                      backgroundColor: Colors.green
+                      backgroundColor: Colors.green,
                     ),
                   );
                 } else if (mounted) {
@@ -221,9 +227,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   Text(
                     'johndoe,john@student.edu,John Doe,password123\n'
                     'janedoe,jane@student.edu,Jane Doe,password456',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                    ),
+                    style: GoogleFonts.poppins(fontSize: 12),
                   ),
                 ],
               ),
@@ -250,7 +254,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   Future<void> _handleCSVImport() async {
     final result = await CSVService.pickAndParseCSV();
-    
+
     if (result == null || !mounted) return;
 
     final data = result['data'] as List<Map<String, dynamic>>;
@@ -271,11 +275,13 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     }
 
     // Import students
-    final importResult = await context.read<StudentProvider>().createMultipleStudents(data);
-    
+    final importResult = await context
+        .read<StudentProvider>()
+        .createMultipleStudents(data);
+
     if (mounted) {
       _filterStudents();
-      
+
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -287,19 +293,37 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildResultRow('Successfully imported:', importResult['successCount'], Colors.green),
-              _buildResultRow('Duplicates skipped:', importResult['duplicateCount'], Colors.orange),
-              _buildResultRow('Errors:', importResult['errorCount'], Colors.red),
-              if (importResult['errors'] != null && (importResult['errors'] as List).isNotEmpty) ...[
+              _buildResultRow(
+                'Successfully imported:',
+                importResult['successCount'],
+                Colors.green,
+              ),
+              _buildResultRow(
+                'Duplicates skipped:',
+                importResult['duplicateCount'],
+                Colors.orange,
+              ),
+              _buildResultRow(
+                'Errors:',
+                importResult['errorCount'],
+                Colors.red,
+              ),
+              if (importResult['errors'] != null &&
+                  (importResult['errors'] as List).isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(
                   'Error details:',
                   style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 4),
-                ...(importResult['errors'] as List).take(3).map((error) => 
-                  Text('• $error', style: const TextStyle(fontSize: 12))
-                ),
+                ...(importResult['errors'] as List)
+                    .take(3)
+                    .map(
+                      (error) => Text(
+                        '• $error',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
               ],
             ],
           ),
@@ -359,7 +383,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               final success = await context
                   .read<StudentProvider>()
                   .deleteStudent(student.id);
-              
+
               if (success && mounted) {
                 _filterStudents();
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -370,9 +394,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -384,10 +406,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Student Management',
-          style: GoogleFonts.poppins(),
-        ),
+        title: Text('Student Management', style: GoogleFonts.poppins()),
         actions: [
           IconButton(
             icon: const Icon(Icons.upload_file),
@@ -421,7 +440,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               onChanged: (_) => _filterStudents(),
             ),
           ),
-          
+
           // Student list
           Expanded(
             child: Consumer<StudentProvider>(
@@ -442,8 +461,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          _searchController.text.isEmpty 
-                              ? 'No students yet' 
+                          _searchController.text.isEmpty
+                              ? 'No students yet'
                               : 'No students found',
                           style: GoogleFonts.poppins(
                             fontSize: 18,

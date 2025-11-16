@@ -4,7 +4,7 @@ import '../models/student.dart';
 
 class StudentProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   List<Student> _students = [];
   bool _isLoading = false;
   String? _error;
@@ -47,13 +47,15 @@ class StudentProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('enrollments')
-          .select('*, users!enrollments_student_id_fkey(*), groups(name, courses(name))')
+          .select(
+            '*, users!enrollments_student_id_fkey(*), groups(name, courses(name))',
+          )
           .eq('group_id', groupId);
 
       _students = (response as List).map((json) {
         final userJson = json['users'];
         final groupJson = json['groups'];
-        
+
         return Student.fromJson({
           ...userJson,
           'group_id': groupId,
@@ -165,11 +167,15 @@ class StudentProvider extends ChangeNotifier {
           .from('enrollments')
           .select('id, groups!inner(course_id)') // Join groups
           .eq('student_id', studentId)
-          .eq('groups.course_id', courseId) // Check course_id on the joined group
+          .eq(
+            'groups.course_id',
+            courseId,
+          ) // Check course_id on the joined group
           .maybeSingle();
 
       if (existingEnrollment != null) {
-        _error = 'Student is already enrolled in another group for this course.';
+        _error =
+            'Student is already enrolled in another group for this course.';
         notifyListeners();
         return false;
       }
@@ -287,10 +293,10 @@ class StudentProvider extends ChangeNotifier {
     required String fullName,
   }) async {
     try {
-      await _supabase.from('users').update({
-        'email': email,
-        'full_name': fullName,
-      }).eq('id', id);
+      await _supabase
+          .from('users')
+          .update({'email': email, 'full_name': fullName})
+          .eq('id', id);
 
       await loadAllStudents();
       return true;
@@ -326,9 +332,7 @@ class StudentProvider extends ChangeNotifier {
           .eq('role', 'student')
           .order('full_name');
 
-      return (response as List)
-          .map((json) => Student.fromJson(json))
-          .toList();
+      return (response as List).map((json) => Student.fromJson(json)).toList();
     } catch (e) {
       print('Error fetching all students: $e');
       return [];
@@ -345,22 +349,23 @@ class StudentProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('enrollments')
-          .select('users!enrollments_student_id_fkey(*), groups!inner(course_id, name)')
+          .select(
+            'users!enrollments_student_id_fkey(*), groups!inner(course_id, name)',
+          )
           .eq('groups.course_id', courseId);
-      
+
       final studentMap = <String, Student>{};
       for (var row in (response as List)) {
         if (row['users'] != null) {
           final student = Student.fromJson({
             ...row['users'],
-            'group_name': row['groups']?['name']
+            'group_name': row['groups']?['name'],
           });
           studentMap[student.id] = student;
         }
       }
       _students = studentMap.values.toList();
       _students.sort((a, b) => a.fullName.compareTo(b.fullName));
-      
     } catch (e) {
       _error = e.toString();
       print('Error loading students for course: $e');
@@ -372,15 +377,17 @@ class StudentProvider extends ChangeNotifier {
 
   // Load all students enrolled in a specific course
   Future<List<Student>> loadStudentsInCourse(String courseId) async {
-    // This function fetches and returns a list, 
+    // This function fetches and returns a list,
     // but does not update the main provider state (_students).
     // This is ideal for one-off fetches like in the results screen.
     try {
       final response = await _supabase
           .from('enrollments')
-          .select('users!enrollments_student_id_fkey(*), groups!inner(course_id)')
+          .select(
+            'users!enrollments_student_id_fkey(*), groups!inner(course_id)',
+          )
           .eq('groups.course_id', courseId);
-      
+
       // Use a Set to avoid duplicate students
       final studentSet = <Student>{};
       for (var row in (response as List)) {

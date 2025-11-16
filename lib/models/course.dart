@@ -6,7 +6,7 @@ class Course {
   final int sessions;
   final String? coverImage;
   final DateTime createdAt;
-  
+
   // Additional fields for display
   final String? semesterName;
   final int? groupCount;

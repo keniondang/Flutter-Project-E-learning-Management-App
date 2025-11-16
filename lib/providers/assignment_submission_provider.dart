@@ -4,7 +4,7 @@ import '../models/assignment.dart';
 
 class AssignmentSubmissionProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   List<AssignmentSubmission> _submissions = [];
   bool _isLoading = false;
   String? _error;
@@ -32,7 +32,6 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
           'student_name': json['users']['full_name'],
         });
       }).toList();
-
     } catch (e) {
       _error = e.toString();
       print('Error loading submissions: $e');
@@ -59,13 +58,16 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
     required String instructorId,
   }) async {
     try {
-      await _supabase.from('assignment_submissions').update({
-        'grade': grade,
-        'feedback': feedback,
-        'graded_at': DateTime.now().toIso8601String(),
-        'graded_by': instructorId,
-      }).eq('id', submissionId);
-      
+      await _supabase
+          .from('assignment_submissions')
+          .update({
+            'grade': grade,
+            'feedback': feedback,
+            'graded_at': DateTime.now().toIso8601String(),
+            'graded_by': instructorId,
+          })
+          .eq('id', submissionId);
+
       // Update local list
       final index = _submissions.indexWhere((s) => s.id == submissionId);
       if (index != -1) {

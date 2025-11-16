@@ -42,10 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(width: 8),
         Text(
           credentials,
-          style: GoogleFonts.poppins(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
+          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
         ),
       ],
     );
@@ -99,9 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
           } else {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (_) => StudentHomeScreen(user: user),
-              ),
+              MaterialPageRoute(builder: (_) => StudentHomeScreen(user: user)),
             );
           }
         }
@@ -250,8 +245,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.info_outline,
-                                    size: 16, color: Colors.blue[700]),
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 16,
+                                  color: Colors.blue[700],
+                                ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Test Credentials',
@@ -274,13 +272,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   _buildCredentialRow(
-                                      'Instructor:', 'admin / admin'),
+                                    'Instructor:',
+                                    'admin / admin',
+                                  ),
                                   const SizedBox(height: 4),
                                   _buildCredentialRow(
-                                      'Student 1:', 'student1 / student1'),
+                                    'Student 1:',
+                                    'student1 / student1',
+                                  ),
                                   const SizedBox(height: 4),
                                   _buildCredentialRow(
-                                      'Student 2:', 'student2 / student2'),
+                                    'Student 2:',
+                                    'student2 / student2',
+                                  ),
                                 ],
                               ),
                             ),

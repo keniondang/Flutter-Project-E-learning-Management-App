@@ -17,13 +17,13 @@ class Student extends UserModel {
     this.courseId,
     this.courseName,
   }) : super(
-    id: id,
-    email: email,
-    username: username,
-    fullName: fullName,
-    role: 'student',
-    avatarUrl: avatarUrl,
-  );
+         id: id,
+         email: email,
+         username: username,
+         fullName: fullName,
+         role: 'student',
+         avatarUrl: avatarUrl,
+       );
 
   factory Student.fromJson(Map<String, dynamic> json) {
     return Student(

@@ -17,13 +17,15 @@ class AssignmentSubmissionScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<AssignmentSubmissionScreen> createState() => _AssignmentSubmissionScreenState();
+  State<AssignmentSubmissionScreen> createState() =>
+      _AssignmentSubmissionScreenState();
 }
 
-class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen> {
+class _AssignmentSubmissionScreenState
+    extends State<AssignmentSubmissionScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
   final _submissionTextController = TextEditingController();
-  
+
   List<String> _submissionFiles = [];
   AssignmentSubmission? _existingSubmission;
   bool _isLoading = true;
@@ -53,7 +55,8 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
             'student_name': widget.student.fullName,
           });
           _currentAttempt = (_existingSubmission!.attemptNumber) + 1;
-          _submissionTextController.text = _existingSubmission!.submissionText ?? '';
+          _submissionTextController.text =
+              _existingSubmission!.submissionText ?? '';
         });
       }
     } catch (e) {
@@ -130,15 +133,14 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final now = DateTime.now();
     final isLate = now.isAfter(widget.assignment.dueDate);
     final daysUntilDue = widget.assignment.dueDate.difference(now).inDays;
-    final hoursUntilDue = widget.assignment.dueDate.difference(now).inHours % 24;
+    final hoursUntilDue =
+        widget.assignment.dueDate.difference(now).inHours % 24;
 
     return Scaffold(
       appBar: AppBar(
@@ -225,7 +227,9 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
                                   : 'Time remaining: $daysUntilDue days, $hoursUntilDue hours',
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
-                                color: isLate ? Colors.orange[700] : Colors.blue[700],
+                                color: isLate
+                                    ? Colors.orange[700]
+                                    : Colors.blue[700],
                               ),
                             ),
                           ],
@@ -341,7 +345,9 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
                             // TODO: Implement file picker
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('File upload will be implemented later'),
+                                content: Text(
+                                  'File upload will be implemented later',
+                                ),
                               ),
                             );
                           },
@@ -376,11 +382,17 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
                         child: Center(
                           child: Column(
                             children: [
-                              Icon(Icons.cloud_upload, size: 48, color: Colors.grey[400]),
+                              Icon(
+                                Icons.cloud_upload,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
                               const SizedBox(height: 8),
                               Text(
                                 'No files attached',
-                                style: GoogleFonts.poppins(color: Colors.grey[600]),
+                                style: GoogleFonts.poppins(
+                                  color: Colors.grey[600],
+                                ),
                               ),
                             ],
                           ),
@@ -399,7 +411,9 @@ class _AssignmentSubmissionScreenState extends State<AssignmentSubmissionScreen>
               child: ElevatedButton(
                 onPressed: widget.assignment.isOpen ? _submitAssignment : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: widget.assignment.isOpen ? Colors.blue : Colors.grey,
+                  backgroundColor: widget.assignment.isOpen
+                      ? Colors.blue
+                      : Colors.grey,
                 ),
                 child: Text(
                   widget.assignment.isOpen

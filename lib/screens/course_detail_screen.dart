@@ -26,11 +26,8 @@ class CourseDetailScreen extends StatefulWidget {
   final Course course;
   final UserModel user;
 
-  const CourseDetailScreen({
-    Key? key,
-    required this.course,
-    required this.user,
-  }) : super(key: key);
+  const CourseDetailScreen({Key? key, required this.course, required this.user})
+    : super(key: key);
 
   @override
   State<CourseDetailScreen> createState() => _CourseDetailScreenState();
@@ -62,20 +59,14 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   @override
   Widget build(BuildContext context) {
     final isInstructor = widget.user.role == 'instructor';
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.course.name,
-              style: GoogleFonts.poppins(fontSize: 18),
-            ),
-            Text(
-              widget.course.code,
-              style: GoogleFonts.poppins(fontSize: 12),
-            ),
+            Text(widget.course.name, style: GoogleFonts.poppins(fontSize: 18)),
+            Text(widget.course.code, style: GoogleFonts.poppins(fontSize: 12)),
           ],
         ),
         bottom: TabBar(
@@ -95,10 +86,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => ForumScreen(
-                    course: widget.course,
-                    user: widget.user,
-                  ),
+                  builder: (_) =>
+                      ForumScreen(course: widget.course, user: widget.user),
                 ),
               );
             },
@@ -155,7 +144,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => QuestionBankScreen(course: widget.course),
+                        builder: (_) =>
+                            QuestionBankScreen(course: widget.course),
                       ),
                     );
                     break;
@@ -240,11 +230,18 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.announcement_outlined, size: 80, color: Colors.grey[400]),
+                Icon(
+                  Icons.announcement_outlined,
+                  size: 80,
+                  color: Colors.grey[400],
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'No announcements yet',
-                  style: GoogleFonts.poppins(fontSize: 18, color: Colors.grey[600]),
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                  ),
                 ),
               ],
             ),
@@ -305,7 +302,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                         children: announcement.fileAttachments.map((file) {
                           return Chip(
                             avatar: const Icon(Icons.attach_file, size: 16),
-                            label: Text('Attachment ${announcement.fileAttachments.indexOf(file) + 1}'),
+                            label: Text(
+                              'Attachment ${announcement.fileAttachments.indexOf(file) + 1}',
+                            ),
                           );
                         }).toList(),
                       ),
@@ -313,18 +312,28 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Icon(Icons.visibility, size: 16, color: Colors.grey[600]),
+                        Icon(
+                          Icons.visibility,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${announcement.viewCount ?? 0} views',
-                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
                         ),
                         const SizedBox(width: 16),
                         Icon(Icons.comment, size: 16, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
                           '${announcement.commentCount ?? 0} comments',
-                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
                         ),
                       ],
                     ),
@@ -356,11 +365,18 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.assignment_outlined, size: 80, color: Colors.grey[400]),
+                Icon(
+                  Icons.assignment_outlined,
+                  size: 80,
+                  color: Colors.grey[400],
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'No classwork yet',
-                  style: GoogleFonts.poppins(fontSize: 18, color: Colors.grey[600]),
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                  ),
                 ),
               ],
             ),
@@ -393,8 +409,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                   ),
                   subtitle: Text(
                     isInstructor
-                      ? 'Submissions: ${assignment.submissionCount ?? 0}'
-                      : 'Due: ${_formatDate(assignment.dueDate)}',
+                        ? 'Submissions: ${assignment.submissionCount ?? 0}'
+                        : 'Due: ${_formatDate(assignment.dueDate)}',
                     style: GoogleFonts.poppins(fontSize: 12),
                   ),
                   trailing: assignment.isPastDue
@@ -447,8 +463,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                   ),
                   subtitle: Text(
                     isInstructor
-                      ? 'Submissions: ${quiz.submissionCount ?? 0}'
-                      : 'Closes: ${_formatDate(quiz.closeTime)}',
+                        ? 'Submissions: ${quiz.submissionCount ?? 0}'
+                        : 'Closes: ${_formatDate(quiz.closeTime)}',
                     style: GoogleFonts.poppins(fontSize: 12),
                   ),
                   trailing: quiz.isPastDue
@@ -457,14 +473,14 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                           backgroundColor: Colors.red[100],
                         )
                       : quiz.isOpen
-                          ? Chip(
-                              label: const Text('Open'),
-                              backgroundColor: Colors.green[100],
-                            )
-                          : Chip(
-                              label: const Text('Scheduled'),
-                              backgroundColor: Colors.orange[100],
-                            ),
+                      ? Chip(
+                          label: const Text('Open'),
+                          backgroundColor: Colors.green[100],
+                        )
+                      : Chip(
+                          label: const Text('Scheduled'),
+                          backgroundColor: Colors.orange[100],
+                        ),
                   onTap: () {
                     if (isStudent) {
                       if (quiz.isOpen) {
@@ -480,9 +496,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(quiz.isPastDue
-                                ? 'This quiz is closed.'
-                                : 'This quiz is not open yet.'),
+                            content: Text(
+                              quiz.isPastDue
+                                  ? 'This quiz is closed.'
+                                  : 'This quiz is not open yet.',
+                            ),
                           ),
                         );
                       }
@@ -539,10 +557,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
 
   // ✅ --- THIS IS THE MODIFIED METHOD --- ✅
   Widget _buildPeopleTab() {
-    return CoursePeopleTab(
-      course: widget.course,
-      user: widget.user,
-    );
+    return CoursePeopleTab(course: widget.course, user: widget.user);
   }
 
   String _formatDate(DateTime date) {

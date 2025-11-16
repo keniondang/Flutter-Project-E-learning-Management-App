@@ -4,13 +4,13 @@ import '../models/quiz.dart';
 
 class QuestionBankProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   List<Question> _questions = [];
   List<Question> get questions => _questions;
-  
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
-  
+
   String? _error;
   String? get error => _error;
 
@@ -71,11 +71,14 @@ class QuestionBankProvider extends ChangeNotifier {
     required String difficulty,
   }) async {
     try {
-      await _supabase.from('question_bank').update({
-        'question_text': questionText,
-        'options': options.map((opt) => opt.toJson()).toList(),
-        'difficulty': difficulty,
-      }).eq('id', id);
+      await _supabase
+          .from('question_bank')
+          .update({
+            'question_text': questionText,
+            'options': options.map((opt) => opt.toJson()).toList(),
+            'difficulty': difficulty,
+          })
+          .eq('id', id);
 
       final index = _questions.indexWhere((q) => q.id == id);
       if (index != -1) {
@@ -105,7 +108,9 @@ class QuestionBankProvider extends ChangeNotifier {
 
   // Get questions by difficulty for quiz
   List<Question> getQuestionsByDifficulty(String difficulty, int count) {
-    final filtered = _questions.where((q) => q.difficulty == difficulty).toList();
+    final filtered = _questions
+        .where((q) => q.difficulty == difficulty)
+        .toList();
     filtered.shuffle();
     return filtered.take(count).toList();
   }

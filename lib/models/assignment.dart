@@ -16,7 +16,7 @@ class Assignment {
   final List<String> targetGroups;
   final int totalPoints;
   final DateTime createdAt;
-  
+
   // Additional fields for display
   final int? submissionCount;
   final bool? hasSubmitted;
@@ -56,8 +56,8 @@ class Assignment {
       startDate: DateTime.parse(json['start_date']),
       dueDate: DateTime.parse(json['due_date']),
       lateSubmissionAllowed: json['late_submission_allowed'] ?? false,
-      lateDueDate: json['late_due_date'] != null 
-          ? DateTime.parse(json['late_due_date']) 
+      lateDueDate: json['late_due_date'] != null
+          ? DateTime.parse(json['late_due_date'])
           : null,
       maxAttempts: json['max_attempts'] ?? 1,
       maxFileSize: json['max_file_size'] ?? 10485760,
@@ -94,10 +94,10 @@ class Assignment {
 
   bool get isOpen {
     final now = DateTime.now();
-    return now.isAfter(startDate) && 
-           (lateSubmissionAllowed && lateDueDate != null 
-               ? now.isBefore(lateDueDate!) 
-               : now.isBefore(dueDate));
+    return now.isAfter(startDate) &&
+        (lateSubmissionAllowed && lateDueDate != null
+            ? now.isBefore(lateDueDate!)
+            : now.isBefore(dueDate));
   }
 
   bool get isPastDue {
@@ -147,8 +147,8 @@ class AssignmentSubmission {
       isLate: json['is_late'] ?? false,
       grade: json['grade']?.toDouble(),
       feedback: json['feedback'],
-      gradedAt: json['graded_at'] != null 
-          ? DateTime.parse(json['graded_at']) 
+      gradedAt: json['graded_at'] != null
+          ? DateTime.parse(json['graded_at'])
           : null,
     );
   }

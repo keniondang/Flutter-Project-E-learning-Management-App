@@ -66,9 +66,9 @@ class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open $url')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open $url')));
     }
   }
 
@@ -147,10 +147,7 @@ class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
                               Icons.insert_drive_file,
                               color: Colors.grey[600],
                             ),
-                            title: Text(
-                              fileName,
-                              style: GoogleFonts.poppins(),
-                            ),
+                            title: Text(fileName, style: GoogleFonts.poppins()),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -211,10 +208,7 @@ class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
                       ...widget.material.externalLinks.map((link) {
                         return Card(
                           child: ListTile(
-                            leading: Icon(
-                              Icons.public,
-                              color: Colors.blue,
-                            ),
+                            leading: Icon(Icons.public, color: Colors.blue),
                             title: Text(
                               link,
                               style: GoogleFonts.poppins(fontSize: 14),

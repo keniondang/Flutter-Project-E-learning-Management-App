@@ -7,7 +7,8 @@ import '../../models/user_model.dart';
 class StudentDashboardScreen extends StatefulWidget {
   final UserModel student;
 
-  const StudentDashboardScreen({Key? key, required this.student}) : super(key: key);
+  const StudentDashboardScreen({Key? key, required this.student})
+    : super(key: key);
 
   @override
   State<StudentDashboardScreen> createState() => _StudentDashboardScreenState();
@@ -15,7 +16,7 @@ class StudentDashboardScreen extends StatefulWidget {
 
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   Map<String, dynamic> _dashboardData = {};
   List<Map<String, dynamic>> _upcomingDeadlines = [];
   bool _isLoading = true;
@@ -59,15 +60,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('My Dashboard', style: GoogleFonts.poppins()),
-      ),
+      appBar: AppBar(title: Text('My Dashboard', style: GoogleFonts.poppins())),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -132,18 +129,20 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     else
                       ..._upcomingDeadlines.map((deadline) {
                         final dueDate = DateTime.parse(deadline['due_date']);
-                        final daysLeft = dueDate.difference(DateTime.now()).inDays;
-                        
+                        final daysLeft = dueDate
+                            .difference(DateTime.now())
+                            .inDays;
+
                         return ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: daysLeft <= 2 
-                                ? Colors.red[100] 
+                            backgroundColor: daysLeft <= 2
+                                ? Colors.red[100]
                                 : Colors.blue[100],
                             child: Text(
                               daysLeft.toString(),
                               style: TextStyle(
-                                color: daysLeft <= 2 
-                                    ? Colors.red[700] 
+                                color: daysLeft <= 2
+                                    ? Colors.red[700]
                                     : Colors.blue[700],
                                 fontWeight: FontWeight.bold,
                               ),
@@ -151,7 +150,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           ),
                           title: Text(
                             deadline['title'],
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                           subtitle: Text(
                             '${deadline['courses']['name']} • ${daysLeft == 0 ? "Today" : "$daysLeft days left"}',
@@ -169,9 +170,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  Widget _buildProgressRow(String label, int completed, int total, Color color) {
+  Widget _buildProgressRow(
+    String label,
+    int completed,
+    int total,
+    Color color,
+  ) {
     final percentage = total > 0 ? (completed / total) : 0.0;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

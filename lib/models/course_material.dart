@@ -7,7 +7,7 @@ class CourseMaterial {
   final List<String> fileUrls;
   final List<String> externalLinks;
   final DateTime createdAt;
-  
+
   // Additional fields
   final int? viewCount;
   final int? downloadCount;

@@ -10,11 +10,8 @@ class CoursePeopleTab extends StatefulWidget {
   final Course course;
   final UserModel user;
 
-  const CoursePeopleTab({
-    Key? key,
-    required this.course,
-    required this.user,
-  }) : super(key: key);
+  const CoursePeopleTab({Key? key, required this.course, required this.user})
+    : super(key: key);
 
   @override
   State<CoursePeopleTab> createState() => _CoursePeopleTabState();
@@ -58,10 +55,7 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
         // --- Groups Section ---
         Text(
           'Groups',
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         if (groupProvider.groups.isEmpty)
@@ -91,7 +85,7 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
               ),
             );
           }).toList(),
-        
+
         const SizedBox(height: 24),
         const Divider(),
         const SizedBox(height: 16),
@@ -99,10 +93,7 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
         // --- Students Section ---
         Text(
           'Students',
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         if (studentProvider.students.isEmpty)

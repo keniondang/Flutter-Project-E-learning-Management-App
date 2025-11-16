@@ -50,7 +50,11 @@ class SemesterProvider extends ChangeNotifier {
   }
 
   // Create new semester
-  Future<bool> createSemester(String code, String name, bool setAsCurrent) async {
+  Future<bool> createSemester(
+    String code,
+    String name,
+    bool setAsCurrent,
+  ) async {
     try {
       // If setting as current, unset all others
       if (setAsCurrent) {
@@ -76,7 +80,12 @@ class SemesterProvider extends ChangeNotifier {
   }
 
   // Update semester
-  Future<bool> updateSemester(String id, String code, String name, bool setAsCurrent) async {
+  Future<bool> updateSemester(
+    String id,
+    String code,
+    String name,
+    bool setAsCurrent,
+  ) async {
     try {
       if (setAsCurrent) {
         await _supabase
@@ -87,11 +96,7 @@ class SemesterProvider extends ChangeNotifier {
 
       await _supabase
           .from('semesters')
-          .update({
-            'code': code,
-            'name': name,
-            'is_current': setAsCurrent,
-          })
+          .update({'code': code, 'name': name, 'is_current': setAsCurrent})
           .eq('id', id);
 
       await loadSemesters();

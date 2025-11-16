@@ -31,13 +31,14 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
   Future<void> _loadInitialData() async {
     final semesterProvider = context.read<SemesterProvider>();
     await semesterProvider.loadSemesters();
-    
+
     if (semesterProvider.semesters.isNotEmpty) {
       setState(() {
-        _selectedSemester = semesterProvider.currentSemester ?? 
-                           semesterProvider.semesters.first;
+        _selectedSemester =
+            semesterProvider.currentSemester ??
+            semesterProvider.semesters.first;
       });
-      
+
       if (_selectedSemester != null) {
         await context.read<CourseProvider>().loadCourses(_selectedSemester!.id);
       }
@@ -70,9 +71,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
           decoration: InputDecoration(
             labelText: 'Group Name',
             hintText: 'e.g., Group A',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           ),
         ),
         actions: [
@@ -94,7 +93,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
               final provider = context.read<GroupProvider>();
               bool success;
-              
+
               if (isEdit) {
                 success = await provider.updateGroup(
                   id: group.id,
@@ -112,7 +111,9 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      isEdit ? 'Group updated successfully' : 'Group added successfully',
+                      isEdit
+                          ? 'Group updated successfully'
+                          : 'Group added successfully',
                     ),
                     backgroundColor: Colors.green,
                   ),
@@ -172,9 +173,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                   ),
                   Text(
                     'Group A\nGroup B\nGroup C',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                    ),
+                    style: GoogleFonts.poppins(fontSize: 12),
                   ),
                 ],
               ),
@@ -201,7 +200,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
   Future<void> _handleCSVImport() async {
     final result = await CSVService.pickAndParseCSV();
-    
+
     if (result == null || !mounted) return;
 
     final data = result['data'] as List<Map<String, dynamic>>;
@@ -272,7 +271,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              
+
               // Extract group names
               final groupNames = data
                   .map((row) => row['group_name']?.toString() ?? '')
@@ -280,15 +279,19 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                   .toList();
 
               // Import groups
-              final success = await context.read<GroupProvider>().createMultipleGroups(
-                courseId: _selectedCourse!.id,
-                groupNames: groupNames,
-              );
+              final success = await context
+                  .read<GroupProvider>()
+                  .createMultipleGroups(
+                    courseId: _selectedCourse!.id,
+                    groupNames: groupNames,
+                  );
 
               if (success && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('${groupNames.length} groups imported successfully'),
+                    content: Text(
+                      '${groupNames.length} groups imported successfully',
+                    ),
                     backgroundColor: Colors.green,
                   ),
                 );
@@ -317,10 +320,10 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final success = await context
-                  .read<GroupProvider>()
-                  .deleteGroup(group.id);
-              
+              final success = await context.read<GroupProvider>().deleteGroup(
+                group.id,
+              );
+
               if (success && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -330,9 +333,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -344,13 +345,10 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
   Widget build(BuildContext context) {
     final semesterProvider = context.watch<SemesterProvider>();
     final courseProvider = context.watch<CourseProvider>();
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Group Management',
-          style: GoogleFonts.poppins(),
-        ),
+        title: Text('Group Management', style: GoogleFonts.poppins()),
         actions: [
           IconButton(
             icon: const Icon(Icons.upload_file),
@@ -409,7 +407,9 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                             _selectedCourse = null;
                           });
                           if (semester != null) {
-                            await context.read<CourseProvider>().loadCourses(semester.id);
+                            await context.read<CourseProvider>().loadCourses(
+                              semester.id,
+                            );
                           }
                         },
                       ),
@@ -461,7 +461,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
               ],
             ),
           ),
-          
+
           // Group list
           Expanded(
             child: Consumer<GroupProvider>(
@@ -540,10 +540,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: Colors.blue[100],
-                          child: Icon(
-                            Icons.group,
-                            color: Colors.blue[700],
-                          ),
+                          child: Icon(Icons.group, color: Colors.blue[700]),
                         ),
                         title: Text(
                           group.name,

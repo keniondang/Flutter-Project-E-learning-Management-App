@@ -21,10 +21,7 @@ class InstructorHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Instructor Dashboard',
-          style: GoogleFonts.poppins(),
-        ),
+        title: Text('Instructor Dashboard', style: GoogleFonts.poppins()),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -74,10 +71,11 @@ class InstructorHomeScreen extends StatelessWidget {
             // Semester selector
             Consumer<SemesterProvider>(
               builder: (context, semesterProvider, child) {
-                if (semesterProvider.semesters.isEmpty && !semesterProvider.isLoading) {
+                if (semesterProvider.semesters.isEmpty &&
+                    !semesterProvider.isLoading) {
                   semesterProvider.loadSemesters();
                 }
-                
+
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -96,7 +94,8 @@ class InstructorHomeScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              semesterProvider.currentSemester?.name ?? 'No semester selected',
+                              semesterProvider.currentSemester?.name ??
+                                  'No semester selected',
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -109,12 +108,15 @@ class InstructorHomeScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const SemesterManagementScreen(),
+                                builder: (_) =>
+                                    const SemesterManagementScreen(),
                               ),
                             );
                           },
                           child: Text(
-                            semesterProvider.semesters.isEmpty ? 'Create Semester' : 'Manage',
+                            semesterProvider.semesters.isEmpty
+                                ? 'Create Semester'
+                                : 'Manage',
                           ),
                         ),
                       ],
@@ -134,7 +136,7 @@ class InstructorHomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Stats grid
             LayoutBuilder(
               builder: (context, constraints) {
@@ -146,12 +148,42 @@ class InstructorHomeScreen extends StatelessWidget {
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   children: [
-                    _buildStatCard('Total Courses', '0', Icons.book, Colors.blue),
-                    _buildStatCard('Total Students', '0', Icons.people, Colors.green),
-                    _buildStatCard('Total Groups', '0', Icons.group, Colors.orange),
-                    _buildStatCard('Total Assignments', '0', Icons.assignment, Colors.purple),
-                    _buildStatCard('Total Quizzes', '0', Icons.quiz, Colors.red),
-                    _buildStatCard('Total Materials', '0', Icons.folder, Colors.teal),
+                    _buildStatCard(
+                      'Total Courses',
+                      '0',
+                      Icons.book,
+                      Colors.blue,
+                    ),
+                    _buildStatCard(
+                      'Total Students',
+                      '0',
+                      Icons.people,
+                      Colors.green,
+                    ),
+                    _buildStatCard(
+                      'Total Groups',
+                      '0',
+                      Icons.group,
+                      Colors.orange,
+                    ),
+                    _buildStatCard(
+                      'Total Assignments',
+                      '0',
+                      Icons.assignment,
+                      Colors.purple,
+                    ),
+                    _buildStatCard(
+                      'Total Quizzes',
+                      '0',
+                      Icons.quiz,
+                      Colors.red,
+                    ),
+                    _buildStatCard(
+                      'Total Materials',
+                      '0',
+                      Icons.folder,
+                      Colors.teal,
+                    ),
                   ],
                 );
               },
@@ -249,7 +281,12 @@ class InstructorHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       elevation: 2,
       child: Padding(
@@ -268,10 +305,7 @@ class InstructorHomeScreen extends StatelessWidget {
             ),
             Text(
               title,
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                color: Colors.grey[600],
-              ),
+              style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

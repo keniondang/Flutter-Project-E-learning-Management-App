@@ -17,14 +17,15 @@ class CreateAnnouncementScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<CreateAnnouncementScreen> createState() => _CreateAnnouncementScreenState();
+  State<CreateAnnouncementScreen> createState() =>
+      _CreateAnnouncementScreenState();
 }
 
 class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
-  
+
   String _scopeType = 'all';
   List<String> _selectedGroups = [];
   List<String> _fileAttachments = [];

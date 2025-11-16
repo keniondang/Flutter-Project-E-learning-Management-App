@@ -18,13 +18,13 @@ import 'services/offline_database_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Supabase
   await Supabase.initialize(
     url: SupabaseConfig.SUPABASE_URL,
     anonKey: SupabaseConfig.SUPABASE_ANON_KEY,
   );
-  
+
   runApp(const MyApp());
 }
 
@@ -43,7 +43,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => QuestionBankProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => QuizSubmissionProvider()),
-        ChangeNotifierProvider(create: (_) => AssignmentSubmissionProvider()), // ✅ --- ADDED
+        ChangeNotifierProvider(
+          create: (_) => AssignmentSubmissionProvider(),
+        ), // ✅ --- ADDED
       ],
       child: MaterialApp(
         title: 'E-Learning Management',
@@ -76,7 +78,7 @@ class MyApp extends StatelessWidget {
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.white,
           ),
-                  ),
+        ),
         home: const LoginScreen(),
         debugShowCheckedModeBanner: false,
       ),

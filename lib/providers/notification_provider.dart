@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NotificationProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   List<Map<String, dynamic>> _notifications = [];
   int _unreadCount = 0;
   bool _isLoading = false;
@@ -44,7 +44,9 @@ class NotificationProvider extends ChangeNotifier {
       final index = _notifications.indexWhere((n) => n['id'] == notificationId);
       if (index != -1) {
         _notifications[index]['is_read'] = true;
-        _unreadCount = _notifications.where((n) => n['is_read'] == false).length;
+        _unreadCount = _notifications
+            .where((n) => n['is_read'] == false)
+            .length;
         notifyListeners();
       }
     } catch (e) {

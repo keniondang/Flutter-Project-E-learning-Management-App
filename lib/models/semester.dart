@@ -24,10 +24,6 @@ class Semester {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'code': code,
-      'name': name,
-      'is_current': isCurrent,
-    };
+    return {'code': code, 'name': name, 'is_current': isCurrent};
   }
 }

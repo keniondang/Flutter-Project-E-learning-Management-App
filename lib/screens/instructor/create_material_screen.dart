@@ -49,7 +49,9 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
         courseId: widget.course.id,
         instructorId: widget.instructorId,
         title: _titleController.text,
-        description: _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
+        description: _descriptionController.text.isNotEmpty
+            ? _descriptionController.text
+            : null,
         fileUrls: _fileUrls,
         externalLinks: externalLinks,
       );
@@ -149,14 +151,19 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
                               // TODO: Implement file picker
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('File upload will be implemented later'),
+                                  content: Text(
+                                    'File upload will be implemented later',
+                                  ),
                                 ),
                               );
                             },
                             icon: const Icon(Icons.upload_file, size: 18),
                             label: const Text('Upload Files'),
                             style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                             ),
                           ),
                         ],
@@ -166,11 +173,17 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
                         Center(
                           child: Column(
                             children: [
-                              Icon(Icons.cloud_upload_outlined, size: 48, color: Colors.grey[400]),
+                              Icon(
+                                Icons.cloud_upload_outlined,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
                               const SizedBox(height: 8),
                               Text(
                                 'No files uploaded yet',
-                                style: GoogleFonts.poppins(color: Colors.grey[600]),
+                                style: GoogleFonts.poppins(
+                                  color: Colors.grey[600],
+                                ),
                               ),
                             ],
                           ),
@@ -215,7 +228,10 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
                           ),
                           IconButton(
                             onPressed: _addLinkField,
-                            icon: const Icon(Icons.add_circle, color: Colors.blue),
+                            icon: const Icon(
+                              Icons.add_circle,
+                              color: Colors.blue,
+                            ),
                             tooltip: 'Add Link',
                           ),
                         ],
@@ -225,11 +241,17 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
                         Center(
                           child: Column(
                             children: [
-                              Icon(Icons.link, size: 48, color: Colors.grey[400]),
+                              Icon(
+                                Icons.link,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
                               const SizedBox(height: 8),
                               Text(
                                 'No links added yet',
-                                style: GoogleFonts.poppins(color: Colors.grey[600]),
+                                style: GoogleFonts.poppins(
+                                  color: Colors.grey[600],
+                                ),
                               ),
                               const SizedBox(height: 8),
                               Text(
@@ -271,7 +293,10 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 IconButton(
-                                  icon: const Icon(Icons.remove_circle, color: Colors.red),
+                                  icon: const Icon(
+                                    Icons.remove_circle,
+                                    color: Colors.red,
+                                  ),
                                   onPressed: () => _removeLinkField(index),
                                 ),
                               ],

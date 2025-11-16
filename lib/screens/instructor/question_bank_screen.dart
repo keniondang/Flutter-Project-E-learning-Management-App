@@ -8,10 +8,7 @@ import '../../providers/question_bank_provider.dart';
 class QuestionBankScreen extends StatefulWidget {
   final Course course;
 
-  const QuestionBankScreen({
-    Key? key,
-    required this.course,
-  }) : super(key: key);
+  const QuestionBankScreen({Key? key, required this.course}) : super(key: key);
 
   @override
   State<QuestionBankScreen> createState() => _QuestionBankScreenState();
@@ -33,8 +30,9 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
   void _showAddEditQuestionDialog([Question? question]) {
     final isEdit = question != null;
 
-    final questionController =
-        TextEditingController(text: question?.questionText ?? '');
+    final questionController = TextEditingController(
+      text: question?.questionText ?? '',
+    );
 
     // one-correct-answer model using radios
     final List<TextEditingController> optionControllers = [];
@@ -122,9 +120,11 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                               groupValue: correctAnswers.indexOf(true),
                               onChanged: (value) {
                                 setState(() {
-                                  for (int i = 0;
-                                      i < correctAnswers.length;
-                                      i++) {
+                                  for (
+                                    int i = 0;
+                                    i < correctAnswers.length;
+                                    i++
+                                  ) {
                                     correctAnswers[i] = i == value;
                                   }
                                 });
@@ -139,8 +139,10 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   suffixIcon: correctAnswers[index]
-                                      ? const Icon(Icons.check_circle,
-                                          color: Colors.green)
+                                      ? const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.green,
+                                        )
                                       : null,
                                 ),
                               ),
@@ -193,10 +195,12 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                 // Build options
                 final options = <QuestionOption>[];
                 for (int i = 0; i < optionControllers.length; i++) {
-                  options.add(QuestionOption(
-                    text: optionControllers[i].text,
-                    isCorrect: correctAnswers[i],
-                  ));
+                  options.add(
+                    QuestionOption(
+                      text: optionControllers[i].text,
+                      isCorrect: correctAnswers[i],
+                    ),
+                  );
                 }
 
                 final provider = context.read<QuestionBankProvider>();
@@ -393,8 +397,11 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.help_outline,
-                            size: 64, color: Colors.grey[400]),
+                        Icon(
+                          Icons.help_outline,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'No questions found',
@@ -412,8 +419,9 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                   itemCount: questions.length,
                   itemBuilder: (context, index) {
                     final question = questions[index];
-                    final correctOption =
-                        question.options.firstWhere((o) => o.isCorrect);
+                    final correctOption = question.options.firstWhere(
+                      (o) => o.isCorrect,
+                    );
 
                     return ExpansionTile(
                       title: Text(
@@ -430,8 +438,8 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                             backgroundColor: question.difficulty == 'easy'
                                 ? Colors.green[100]
                                 : question.difficulty == 'medium'
-                                    ? Colors.orange[100]
-                                    : Colors.red[100],
+                                ? Colors.orange[100]
+                                : Colors.red[100],
                             padding: EdgeInsets.zero,
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
@@ -471,11 +479,12 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                             value: 'delete',
                             child: Row(
                               children: [
-                                Icon(Icons.delete,
-                                    size: 20, color: Colors.red),
+                                Icon(Icons.delete, size: 20, color: Colors.red),
                                 SizedBox(width: 8),
-                                Text('Delete',
-                                    style: TextStyle(color: Colors.red)),
+                                Text(
+                                  'Delete',
+                                  style: TextStyle(color: Colors.red),
+                                ),
                               ],
                             ),
                           ),
@@ -486,10 +495,9 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: question.options
-                                .asMap()
-                                .entries
-                                .map((entry) {
+                            children: question.options.asMap().entries.map((
+                              entry,
+                            ) {
                               final opt = entry.value;
                               final idx = entry.key;
                               return ListTile(
@@ -515,13 +523,15 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                                     fontWeight: opt.isCorrect
                                         ? FontWeight.w600
                                         : FontWeight.normal,
-                                    color:
-                                        opt.isCorrect ? Colors.green : null,
+                                    color: opt.isCorrect ? Colors.green : null,
                                   ),
                                 ),
                                 trailing: opt.isCorrect
-                                    ? const Icon(Icons.check_circle,
-                                        color: Colors.green, size: 20)
+                                    ? const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                        size: 20,
+                                      )
                                     : null,
                               );
                             }).toList(),

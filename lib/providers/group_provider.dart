@@ -4,11 +4,11 @@ import '../models/group.dart';
 
 class GroupProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   List<Group> _groups = [];
   bool _isLoading = false;
   String? _error;
-  
+
   // This is used to remember which course we are looking at
   String? _currentCourseId;
 
@@ -35,11 +35,8 @@ class GroupProvider extends ChangeNotifier {
         if (json['courses'] != null) {
           courseName = json['courses']['name'];
         }
-        
-        return Group.fromJson({
-          ...json,
-          'course_name': courseName,
-        });
+
+        return Group.fromJson({...json, 'course_name': courseName});
       }).toList();
 
       // Load student count for each group
@@ -62,7 +59,7 @@ class GroupProvider extends ChangeNotifier {
           .from('enrollments')
           .select('student_id')
           .eq('group_id', group.id);
-      
+
       final studentCount = (response as List).length;
 
       // Update group with stats
@@ -108,10 +105,9 @@ class GroupProvider extends ChangeNotifier {
     required List<String> groupNames,
   }) async {
     try {
-      final groupsData = groupNames.map((name) => {
-        'course_id': courseId,
-        'name': name,
-      }).toList();
+      final groupsData = groupNames
+          .map((name) => {'course_id': courseId, 'name': name})
+          .toList();
 
       await _supabase.from('groups').insert(groupsData);
       await loadGroups(courseId);
@@ -124,14 +120,9 @@ class GroupProvider extends ChangeNotifier {
   }
 
   // Update group
-  Future<bool> updateGroup({
-    required String id,
-    required String name,
-  }) async {
+  Future<bool> updateGroup({required String id, required String name}) async {
     try {
-      await _supabase.from('groups').update({
-        'name': name,
-      }).eq('id', id);
+      await _supabase.from('groups').update({'name': name}).eq('id', id);
 
       // Update local list
       final index = _groups.indexWhere((g) => g.id == id);

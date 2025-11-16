@@ -58,12 +58,11 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
 
     setState(() {
       _availableGroups = context.read<GroupProvider>().groups;
-      _availableEasy =
-          questions.where((q) => q.difficulty == 'easy').length;
-      _availableMedium =
-          questions.where((q) => q.difficulty == 'medium').length;
-      _availableHard =
-          questions.where((q) => q.difficulty == 'hard').length;
+      _availableEasy = questions.where((q) => q.difficulty == 'easy').length;
+      _availableMedium = questions
+          .where((q) => q.difficulty == 'medium')
+          .length;
+      _availableHard = questions.where((q) => q.difficulty == 'hard').length;
     });
   }
 
@@ -103,18 +102,16 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
 
   Future<void> _createQuiz() async {
     if (_formKey.currentState!.validate()) {
-      final easyCount =
-          int.tryParse(_easyQuestionsController.text) ?? 0;
-      final mediumCount =
-          int.tryParse(_mediumQuestionsController.text) ?? 0;
-      final hardCount =
-          int.tryParse(_hardQuestionsController.text) ?? 0;
+      final easyCount = int.tryParse(_easyQuestionsController.text) ?? 0;
+      final mediumCount = int.tryParse(_mediumQuestionsController.text) ?? 0;
+      final hardCount = int.tryParse(_hardQuestionsController.text) ?? 0;
 
       if (easyCount > _availableEasy) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Not enough easy questions. Available: $_availableEasy'),
+              'Not enough easy questions. Available: $_availableEasy',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -125,7 +122,8 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Not enough medium questions. Available: $_availableMedium'),
+              'Not enough medium questions. Available: $_availableMedium',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -136,35 +134,32 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Not enough hard questions. Available: $_availableHard'),
+              'Not enough hard questions. Available: $_availableHard',
+            ),
             backgroundColor: Colors.red,
           ),
         );
         return;
       }
 
-      final success =
-          await context.read<ContentProvider>().createQuiz(
-                courseId: widget.course.id,
-                instructorId: widget.instructorId,
-                title: _titleController.text,
-                description: _descriptionController.text.isNotEmpty
-                    ? _descriptionController.text
-                    : null,
-                openTime: _openTime,
-                closeTime: _closeTime,
-                durationMinutes:
-                    int.parse(_durationController.text),
-                maxAttempts:
-                    int.parse(_maxAttemptsController.text),
-                easyQuestions: easyCount,
-                mediumQuestions: mediumCount,
-                hardQuestions: hardCount,
-                totalPoints:
-                    int.parse(_totalPointsController.text),
-                scopeType: _scopeType,
-                targetGroups: _selectedGroups,
-              );
+      final success = await context.read<ContentProvider>().createQuiz(
+        courseId: widget.course.id,
+        instructorId: widget.instructorId,
+        title: _titleController.text,
+        description: _descriptionController.text.isNotEmpty
+            ? _descriptionController.text
+            : null,
+        openTime: _openTime,
+        closeTime: _closeTime,
+        durationMinutes: int.parse(_durationController.text),
+        maxAttempts: int.parse(_maxAttemptsController.text),
+        easyQuestions: easyCount,
+        mediumQuestions: mediumCount,
+        hardQuestions: hardCount,
+        totalPoints: int.parse(_totalPointsController.text),
+        scopeType: _scopeType,
+        targetGroups: _selectedGroups,
+      );
 
       if (success && mounted) {
         Navigator.pop(context);
@@ -182,8 +177,8 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
   Widget build(BuildContext context) {
     final totalQuestions =
         (int.tryParse(_easyQuestionsController.text) ?? 0) +
-            (int.tryParse(_mediumQuestionsController.text) ?? 0) +
-            (int.tryParse(_hardQuestionsController.text) ?? 0);
+        (int.tryParse(_mediumQuestionsController.text) ?? 0) +
+        (int.tryParse(_hardQuestionsController.text) ?? 0);
 
     return Scaffold(
       appBar: AppBar(
@@ -191,8 +186,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
         actions: [
           TextButton(
             onPressed: _createQuiz,
-            child: const Text('Create',
-                style: TextStyle(color: Colors.white)),
+            child: const Text('Create', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -328,8 +322,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                             child: ListTile(
                               title: const Text('Open Time'),
                               subtitle: Text(
-                                DateFormat('MMM d, y h:mm a')
-                                    .format(_openTime),
+                                DateFormat('MMM d, y h:mm a').format(_openTime),
                               ),
                               onTap: () => _selectDateTime(context, true),
                             ),
@@ -338,8 +331,9 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                             child: ListTile(
                               title: const Text('Close Time'),
                               subtitle: Text(
-                                DateFormat('MMM d, y h:mm a')
-                                    .format(_closeTime),
+                                DateFormat(
+                                  'MMM d, y h:mm a',
+                                ).format(_closeTime),
                               ),
                               onTap: () => _selectDateTime(context, false),
                             ),
@@ -368,13 +362,22 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                       ),
                       const SizedBox(height: 12),
                       _buildQuestionRow(
-                          'Easy', _easyQuestionsController, _availableEasy),
-                      const SizedBox(height: 12),
-                      _buildQuestionRow('Medium', _mediumQuestionsController,
-                          _availableMedium),
+                        'Easy',
+                        _easyQuestionsController,
+                        _availableEasy,
+                      ),
                       const SizedBox(height: 12),
                       _buildQuestionRow(
-                          'Hard', _hardQuestionsController, _availableHard),
+                        'Medium',
+                        _mediumQuestionsController,
+                        _availableMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildQuestionRow(
+                        'Hard',
+                        _hardQuestionsController,
+                        _availableHard,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'Total Questions: $totalQuestions',
@@ -412,7 +415,9 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                               builder: (_) =>
                                   QuestionBankScreen(course: widget.course),
                             ),
-                          ).then((_) => _loadData()); // 👈 refresh after returning
+                          ).then(
+                            (_) => _loadData(),
+                          ); // 👈 refresh after returning
                         },
                         icon: const Icon(Icons.question_answer),
                         label: const Text('Manage Question Bank'),
@@ -442,9 +447,13 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                         value: _scopeType,
                         items: const [
                           DropdownMenuItem(
-                              value: 'all', child: Text('All Students')),
+                            value: 'all',
+                            child: Text('All Students'),
+                          ),
                           DropdownMenuItem(
-                              value: 'groups', child: Text('Specific Groups')),
+                            value: 'groups',
+                            child: Text('Specific Groups'),
+                          ),
                         ],
                         onChanged: (value) {
                           setState(() {
@@ -460,8 +469,9 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                         Wrap(
                           spacing: 8,
                           children: _availableGroups.map((group) {
-                            final isSelected =
-                                _selectedGroups.contains(group.id);
+                            final isSelected = _selectedGroups.contains(
+                              group.id,
+                            );
                             return FilterChip(
                               label: Text(group.name),
                               selected: isSelected,
@@ -490,7 +500,10 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
   }
 
   Widget _buildQuestionRow(
-      String label, TextEditingController controller, int available) {
+    String label,
+    TextEditingController controller,
+    int available,
+  ) {
     return Row(
       children: [
         Expanded(

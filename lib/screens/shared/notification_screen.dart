@@ -22,7 +22,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<void> _loadNotifications() async {
-    await context.read<NotificationProvider>().loadNotifications(widget.user.id);
+    await context.read<NotificationProvider>().loadNotifications(
+      widget.user.id,
+    );
   }
 
   IconData _getNotificationIcon(String type) {
@@ -71,7 +73,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
         actions: [
           TextButton(
             onPressed: () async {
-              await context.read<NotificationProvider>().markAllAsRead(widget.user.id);
+              await context.read<NotificationProvider>().markAllAsRead(
+                widget.user.id,
+              );
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('All notifications marked as read'),
@@ -129,14 +133,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
               final notification = provider.notifications[index];
               final isRead = notification['is_read'] ?? false;
               final createdAt = DateTime.parse(notification['created_at']);
-              
+
               return Card(
                 color: isRead ? null : Colors.blue[50],
                 margin: const EdgeInsets.symmetric(vertical: 4),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: _getNotificationColor(notification['type'])
-                        .withOpacity(0.2),
+                    backgroundColor: _getNotificationColor(
+                      notification['type'],
+                    ).withOpacity(0.2),
                     child: Icon(
                       _getNotificationIcon(notification['type']),
                       color: _getNotificationColor(notification['type']),
@@ -170,7 +175,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     if (!isRead) {
                       await provider.markAsRead(notification['id']);
                     }
-                    
+
                     // Navigate to related content if applicable
                     if (notification['related_id'] != null) {
                       // TODO: Navigate based on related_type

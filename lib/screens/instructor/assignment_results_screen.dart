@@ -19,7 +19,8 @@ class AssignmentResultsScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<AssignmentResultsScreen> createState() => _AssignmentResultsScreenState();
+  State<AssignmentResultsScreen> createState() =>
+      _AssignmentResultsScreenState();
 }
 
 class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
@@ -32,10 +33,10 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
   void initState() {
     super.initState();
     // Assign future synchronously to prevent late init error
-    _studentsFuture = context
-        .read<StudentProvider>()
-        .loadStudentsInCourse(widget.assignment.courseId);
-        
+    _studentsFuture = context.read<StudentProvider>().loadStudentsInCourse(
+      widget.assignment.courseId,
+    );
+
     _loadData();
     _searchController.addListener(_filterStudents);
   }
@@ -48,7 +49,7 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
     // Await the future
     _allStudents = await _studentsFuture;
     _filterStudents();
-    
+
     if (mounted) {
       setState(() {});
     }
@@ -59,7 +60,7 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
     setState(() {
       _filteredStudents = _allStudents.where((student) {
         return student.fullName.toLowerCase().contains(query) ||
-               student.username.toLowerCase().contains(query);
+            student.username.toLowerCase().contains(query);
       }).toList();
     });
   }
@@ -78,7 +79,10 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Submissions', style: GoogleFonts.poppins(fontSize: 18)),
-            Text(widget.assignment.title, style: GoogleFonts.poppins(fontSize: 12)),
+            Text(
+              widget.assignment.title,
+              style: GoogleFonts.poppins(fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -92,7 +96,9 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
               decoration: InputDecoration(
                 hintText: 'Search by student name...',
                 prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 filled: true,
                 fillColor: Colors.white,
               ),
@@ -102,30 +108,35 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
             child: FutureBuilder<List<Student>>(
               future: _studentsFuture,
               builder: (context, studentSnapshot) {
-                if (studentSnapshot.connectionState == ConnectionState.waiting) {
+                if (studentSnapshot.connectionState ==
+                    ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (studentSnapshot.hasError) {
                   return Center(child: Text('Error: ${studentSnapshot.error}'));
                 }
                 if (!studentSnapshot.hasData || studentSnapshot.data!.isEmpty) {
-                  return Center(child: Text('No students enrolled in this course.'));
+                  return Center(
+                    child: Text('No students enrolled in this course.'),
+                  );
                 }
 
                 // Students loaded, now listen to submissions
                 return Consumer<AssignmentSubmissionProvider>(
                   builder: (context, submissionProvider, child) {
-                    if (submissionProvider.isLoading && _filteredStudents.isEmpty) {
+                    if (submissionProvider.isLoading &&
+                        _filteredStudents.isEmpty) {
                       // Only show full loading if student list is also empty
                       return const Center(child: CircularProgressIndicator());
                     }
-                    
+
                     return ListView.builder(
                       itemCount: _filteredStudents.length,
                       itemBuilder: (context, index) {
                         final student = _filteredStudents[index];
-                        final submission = submissionProvider.getSubmissionForStudent(student.id);
-                        
+                        final submission = submissionProvider
+                            .getSubmissionForStudent(student.id);
+
                         return _buildSubmissionTile(student, submission);
                       },
                     );
@@ -139,7 +150,10 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
     );
   }
 
-  Widget _buildSubmissionTile(Student student, AssignmentSubmission? submission) {
+  Widget _buildSubmissionTile(
+    Student student,
+    AssignmentSubmission? submission,
+  ) {
     String status;
     Color statusColor;
     Widget trailing;
@@ -165,13 +179,17 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: ListTile(
-        leading: CircleAvatar(
-          child: Text(student.fullName[0].toUpperCase()),
+        leading: CircleAvatar(child: Text(student.fullName[0].toUpperCase())),
+        title: Text(
+          student.fullName,
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
-        title: Text(student.fullName, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
         subtitle: Text(
           status,
-          style: GoogleFonts.poppins(color: statusColor, fontWeight: FontWeight.w500),
+          style: GoogleFonts.poppins(
+            color: statusColor,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         trailing: trailing,
         onTap: () {

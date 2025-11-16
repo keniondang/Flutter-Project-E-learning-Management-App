@@ -4,7 +4,7 @@ import '../models/course.dart';
 
 class CourseProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   List<Course> _courses = [];
   bool _isLoading = false;
   String? _error;
@@ -32,11 +32,8 @@ class CourseProvider extends ChangeNotifier {
         if (json['semesters'] != null) {
           semesterName = json['semesters']['name'];
         }
-        
-        return Course.fromJson({
-          ...json,
-          'semester_name': semesterName,
-        });
+
+        return Course.fromJson({...json, 'semester_name': semesterName});
       }).toList();
 
       // Load group and student counts
@@ -60,7 +57,7 @@ class CourseProvider extends ChangeNotifier {
           .from('groups')
           .select('id')
           .eq('course_id', course.id);
-      
+
       final groupCount = (groupResponse as List).length;
 
       // Count students (through enrollments)
@@ -68,7 +65,7 @@ class CourseProvider extends ChangeNotifier {
           .from('enrollments')
           .select('student_id, groups!inner(course_id)')
           .eq('groups.course_id', course.id);
-      
+
       final studentCount = (studentResponse as List).length;
 
       // Update course with stats
@@ -127,12 +124,15 @@ class CourseProvider extends ChangeNotifier {
     String? coverImage,
   }) async {
     try {
-      await _supabase.from('courses').update({
-        'code': code,
-        'name': name,
-        'sessions': sessions,
-        'cover_image': coverImage,
-      }).eq('id', id);
+      await _supabase
+          .from('courses')
+          .update({
+            'code': code,
+            'name': name,
+            'sessions': sessions,
+            'cover_image': coverImage,
+          })
+          .eq('id', id);
 
       // Reload courses for the current semester
       if (_courses.isNotEmpty) {
@@ -150,7 +150,7 @@ class CourseProvider extends ChangeNotifier {
   Future<bool> deleteCourse(String id) async {
     try {
       await _supabase.from('courses').delete().eq('id', id);
-      
+
       // Remove from local list
       _courses.removeWhere((course) => course.id == id);
       notifyListeners();

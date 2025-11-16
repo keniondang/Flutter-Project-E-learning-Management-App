@@ -8,15 +8,15 @@ class SemesterManagementScreen extends StatefulWidget {
   const SemesterManagementScreen({Key? key}) : super(key: key);
 
   @override
-  State<SemesterManagementScreen> createState() => _SemesterManagementScreenState();
+  State<SemesterManagementScreen> createState() =>
+      _SemesterManagementScreenState();
 }
 
 class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() =>
-        context.read<SemesterProvider>().loadSemesters());
+    Future.microtask(() => context.read<SemesterProvider>().loadSemesters());
   }
 
   void _showAddEditDialog([Semester? semester]) {
@@ -78,7 +78,8 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (codeController.text.isEmpty || nameController.text.isEmpty) {
+                if (codeController.text.isEmpty ||
+                    nameController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Please fill all fields'),
@@ -90,7 +91,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
 
                 final provider = context.read<SemesterProvider>();
                 bool success;
-                
+
                 if (isEdit) {
                   success = await provider.updateSemester(
                     semester.id,
@@ -111,7 +112,9 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        isEdit ? 'Semester updated successfully' : 'Semester added successfully',
+                        isEdit
+                            ? 'Semester updated successfully'
+                            : 'Semester added successfully',
                       ),
                       backgroundColor: Colors.green,
                     ),
@@ -145,7 +148,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
               final success = await context
                   .read<SemesterProvider>()
                   .deleteSemester(semester.id);
-              
+
               if (success && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -155,9 +158,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -169,10 +170,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Semester Management',
-          style: GoogleFonts.poppins(),
-        ),
+        title: Text('Semester Management', style: GoogleFonts.poppins()),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -194,10 +192,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
                 children: [
                   Text(
                     'Error loading semesters',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      color: Colors.red,
-                    ),
+                    style: GoogleFonts.poppins(fontSize: 18, color: Colors.red),
                   ),
                   const SizedBox(height: 8),
                   Text(provider.error!),
@@ -216,11 +211,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.calendar_today,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
+                  Icon(Icons.calendar_today, size: 80, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
                     'No semesters yet',
@@ -252,16 +243,11 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
                     backgroundColor: semester.isCurrent
                         ? Colors.green
                         : Colors.grey[400],
-                    child: Icon(
-                      Icons.calendar_month,
-                      color: Colors.white,
-                    ),
+                    child: Icon(Icons.calendar_month, color: Colors.white),
                   ),
                   title: Text(
                     semester.name,
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

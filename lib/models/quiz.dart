@@ -15,12 +15,12 @@ class Quiz {
   final String scopeType;
   final List<String> targetGroups;
   final DateTime createdAt;
-  
+
   // Additional fields
   final int? attemptCount;
   final double? highestScore;
   final bool? isCompleted;
-  
+
   // ✅ --- ADD THIS FIELD --- ✅
   final int? submissionCount;
 
@@ -124,7 +124,7 @@ class Question {
     final optionsList = (json['options'] as List)
         .map((opt) => QuestionOption.fromJson(opt))
         .toList();
-    
+
     return Question(
       id: json['id'],
       courseId: json['course_id'],
@@ -149,10 +149,7 @@ class QuestionOption {
   final String text;
   final bool isCorrect;
 
-  QuestionOption({
-    required this.text,
-    required this.isCorrect,
-  });
+  QuestionOption({required this.text, required this.isCorrect});
 
   factory QuestionOption.fromJson(Map<String, dynamic> json) {
     return QuestionOption(
@@ -162,10 +159,7 @@ class QuestionOption {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'text': text,
-      'isCorrect': isCorrect,
-    };
+    return {'text': text, 'isCorrect': isCorrect};
   }
 }
 
@@ -201,8 +195,8 @@ class QuizAttempt {
       studentName: json['users']?['full_name'] ?? 'Unknown Student',
       attemptNumber: json['attempt_number'] ?? 1,
       startedAt: DateTime.parse(json['started_at']),
-      submittedAt: json['submitted_at'] != null 
-          ? DateTime.parse(json['submitted_at']) 
+      submittedAt: json['submitted_at'] != null
+          ? DateTime.parse(json['submitted_at'])
           : null,
       score: json['score']?.toDouble(),
       isCompleted: json['is_completed'] ?? false,

@@ -6,7 +6,7 @@ import 'package:sqflite/sqflite.dart';
 class SyncService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final OfflineDatabaseService _offlineDb = OfflineDatabaseService();
-  
+
   // Check connectivity
   Future<bool> isOnline() async {
     final connectivityResult = await Connectivity().checkConnectivity();
@@ -67,15 +67,11 @@ class SyncService {
           .single();
 
       await _offlineDb.database.then((db) {
-        db.insert(
-          'cached_user',
-          {
-            'id': userId,
-            'data': userData.toString(),
-            'last_sync': DateTime.now().millisecondsSinceEpoch,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        db.insert('cached_user', {
+          'id': userId,
+          'data': userData.toString(),
+          'last_sync': DateTime.now().millisecondsSinceEpoch,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       });
     } catch (e) {
       print('Error syncing user data: $e');
@@ -93,7 +89,8 @@ class SyncService {
 
       final courses = <Map<String, dynamic>>[];
       for (var enrollment in coursesResponse) {
-        if (enrollment['groups'] != null && enrollment['groups']['courses'] != null) {
+        if (enrollment['groups'] != null &&
+            enrollment['groups']['courses'] != null) {
           courses.add(enrollment['groups']['courses']);
         }
       }
@@ -118,26 +115,25 @@ class SyncService {
           .from('announcements')
           .select()
           .eq('course_id', courseId);
-      await _offlineDb.saveAnnouncements(courseId, List<Map<String, dynamic>>.from(announcements));
+      await _offlineDb.saveAnnouncements(
+        courseId,
+        List<Map<String, dynamic>>.from(announcements),
+      );
 
       // Sync assignments
       final assignments = await _supabase
           .from('assignments')
           .select()
           .eq('course_id', courseId);
-      
+
       final db = await _offlineDb.database;
       for (var assignment in assignments) {
-        await db.insert(
-          'cached_assignments',
-          {
-            'id': assignment['id'],
-            'course_id': courseId,
-            'data': assignment.toString(),
-            'last_sync': DateTime.now().millisecondsSinceEpoch,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await db.insert('cached_assignments', {
+          'id': assignment['id'],
+          'course_id': courseId,
+          'data': assignment.toString(),
+          'last_sync': DateTime.now().millisecondsSinceEpoch,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
 
       // Sync materials
@@ -145,18 +141,14 @@ class SyncService {
           .from('materials')
           .select()
           .eq('course_id', courseId);
-      
+
       for (var material in materials) {
-        await db.insert(
-          'cached_materials',
-          {
-            'id': material['id'],
-            'course_id': courseId,
-            'data': material.toString(),
-            'last_sync': DateTime.now().millisecondsSinceEpoch,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await db.insert('cached_materials', {
+          'id': material['id'],
+          'course_id': courseId,
+          'data': material.toString(),
+          'last_sync': DateTime.now().millisecondsSinceEpoch,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
     } catch (e) {
       print('Error syncing course content: $e');

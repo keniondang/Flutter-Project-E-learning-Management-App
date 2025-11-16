@@ -47,40 +47,51 @@ class _GradingScreenState extends State<GradingScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open $url')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open $url')));
     }
   }
 
   Future<void> _submitGrade() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSaving = true);
-      
+
       final grade = double.tryParse(_gradeController.text);
       if (grade == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid grade'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text('Invalid grade'),
+            backgroundColor: Colors.red,
+          ),
         );
         setState(() => _isSaving = false);
         return;
       }
-      
-      final success = await context.read<AssignmentSubmissionProvider>().gradeSubmission(
-        submissionId: widget.submission.id,
-        grade: grade,
-        feedback: _feedbackController.text,
-        instructorId: widget.instructorId,
-      );
-      
+
+      final success = await context
+          .read<AssignmentSubmissionProvider>()
+          .gradeSubmission(
+            submissionId: widget.submission.id,
+            grade: grade,
+            feedback: _feedbackController.text,
+            instructorId: widget.instructorId,
+          );
+
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Grade saved successfully'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Grade saved successfully'),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to save grade'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text('Failed to save grade'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
       setState(() => _isSaving = false);
@@ -107,7 +118,10 @@ class _GradingScreenState extends State<GradingScreen> {
                   children: [
                     Text(
                       widget.student.fullName,
-                      style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     Text(
                       'Submitted: ${DateFormat('MMM dd, yyyy HH:mm').format(widget.submission.submittedAt)}',
@@ -116,14 +130,18 @@ class _GradingScreenState extends State<GradingScreen> {
                     if (widget.submission.isLate)
                       Text(
                         ' (LATE)',
-                        style: GoogleFonts.poppins(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Submission Content
             Card(
               child: Padding(
@@ -131,11 +149,21 @@ class _GradingScreenState extends State<GradingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Submission', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
-                    
-                    if (widget.submission.submissionText != null && widget.submission.submissionText!.isNotEmpty) ...[
+                    Text(
+                      'Submission',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+
+                    if (widget.submission.submissionText != null &&
+                        widget.submission.submissionText!.isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      Text('Submitted Text:', style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
+                      Text(
+                        'Submitted Text:',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                      ),
                       Container(
                         padding: const EdgeInsets.all(12),
                         width: double.infinity,
@@ -149,11 +177,17 @@ class _GradingScreenState extends State<GradingScreen> {
 
                     if (widget.submission.submissionFiles.isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      Text('Submitted Files:', style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
+                      Text(
+                        'Submitted Files:',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                      ),
                       ...widget.submission.submissionFiles.map((fileUrl) {
                         return ListTile(
                           leading: const Icon(Icons.insert_drive_file),
-                          title: Text(fileUrl.split('/').last, style: GoogleFonts.poppins(fontSize: 14)),
+                          title: Text(
+                            fileUrl.split('/').last,
+                            style: GoogleFonts.poppins(fontSize: 14),
+                          ),
                           onTap: () => _openLink(fileUrl),
                         );
                       }),
@@ -163,7 +197,7 @@ class _GradingScreenState extends State<GradingScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Grading Form
             Form(
               key: _formKey,
@@ -173,14 +207,22 @@ class _GradingScreenState extends State<GradingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Grade & Feedback', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
+                      Text(
+                        'Grade & Feedback',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _gradeController,
                         decoration: InputDecoration(
                           labelText: 'Grade',
                           suffixText: '/ ${widget.assignment.totalPoints}',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         keyboardType: TextInputType.number,
                         validator: (value) {
@@ -191,7 +233,8 @@ class _GradingScreenState extends State<GradingScreen> {
                           if (grade == null) {
                             return 'Invalid number';
                           }
-                          if (grade < 0 || grade > widget.assignment.totalPoints) {
+                          if (grade < 0 ||
+                              grade > widget.assignment.totalPoints) {
                             return 'Grade must be between 0 and ${widget.assignment.totalPoints}';
                           }
                           return null;
@@ -204,7 +247,9 @@ class _GradingScreenState extends State<GradingScreen> {
                           labelText: 'Feedback (Optional)',
                           hintText: 'Provide feedback for the student...',
                           alignLabelWithHint: true,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         maxLines: 4,
                       ),
@@ -215,7 +260,9 @@ class _GradingScreenState extends State<GradingScreen> {
                         child: ElevatedButton(
                           onPressed: _isSaving ? null : _submitGrade,
                           child: _isSaving
-                              ? const CircularProgressIndicator(color: Colors.white)
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
                               : const Text('Save Grade'),
                         ),
                       ),

@@ -18,7 +18,7 @@ class QuizResultsScreen extends StatefulWidget {
 
 class _QuizResultsScreenState extends State<QuizResultsScreen> {
   final _searchController = TextEditingController();
-  
+
   late Future<List<Student>> _studentsFuture;
   List<Student> _allStudents = [];
   List<Student> _filteredStudents = [];
@@ -26,13 +26,13 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // ✅ --- THIS IS THE FIX --- ✅
     // Assign _studentsFuture *synchronously* here, before _loadData is called.
     // This guarantees it is initialized before the build method runs.
-    _studentsFuture = context
-        .read<StudentProvider>()
-        .loadStudentsInCourse(widget.quiz.courseId);
+    _studentsFuture = context.read<StudentProvider>().loadStudentsInCourse(
+      widget.quiz.courseId,
+    );
 
     _loadData(); // Now _loadData will load submissions and await the future
     _searchController.addListener(_filterSubmissions);
@@ -45,28 +45,28 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
 
     // Await the future that was already started in initState
     _allStudents = await _studentsFuture;
-    
+
     // Call _filterSubmissions without setState here, as it's just populating the list
     final query = _searchController.text.toLowerCase();
     _filteredStudents = _allStudents.where((student) {
-        final studentName = student.fullName.toLowerCase();
-        return studentName.contains(query);
-      }).toList();
-    
+      final studentName = student.fullName.toLowerCase();
+      return studentName.contains(query);
+    }).toList();
+
     // We call setState *after* the async gap to rebuild
-    if(mounted) {
+    if (mounted) {
       setState(() {});
     }
   }
 
   void _filterSubmissions() {
     final query = _searchController.text.toLowerCase();
-    
+
     setState(() {
       _filteredStudents = _allStudents.where((student) {
-          final studentName = student.fullName.toLowerCase();
-          return studentName.contains(query);
-        }).toList();
+        final studentName = student.fullName.toLowerCase();
+        return studentName.contains(query);
+      }).toList();
     });
   }
 
@@ -93,7 +93,10 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
             onPressed: () async {
               // Pass student list to export
               final provider = context.read<QuizSubmissionProvider>();
-              final error = await provider.exportSubmissionsToCSV(widget.quiz, _allStudents);
+              final error = await provider.exportSubmissionsToCSV(
+                widget.quiz,
+                _allStudents,
+              );
               if (error != null && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(error), backgroundColor: Colors.red),
@@ -123,20 +126,23 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
               ),
             ),
           ),
-          
+
           // Submissions list
           Expanded(
             child: FutureBuilder<List<Student>>(
               future: _studentsFuture, // This is now safely initialized
               builder: (context, studentSnapshot) {
-                if (studentSnapshot.connectionState == ConnectionState.waiting) {
+                if (studentSnapshot.connectionState ==
+                    ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (studentSnapshot.hasError) {
                   return Center(child: Text('Error: ${studentSnapshot.error}'));
                 }
                 if (!studentSnapshot.hasData || studentSnapshot.data!.isEmpty) {
-                  return Center(child: Text('No students enrolled in this course.'));
+                  return Center(
+                    child: Text('No students enrolled in this course.'),
+                  );
                 }
 
                 // Students loaded, now listen to submissions
@@ -147,7 +153,8 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    if (_filteredStudents.isEmpty && _searchController.text.isNotEmpty) {
+                    if (_filteredStudents.isEmpty &&
+                        _searchController.text.isNotEmpty) {
                       return Center(
                         child: Text(
                           'No students found',
@@ -158,14 +165,15 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
                         ),
                       );
                     }
-                    
+
                     return ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _filteredStudents.length,
                       itemBuilder: (context, index) {
                         final student = _filteredStudents[index];
-                        final submission = submissionProvider.getSubmissionForStudent(student.id);
-                        
+                        final submission = submissionProvider
+                            .getSubmissionForStudent(student.id);
+
                         return _buildSubmissionTile(student, submission);
                       },
                     );
@@ -195,17 +203,17 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
     } else {
       status = 'Submitted';
       statusColor = Colors.green;
-      scoreText = '${(submission.score ?? 0.0).toStringAsFixed(1)} / ${widget.quiz.totalPoints}';
+      scoreText =
+          '${(submission.score ?? 0.0).toStringAsFixed(1)} / ${widget.quiz.totalPoints}';
       scoreColor = Colors.green[700]!;
-      subtitle = 'Attempt ${submission.attemptNumber} • Submitted: ${DateFormat('MMM dd, HH:mm').format(submission.submittedAt!)}';
+      subtitle =
+          'Attempt ${submission.attemptNumber} • Submitted: ${DateFormat('MMM dd, HH:mm').format(submission.submittedAt!)}';
     }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: CircleAvatar(
-          child: Text(student.fullName[0].toUpperCase()),
-        ),
+        leading: CircleAvatar(child: Text(student.fullName[0].toUpperCase())),
         title: Text(
           student.fullName,
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
@@ -228,10 +236,7 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
             ),
             Text(
               status,
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                color: statusColor,
-              ),
+              style: GoogleFonts.poppins(fontSize: 11, color: statusColor),
             ),
           ],
         ),
@@ -240,7 +245,9 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
             // TODO: Navigate to a detailed view if needed
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('${student.fullName}: ${submission.score} points'),
+                content: Text(
+                  '${student.fullName}: ${submission.score} points',
+                ),
               ),
             );
           }

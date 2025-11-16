@@ -7,26 +7,26 @@ import '../models/course_material.dart';
 
 class ContentProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   // Announcements
   List<Announcement> _announcements = [];
   List<Announcement> get announcements => _announcements;
-  
+
   // Assignments
   List<Assignment> _assignments = [];
   List<Assignment> get assignments => _assignments;
-  
+
   // Quizzes
   List<Quiz> _quizzes = [];
   List<Quiz> get quizzes => _quizzes;
-  
+
   // Materials
   List<CourseMaterial> _materials = [];
   List<CourseMaterial> get materials => _materials;
-  
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
-  
+
   String? _error;
   String? get error => _error;
 
@@ -63,7 +63,7 @@ class ContentProvider extends ChangeNotifier {
       _announcements = (response as List)
           .map((json) => Announcement.fromJson(json))
           .toList();
-      
+
       // Load view counts and comment counts
       for (var announcement in _announcements) {
         await _loadAnnouncementStats(announcement);
@@ -81,7 +81,7 @@ class ContentProvider extends ChangeNotifier {
           .from('announcement_views')
           .select('id')
           .eq('announcement_id', announcement.id);
-      
+
       // Get comment count
       final commentResponse = await _supabase
           .from('announcement_comments')
@@ -150,7 +150,7 @@ class ContentProvider extends ChangeNotifier {
       _assignments = (response as List)
           .map((json) => Assignment.fromJson(json))
           .toList();
-      
+
       // Load submission counts
       for (var assignment in _assignments) {
         await _loadAssignmentStats(assignment);
@@ -250,10 +250,8 @@ class ContentProvider extends ChangeNotifier {
           .eq('course_id', courseId)
           .order('close_time', ascending: true);
 
-      _quizzes = (response as List)
-          .map((json) => Quiz.fromJson(json))
-          .toList();
-          
+      _quizzes = (response as List).map((json) => Quiz.fromJson(json)).toList();
+
       // ✅ --- ADDED QUIZ STATS LOADING --- ✅
       for (var quiz in _quizzes) {
         await _loadQuizStats(quiz);
@@ -361,7 +359,7 @@ class ContentProvider extends ChangeNotifier {
     }
   }
 
-Future<bool> createMaterial({
+  Future<bool> createMaterial({
     required String courseId,
     required String instructorId,
     required String title,
@@ -389,7 +387,10 @@ Future<bool> createMaterial({
   }
 
   // Track announcement view
-  Future<void> trackAnnouncementView(String announcementId, String userId) async {
+  Future<void> trackAnnouncementView(
+    String announcementId,
+    String userId,
+  ) async {
     try {
       await _supabase.from('announcement_views').upsert({
         'announcement_id': announcementId,
@@ -402,7 +403,11 @@ Future<bool> createMaterial({
   }
 
   // Add comment to announcement
-  Future<bool> addAnnouncementComment(String announcementId, String userId, String comment) async {
+  Future<bool> addAnnouncementComment(
+    String announcementId,
+    String userId,
+    String comment,
+  ) async {
     try {
       await _supabase.from('announcement_comments').insert({
         'announcement_id': announcementId,

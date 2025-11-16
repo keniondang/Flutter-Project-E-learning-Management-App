@@ -55,34 +55,40 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                   );
                 }
 
-                if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+                if (snapshot.hasError ||
+                    !snapshot.hasData ||
+                    snapshot.data == null) {
                   return const Text('Error loading students');
                 }
 
                 // ✅ --- FIX 1: FILTERING --- ✅
                 // Get the list of students already in this group (from the main provider state)
-                final studentsInGroup = context.read<StudentProvider>().students;
-                final studentIdsInGroup = studentsInGroup.map((s) => s.id).toSet();
+                final studentsInGroup = context
+                    .read<StudentProvider>()
+                    .students;
+                final studentIdsInGroup = studentsInGroup
+                    .map((s) => s.id)
+                    .toSet();
 
                 // Get all students and filter out the ones already in the group
                 final allStudents = snapshot.data!;
                 final availableStudents = allStudents
                     .where((student) => !studentIdsInGroup.contains(student.id))
                     .toList();
-                
+
                 return DropdownButtonFormField<Student>(
                   // ✅ --- FIX 2: THE RED SCREEN ERROR --- ✅
                   // The `hint` property tells the dropdown what to show when
                   // `value` (selectedStudent) is null. This fixes the assertion error.
                   value: selectedStudent,
                   hint: const Text('Select a student'),
-                  
+
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  
+
                   // Use the newly filtered list
                   items: availableStudents.map((student) {
                     return DropdownMenuItem(
@@ -102,35 +108,41 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: selectedStudent == null ? null : () async {
-                  final provider = context.read<StudentProvider>();
-                  
-                  final success = await provider.enrollStudentInGroup(
-                    studentId: selectedStudent!.id, 
-                    groupId: widget.group.id,
-                    courseId: widget.course.id,
-                  );
+                onPressed: selectedStudent == null
+                    ? null
+                    : () async {
+                        final provider = context.read<StudentProvider>();
 
-                  if (success && mounted) {
-                    Navigator.pop(context);
-                    await _loadStudents(); 
-                    context.read<GroupProvider>().refreshCurrentCourseGroups();
-                    
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Student added successfully'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  } else if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(provider.error ?? 'Failed to add student'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
+                        final success = await provider.enrollStudentInGroup(
+                          studentId: selectedStudent!.id,
+                          groupId: widget.group.id,
+                          courseId: widget.course.id,
+                        );
+
+                        if (success && mounted) {
+                          Navigator.pop(context);
+                          await _loadStudents();
+                          context
+                              .read<GroupProvider>()
+                              .refreshCurrentCourseGroups();
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Student added successfully'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } else if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                provider.error ?? 'Failed to add student',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
                 child: const Text('Add'),
               ),
             ],
@@ -156,16 +168,18 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              
-              final success = await context.read<StudentProvider>().removeStudentFromGroup(
-                studentId: student.id,
-                groupId: widget.group.id,
-              );
+
+              final success = await context
+                  .read<StudentProvider>()
+                  .removeStudentFromGroup(
+                    studentId: student.id,
+                    groupId: widget.group.id,
+                  );
 
               if (success && mounted) {
-                await _loadStudents(); 
+                await _loadStudents();
                 context.read<GroupProvider>().refreshCurrentCourseGroups();
-                
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Student removed successfully'),
@@ -174,9 +188,7 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Remove'),
           ),
         ],
@@ -191,14 +203,8 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.group.name,
-              style: GoogleFonts.poppins(fontSize: 18),
-            ),
-            Text(
-              widget.course.name,
-              style: GoogleFonts.poppins(fontSize: 12),
-            ),
+            Text(widget.group.name, style: GoogleFonts.poppins(fontSize: 18)),
+            Text(widget.course.name, style: GoogleFonts.poppins(fontSize: 12)),
           ],
         ),
         actions: [
@@ -220,11 +226,7 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.people_outline,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
+                  Icon(Icons.people_outline, size: 80, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
                     'No students in this group',
@@ -268,7 +270,10 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                     style: GoogleFonts.poppins(fontSize: 12),
                   ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                    icon: const Icon(
+                      Icons.remove_circle_outline,
+                      color: Colors.red,
+                    ),
                     onPressed: () => _confirmRemoveStudent(student),
                     tooltip: 'Remove from group',
                   ),

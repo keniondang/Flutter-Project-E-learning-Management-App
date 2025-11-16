@@ -3,7 +3,7 @@ class Group {
   final String courseId;
   final String name;
   final DateTime createdAt;
-  
+
   // Additional fields for display
   final String? courseName;
   final int? studentCount;
@@ -29,9 +29,6 @@ class Group {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'course_id': courseId,
-      'name': name,
-    };
+    return {'course_id': courseId, 'name': name};
   }
 }

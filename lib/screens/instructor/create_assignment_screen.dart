@@ -55,7 +55,9 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
   Future<void> _selectDate(BuildContext context, String type) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: type == 'start' ? _startDate : (type == 'due' ? _dueDate : _lateDueDate ?? _dueDate),
+      initialDate: type == 'start'
+          ? _startDate
+          : (type == 'due' ? _dueDate : _lateDueDate ?? _dueDate),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
@@ -75,7 +77,7 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
             time.hour,
             time.minute,
           );
-          
+
           if (type == 'start') {
             _startDate = dateTime;
           } else if (type == 'due') {
@@ -101,7 +103,10 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
         lateSubmissionAllowed: _lateSubmissionAllowed,
         lateDueDate: _lateDueDate,
         maxAttempts: int.parse(_maxAttemptsController.text),
-        maxFileSize: int.parse(_maxFileSizeController.text) * 1024 * 1024, // Convert MB to bytes
+        maxFileSize:
+            int.parse(_maxFileSizeController.text) *
+            1024 *
+            1024, // Convert MB to bytes
         allowedFileTypes: _allowedFileTypes,
         scopeType: _scopeType,
         targetGroups: _selectedGroups,
@@ -211,25 +216,29 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      
+
                       // Start date
                       ListTile(
                         leading: const Icon(Icons.play_arrow),
                         title: const Text('Start Date'),
-                        subtitle: Text(DateFormat('MMM dd, yyyy HH:mm').format(_startDate)),
+                        subtitle: Text(
+                          DateFormat('MMM dd, yyyy HH:mm').format(_startDate),
+                        ),
                         trailing: const Icon(Icons.calendar_today),
                         onTap: () => _selectDate(context, 'start'),
                       ),
-                      
+
                       // Due date
                       ListTile(
                         leading: const Icon(Icons.event),
                         title: const Text('Due Date'),
-                        subtitle: Text(DateFormat('MMM dd, yyyy HH:mm').format(_dueDate)),
+                        subtitle: Text(
+                          DateFormat('MMM dd, yyyy HH:mm').format(_dueDate),
+                        ),
                         trailing: const Icon(Icons.calendar_today),
                         onTap: () => _selectDate(context, 'due'),
                       ),
-                      
+
                       // Late submission
                       SwitchListTile(
                         title: const Text('Allow late submission'),
@@ -238,19 +247,23 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                           setState(() {
                             _lateSubmissionAllowed = value;
                             if (value && _lateDueDate == null) {
-                              _lateDueDate = _dueDate.add(const Duration(days: 3));
+                              _lateDueDate = _dueDate.add(
+                                const Duration(days: 3),
+                              );
                             }
                           });
                         },
                       ),
-                      
+
                       if (_lateSubmissionAllowed)
                         ListTile(
                           leading: const Icon(Icons.access_time),
                           title: const Text('Late Due Date'),
                           subtitle: Text(
                             _lateDueDate != null
-                                ? DateFormat('MMM dd, yyyy HH:mm').format(_lateDueDate!)
+                                ? DateFormat(
+                                    'MMM dd, yyyy HH:mm',
+                                  ).format(_lateDueDate!)
                                 : 'Not set',
                           ),
                           trailing: const Icon(Icons.calendar_today),
@@ -277,7 +290,7 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      
+
                       // Max attempts
                       TextFormField(
                         controller: _maxAttemptsController,
@@ -288,7 +301,7 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 12),
-                      
+
                       // Max file size
                       TextFormField(
                         controller: _maxFileSizeController,
@@ -299,7 +312,7 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 12),
-                      
+
                       // Allowed file types
                       Text(
                         'Allowed File Types:',
@@ -307,21 +320,29 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                       ),
                       Wrap(
                         spacing: 8,
-                        children: ['.pdf', '.docx', '.txt', '.zip', '.jpg', '.png'].map((type) {
-                          return FilterChip(
-                            label: Text(type),
-                            selected: _allowedFileTypes.contains(type),
-                            onSelected: (selected) {
-                              setState(() {
-                                if (selected) {
-                                  _allowedFileTypes.add(type);
-                                } else {
-                                  _allowedFileTypes.remove(type);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
+                        children:
+                            [
+                              '.pdf',
+                              '.docx',
+                              '.txt',
+                              '.zip',
+                              '.jpg',
+                              '.png',
+                            ].map((type) {
+                              return FilterChip(
+                                label: Text(type),
+                                selected: _allowedFileTypes.contains(type),
+                                onSelected: (selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _allowedFileTypes.add(type);
+                                    } else {
+                                      _allowedFileTypes.remove(type);
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
                       ),
                     ],
                   ),

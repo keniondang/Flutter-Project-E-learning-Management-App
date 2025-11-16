@@ -16,11 +16,7 @@ class OfflineDatabaseService {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, DB_NAME);
 
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: _onCreate,
-    );
+    return await openDatabase(path, version: 1, onCreate: _onCreate);
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -90,16 +86,12 @@ class OfflineDatabaseService {
     final batch = db.batch();
 
     for (var course in courses) {
-      batch.insert(
-        'cached_courses',
-        {
-          'id': course['id'],
-          'semester_id': course['semester_id'],
-          'data': jsonEncode(course),
-          'last_sync': DateTime.now().millisecondsSinceEpoch,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      batch.insert('cached_courses', {
+        'id': course['id'],
+        'semester_id': course['semester_id'],
+        'data': jsonEncode(course),
+        'last_sync': DateTime.now().millisecondsSinceEpoch,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
 
     await batch.commit();
@@ -120,28 +112,29 @@ class OfflineDatabaseService {
   }
 
   // Save announcements
-  Future<void> saveAnnouncements(String courseId, List<Map<String, dynamic>> announcements) async {
+  Future<void> saveAnnouncements(
+    String courseId,
+    List<Map<String, dynamic>> announcements,
+  ) async {
     final db = await database;
     final batch = db.batch();
 
     for (var announcement in announcements) {
-      batch.insert(
-        'cached_announcements',
-        {
-          'id': announcement['id'],
-          'course_id': courseId,
-          'data': jsonEncode(announcement),
-          'last_sync': DateTime.now().millisecondsSinceEpoch,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      batch.insert('cached_announcements', {
+        'id': announcement['id'],
+        'course_id': courseId,
+        'data': jsonEncode(announcement),
+        'last_sync': DateTime.now().millisecondsSinceEpoch,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
 
     await batch.commit();
   }
 
   // Get cached announcements
-  Future<List<Map<String, dynamic>>> getCachedAnnouncements(String courseId) async {
+  Future<List<Map<String, dynamic>>> getCachedAnnouncements(
+    String courseId,
+  ) async {
     final db = await database;
     final results = await db.query(
       'cached_announcements',
@@ -197,8 +190,10 @@ class OfflineDatabaseService {
     if (results.isEmpty) return true;
 
     final lastSync = results.first['last_sync'] as int;
-    final hourAgo = DateTime.now().subtract(const Duration(hours: 1)).millisecondsSinceEpoch;
-    
+    final hourAgo = DateTime.now()
+        .subtract(const Duration(hours: 1))
+        .millisecondsSinceEpoch;
+
     return lastSync < hourAgo;
   }
 

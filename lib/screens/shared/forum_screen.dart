@@ -9,11 +9,8 @@ class ForumScreen extends StatefulWidget {
   final Course course;
   final UserModel user;
 
-  const ForumScreen({
-    Key? key,
-    required this.course,
-    required this.user,
-  }) : super(key: key);
+  const ForumScreen({Key? key, required this.course, required this.user})
+    : super(key: key);
 
   @override
   State<ForumScreen> createState() => _ForumScreenState();
@@ -22,7 +19,7 @@ class ForumScreen extends StatefulWidget {
 class _ForumScreenState extends State<ForumScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
   final _searchController = TextEditingController();
-  
+
   List<Map<String, dynamic>> _topics = [];
   List<Map<String, dynamic>> _filteredTopics = [];
   bool _isLoading = true;
@@ -97,7 +94,7 @@ class _ForumScreenState extends State<ForumScreen> {
           final title = topic['title'].toString().toLowerCase();
           final content = topic['content'].toString().toLowerCase();
           return title.contains(query.toLowerCase()) ||
-                 content.contains(query.toLowerCase());
+              content.contains(query.toLowerCase());
         }).toList();
       }
     });
@@ -149,7 +146,8 @@ class _ForumScreenState extends State<ForumScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (titleController.text.isEmpty || contentController.text.isEmpty) {
+              if (titleController.text.isEmpty ||
+                  contentController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Please fill all fields'),
@@ -201,9 +199,7 @@ class _ForumScreenState extends State<ForumScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Course Forum', style: GoogleFonts.poppins()),
-      ),
+      appBar: AppBar(title: Text('Course Forum', style: GoogleFonts.poppins())),
       body: Column(
         children: [
           // Search bar
@@ -230,136 +226,136 @@ class _ForumScreenState extends State<ForumScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredTopics.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.forum_outlined,
-                              size: 80,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No topics yet',
-                              style: GoogleFonts.poppins(
-                                fontSize: 18,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: _showCreateTopicDialog,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Create First Topic'),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.forum_outlined,
+                          size: 80,
+                          color: Colors.grey[400],
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _filteredTopics.length,
-                        itemBuilder: (context, index) {
-                          final topic = _filteredTopics[index];
-                          final isPinned = topic['is_pinned'] ?? false;
-                          final isLocked = topic['is_locked'] ?? false;
-                          
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: isPinned ? 3 : 1,
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: isPinned
-                                    ? Colors.orange[100]
-                                    : Colors.blue[100],
-                                child: Icon(
-                                  isPinned ? Icons.push_pin : Icons.topic,
-                                  color: isPinned
-                                      ? Colors.orange[700]
-                                      : Colors.blue[700],
+                        const SizedBox(height: 16),
+                        Text(
+                          'No topics yet',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _showCreateTopicDialog,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Create First Topic'),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _filteredTopics.length,
+                    itemBuilder: (context, index) {
+                      final topic = _filteredTopics[index];
+                      final isPinned = topic['is_pinned'] ?? false;
+                      final isLocked = topic['is_locked'] ?? false;
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        elevation: isPinned ? 3 : 1,
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: isPinned
+                                ? Colors.orange[100]
+                                : Colors.blue[100],
+                            child: Icon(
+                              isPinned ? Icons.push_pin : Icons.topic,
+                              color: isPinned
+                                  ? Colors.orange[700]
+                                  : Colors.blue[700],
+                            ),
+                          ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  topic['title'],
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      topic['title'],
-                                      style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  if (isLocked)
-                                    Icon(
-                                      Icons.lock,
-                                      size: 16,
-                                      color: Colors.grey[600],
-                                    ),
-                                ],
+                              if (isLocked)
+                                Icon(
+                                  Icons.lock,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
+                            ],
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                topic['content'],
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(fontSize: 12),
                               ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(height: 4),
+                              Row(
                                 children: [
                                   Text(
-                                    topic['content'],
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.poppins(fontSize: 12),
+                                    'By ${topic['users']['full_name']}',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'By ${topic['users']['full_name']}',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 11,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Icon(
-                                        Icons.reply,
-                                        size: 14,
-                                        color: Colors.grey[600],
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '${topic['reply_count']} replies',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 11,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        DateFormat('MMM dd').format(
-                                          DateTime.parse(topic['created_at']),
-                                        ),
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 11,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
+                                  const SizedBox(width: 12),
+                                  Icon(
+                                    Icons.reply,
+                                    size: 14,
+                                    color: Colors.grey[600],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${topic['reply_count']} replies',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    DateFormat('MMM dd').format(
+                                      DateTime.parse(topic['created_at']),
+                                    ),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
                                 ],
                               ),
-                              onTap: () {
-                                // Navigate to topic detail
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ForumTopicDetailScreen(
-                                      topic: topic,
-                                      user: widget.user,
-                                    ),
-                                  ),
-                                ).then((_) => _loadTopics());
-                              },
-                            ),
-                          );
-                        },
-                      ),
+                            ],
+                          ),
+                          onTap: () {
+                            // Navigate to topic detail
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ForumTopicDetailScreen(
+                                  topic: topic,
+                                  user: widget.user,
+                                ),
+                              ),
+                            ).then((_) => _loadTopics());
+                          },
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -387,12 +383,8 @@ class ForumTopicDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Implementation for viewing topic and replies
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Topic', style: GoogleFonts.poppins()),
-      ),
-      body: Center(
-        child: Text('Topic detail implementation here'),
-      ),
+      appBar: AppBar(title: Text('Topic', style: GoogleFonts.poppins())),
+      body: Center(child: Text('Topic detail implementation here')),
     );
   }
 }

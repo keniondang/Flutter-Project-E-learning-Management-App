@@ -33,7 +33,7 @@ class CSVService {
       if (result != null && result.files.single.bytes != null) {
         final bytes = result.files.single.bytes!;
         final csvString = utf8.decode(bytes);
-        
+
         List<List<dynamic>> csvTable = const CsvToListConverter().convert(
           csvString,
           eol: '\n',
@@ -44,8 +44,10 @@ class CSVService {
         }
 
         // Extract headers
-        List<String> headers = csvTable[0].map((e) => e.toString().trim()).toList();
-        
+        List<String> headers = csvTable[0]
+            .map((e) => e.toString().trim())
+            .toList();
+
         // Convert to list of maps
         List<Map<String, dynamic>> data = [];
         for (int i = 1; i < csvTable.length; i++) {
@@ -73,17 +75,17 @@ class CSVService {
     switch (type) {
       case 'students':
         return 'username,email,full_name,password\n'
-               'johndoe,johndoe@student.edu,John Doe,password123\n'
-               'janedoe,janedoe@student.edu,Jane Doe,password456';
+            'johndoe,johndoe@student.edu,John Doe,password123\n'
+            'janedoe,janedoe@student.edu,Jane Doe,password456';
       case 'groups':
         return 'group_name\n'
-               'Group A\n'
-               'Group B\n'
-               'Group C';
+            'Group A\n'
+            'Group B\n'
+            'Group C';
       case 'enrollments':
         return 'student_username,group_name\n'
-               'johndoe,Group A\n'
-               'janedoe,Group B';
+            'johndoe,Group A\n'
+            'janedoe,Group B';
       default:
         return '';
     }

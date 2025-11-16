@@ -4,7 +4,7 @@ import '../models/user_model.dart';
 
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   // Store current user
   UserModel? _currentUser;
   UserModel? get currentUser => _currentUser;
@@ -17,18 +17,18 @@ class AuthService {
           .from('users')
           .select()
           .eq('username', username)
-          .eq('password', password)  // Check both username AND password
-          .maybeSingle();  // Use maybeSingle instead of single to avoid errors
+          .eq('password', password) // Check both username AND password
+          .maybeSingle(); // Use maybeSingle instead of single to avoid errors
 
       if (response != null) {
         _currentUser = UserModel.fromJson(response);
-        
+
         // Save login state
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_id', _currentUser!.id);
         await prefs.setString('user_role', _currentUser!.role);
         await prefs.setString('username', _currentUser!.username);
-        
+
         return _currentUser;
       }
       return null;
@@ -61,7 +61,7 @@ class AuthService {
   Future<UserModel?> loadCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('user_id');
-    
+
     if (userId != null) {
       try {
         final response = await _supabase
@@ -69,7 +69,7 @@ class AuthService {
             .select()
             .eq('id', userId)
             .single();
-        
+
         if (response != null) {
           _currentUser = UserModel.fromJson(response);
           return _currentUser;

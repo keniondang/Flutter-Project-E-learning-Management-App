@@ -11,7 +11,8 @@ import '../course_detail_screen.dart';
 class CourseManagementScreen extends StatefulWidget {
   final UserModel user; // ✅ Pass logged-in user
 
-  const CourseManagementScreen({Key? key, required this.user}) : super(key: key);
+  const CourseManagementScreen({Key? key, required this.user})
+    : super(key: key);
 
   @override
   State<CourseManagementScreen> createState() => _CourseManagementScreenState();
@@ -32,7 +33,8 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
 
     if (semesterProvider.semesters.isNotEmpty) {
       setState(() {
-        _selectedSemester = semesterProvider.currentSemester ??
+        _selectedSemester =
+            semesterProvider.currentSemester ??
             semesterProvider.semesters.first;
       });
 
@@ -189,8 +191,9 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final success =
-                  await context.read<CourseProvider>().deleteCourse(course.id);
+              final success = await context.read<CourseProvider>().deleteCourse(
+                course.id,
+              );
 
               if (success && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -201,9 +204,7 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -217,10 +218,7 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Course Management',
-          style: GoogleFonts.poppins(),
-        ),
+        title: Text('Course Management', style: GoogleFonts.poppins()),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -404,8 +402,9 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                 return GridView.builder(
                   padding: const EdgeInsets.all(16),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount:
-                        MediaQuery.of(context).size.width > 800 ? 3 : 2,
+                    crossAxisCount: MediaQuery.of(context).size.width > 800
+                        ? 3
+                        : 2,
                     childAspectRatio: 1.5,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
@@ -468,13 +467,18 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                                           value: 'delete',
                                           child: Row(
                                             children: [
-                                              Icon(Icons.delete,
-                                                  size: 20,
-                                                  color: Colors.red),
+                                              Icon(
+                                                Icons.delete,
+                                                size: 20,
+                                                color: Colors.red,
+                                              ),
                                               SizedBox(width: 8),
-                                              Text('Delete',
-                                                  style: TextStyle(
-                                                      color: Colors.red)),
+                                              Text(
+                                                'Delete',
+                                                style: TextStyle(
+                                                  color: Colors.red,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -486,8 +490,10 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                                           _confirmDelete(course);
                                         }
                                       },
-                                      icon: const Icon(Icons.more_vert,
-                                          color: Colors.white),
+                                      icon: const Icon(
+                                        Icons.more_vert,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -526,8 +532,11 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                                     ),
                                     Row(
                                       children: [
-                                        Icon(Icons.schedule,
-                                            size: 14, color: Colors.grey[600]),
+                                        Icon(
+                                          Icons.schedule,
+                                          size: 14,
+                                          color: Colors.grey[600],
+                                        ),
                                         const SizedBox(width: 4),
                                         Text(
                                           '${course.sessions} sessions',
@@ -537,8 +546,11 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                                           ),
                                         ),
                                         const Spacer(),
-                                        Icon(Icons.group,
-                                            size: 14, color: Colors.grey[600]),
+                                        Icon(
+                                          Icons.group,
+                                          size: 14,
+                                          color: Colors.grey[600],
+                                        ),
                                         const SizedBox(width: 4),
                                         Text(
                                           '${course.groupCount ?? 0}',
@@ -548,8 +560,11 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                                           ),
                                         ),
                                         const SizedBox(width: 8),
-                                        Icon(Icons.person,
-                                            size: 14, color: Colors.grey[600]),
+                                        Icon(
+                                          Icons.person,
+                                          size: 14,
+                                          color: Colors.grey[600],
+                                        ),
                                         const SizedBox(width: 4),
                                         Text(
                                           '${course.studentCount ?? 0}',
