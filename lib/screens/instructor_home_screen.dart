@@ -153,37 +153,37 @@ class InstructorHomeScreen extends StatelessWidget {
                   children: [
                     _buildStatCard(
                       'Total Courses',
-                      context.read<CourseProvider>().courses.length,
+                      context.watch<CourseProvider>().courses.length,
                       Icons.book,
                       Colors.blue,
                     ),
                     _buildStatCard(
                       'Total Students',
-                      context.read<StudentProvider>().students.length,
+                      context.watch<StudentProvider>().students.length,
                       Icons.people,
                       Colors.green,
                     ),
                     _buildStatCard(
                       'Total Groups',
-                      context.read<GroupProvider>().groups.length,
+                      context.watch<GroupProvider>().groups.length,
                       Icons.group,
                       Colors.orange,
                     ),
                     _buildStatCard(
                       'Total Assignments',
-                      context.read<ContentProvider>().assignments.length,
+                      context.watch<ContentProvider>().assignments.length,
                       Icons.assignment,
                       Colors.purple,
                     ),
                     _buildStatCard(
                       'Total Quizzes',
-                      context.read<ContentProvider>().quizzes.length,
+                      context.watch<ContentProvider>().quizzes.length,
                       Icons.quiz,
                       Colors.red,
                     ),
                     _buildStatCard(
                       'Total Materials',
-                      context.read<ContentProvider>().materials.length,
+                      context.watch<ContentProvider>().materials.length,
                       Icons.folder,
                       Colors.teal,
                     ),
