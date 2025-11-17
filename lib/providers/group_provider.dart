@@ -5,6 +5,7 @@ import '../models/group.dart';
 class GroupProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  int? _semesterCount;
   List<Group> _groups = [];
   bool _isLoading = false;
   String? _error;
@@ -12,6 +13,7 @@ class GroupProvider extends ChangeNotifier {
   // This is used to remember which course we are looking at
   String? _currentCourseId;
 
+  int? get semesterCount => _semesterCount;
   List<Group> get groups => _groups;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -43,6 +45,28 @@ class GroupProvider extends ChangeNotifier {
       for (var group in _groups) {
         await _loadGroupStats(group);
       }
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading groups: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> countForSemester(String semesterId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _supabase
+          .from('groups')
+          .select('id, courses(id)')
+          .eq('courses.semester_id', semesterId)
+          .count(CountOption.estimated);
+
+      _semesterCount = response.count;
     } catch (e) {
       _error = e.toString();
       print('Error loading groups: $e');

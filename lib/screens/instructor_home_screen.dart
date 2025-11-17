@@ -1,6 +1,8 @@
-import 'package:elearning_management_app/providers/content_provider.dart';
+import 'package:elearning_management_app/providers/assignment_provider.dart';
+import 'package:elearning_management_app/providers/course_material_provider.dart';
 import 'package:elearning_management_app/providers/course_provider.dart';
 import 'package:elearning_management_app/providers/group_provider.dart';
+import 'package:elearning_management_app/providers/quiz_provider.dart';
 import 'package:elearning_management_app/providers/student_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -151,41 +153,125 @@ class InstructorHomeScreen extends StatelessWidget {
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   children: [
-                    _buildStatCard(
-                      'Total Courses',
-                      context.watch<CourseProvider>().courses.length,
-                      Icons.book,
-                      Colors.blue,
+                    Consumer2<SemesterProvider, CourseProvider>(
+                      builder:
+                          (context, semesterProvider, courseProvider, child) {
+                        if (courseProvider.courses.isEmpty &&
+                            !courseProvider.isLoading &&
+                            semesterProvider.currentSemester != null) {
+                          courseProvider.loadCourses(
+                              semesterProvider.currentSemester!.id);
+                        }
+
+                        return _buildStatCard(
+                          'Total Courses',
+                          semesterProvider.isLoading || courseProvider.isLoading
+                              ? 'Loading data'
+                              : courseProvider.courses.length.toString(),
+                          Icons.book,
+                          Colors.blue,
+                        );
+                      },
                     ),
-                    _buildStatCard(
-                      'Total Students',
-                      context.watch<StudentProvider>().students.length,
-                      Icons.people,
-                      Colors.green,
+                    Consumer<StudentProvider>(
+                      builder: (context, provider, child) {
+                        if (provider.students.isEmpty && !provider.isLoading) {
+                          provider.loadAllStudents();
+                        }
+
+                        return _buildStatCard(
+                          'Total Students',
+                          provider.isLoading
+                              ? 'Loading data'
+                              : provider.students.length.toString(),
+                          Icons.people,
+                          Colors.green,
+                        );
+                      },
                     ),
-                    _buildStatCard(
-                      'Total Groups',
-                      context.watch<GroupProvider>().groups.length,
-                      Icons.group,
-                      Colors.orange,
+                    Consumer2<SemesterProvider, GroupProvider>(
+                      builder:
+                          (context, semesterProvider, groupProvider, child) {
+                        if (groupProvider.semesterCount == null &&
+                            !groupProvider.isLoading &&
+                            semesterProvider.currentSemester != null) {
+                          groupProvider.countForSemester(
+                              semesterProvider.currentSemester!.id);
+                        }
+
+                        return _buildStatCard(
+                          'Total Groups',
+                          semesterProvider.isLoading ||
+                                  groupProvider.semesterCount == null
+                              ? 'Loading data'
+                              : groupProvider.semesterCount.toString(),
+                          Icons.group,
+                          Colors.orange,
+                        );
+                      },
                     ),
-                    _buildStatCard(
-                      'Total Assignments',
-                      context.watch<ContentProvider>().assignments.length,
-                      Icons.assignment,
-                      Colors.purple,
+                    Consumer2<SemesterProvider, AssignmentProvider>(
+                      builder: (context, semesterProvider, assignmentProvider,
+                          child) {
+                        if (assignmentProvider.semesterCount == null &&
+                            !assignmentProvider.isLoading &&
+                            semesterProvider.currentSemester != null) {
+                          assignmentProvider.countForSemester(
+                              semesterProvider.currentSemester!.id);
+                        }
+
+                        return _buildStatCard(
+                          'Total Assignments',
+                          semesterProvider.isLoading ||
+                                  assignmentProvider.semesterCount == null
+                              ? 'Loading data'
+                              : assignmentProvider.semesterCount.toString(),
+                          Icons.assignment,
+                          Colors.purple,
+                        );
+                      },
                     ),
-                    _buildStatCard(
-                      'Total Quizzes',
-                      context.watch<ContentProvider>().quizzes.length,
-                      Icons.quiz,
-                      Colors.red,
+                    Consumer2<SemesterProvider, QuizProvider>(
+                      builder:
+                          (context, semesterProvider, quizProvider, child) {
+                        if (quizProvider.semesterCount == null &&
+                            !quizProvider.isLoading &&
+                            semesterProvider.currentSemester != null) {
+                          quizProvider.countForSemester(
+                              semesterProvider.currentSemester!.id);
+                        }
+
+                        return _buildStatCard(
+                          'Total Quizzes',
+                          semesterProvider.isLoading ||
+                                  quizProvider.semesterCount == null
+                              ? 'Loading data'
+                              : quizProvider.semesterCount.toString(),
+                          Icons.quiz,
+                          Colors.red,
+                        );
+                      },
                     ),
-                    _buildStatCard(
-                      'Total Materials',
-                      context.watch<ContentProvider>().materials.length,
-                      Icons.folder,
-                      Colors.teal,
+                    Consumer2<SemesterProvider, CourseMaterialProvider>(
+                      builder: (context, semesterProvider,
+                          courseMaterialProvider, child) {
+                        if (courseMaterialProvider.semesterCount == null &&
+                            !courseMaterialProvider.isLoading &&
+                            semesterProvider.currentSemester != null) {
+                          courseMaterialProvider.countForSemester(
+                              semesterProvider.currentSemester!.id);
+                        }
+
+                        return _buildStatCard(
+                          'Total Materials',
+                          semesterProvider.isLoading ||
+                                  courseMaterialProvider.semesterCount == null
+                              ? 'Loading data'
+                              : courseMaterialProvider.semesterCount.toString(),
+                          Icons.folder,
+                          Colors.teal,
+                        );
+                      },
                     ),
                   ],
                 );
@@ -286,7 +372,7 @@ class InstructorHomeScreen extends StatelessWidget {
 
   Widget _buildStatCard(
     String title,
-    int value,
+    String value,
     IconData icon,
     Color color,
   ) {
@@ -300,7 +386,7 @@ class InstructorHomeScreen extends StatelessWidget {
             Icon(icon, size: 28, color: color),
             const SizedBox(height: 8),
             Text(
-              value.toString(),
+              value,
               style: GoogleFonts.poppins(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
