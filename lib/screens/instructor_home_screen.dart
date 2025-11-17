@@ -1,3 +1,7 @@
+import 'package:elearning_management_app/providers/content_provider.dart';
+import 'package:elearning_management_app/providers/course_provider.dart';
+import 'package:elearning_management_app/providers/group_provider.dart';
+import 'package:elearning_management_app/providers/student_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -9,13 +13,12 @@ import 'instructor/semester_management_screen.dart';
 import 'instructor/course_management_screen.dart';
 import 'instructor/group_management_screen.dart';
 import 'instructor/student_management_screen.dart';
-import 'course_detail_screen.dart';
 
 class InstructorHomeScreen extends StatelessWidget {
   final UserModel user;
   final AuthService _authService = AuthService();
 
-  InstructorHomeScreen({Key? key, required this.user}) : super(key: key);
+  InstructorHomeScreen({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -150,37 +153,37 @@ class InstructorHomeScreen extends StatelessWidget {
                   children: [
                     _buildStatCard(
                       'Total Courses',
-                      '0',
+                      context.read<CourseProvider>().courses.length,
                       Icons.book,
                       Colors.blue,
                     ),
                     _buildStatCard(
                       'Total Students',
-                      '0',
+                      context.read<StudentProvider>().students.length,
                       Icons.people,
                       Colors.green,
                     ),
                     _buildStatCard(
                       'Total Groups',
-                      '0',
+                      context.read<GroupProvider>().groups.length,
                       Icons.group,
                       Colors.orange,
                     ),
                     _buildStatCard(
                       'Total Assignments',
-                      '0',
+                      context.read<ContentProvider>().assignments.length,
                       Icons.assignment,
                       Colors.purple,
                     ),
                     _buildStatCard(
                       'Total Quizzes',
-                      '0',
+                      context.read<ContentProvider>().quizzes.length,
                       Icons.quiz,
                       Colors.red,
                     ),
                     _buildStatCard(
                       'Total Materials',
-                      '0',
+                      context.read<ContentProvider>().materials.length,
                       Icons.folder,
                       Colors.teal,
                     ),
@@ -283,7 +286,7 @@ class InstructorHomeScreen extends StatelessWidget {
 
   Widget _buildStatCard(
     String title,
-    String value,
+    int value,
     IconData icon,
     Color color,
   ) {
@@ -297,7 +300,7 @@ class InstructorHomeScreen extends StatelessWidget {
             Icon(icon, size: 28, color: color),
             const SizedBox(height: 8),
             Text(
-              value,
+              value.toString(),
               style: GoogleFonts.poppins(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
