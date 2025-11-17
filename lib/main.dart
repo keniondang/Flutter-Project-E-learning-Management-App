@@ -1,3 +1,7 @@
+import 'package:elearning_management_app/providers/announcement_provider.dart';
+import 'package:elearning_management_app/providers/assignment_provider.dart';
+import 'package:elearning_management_app/providers/course_material_provider.dart';
+import 'package:elearning_management_app/providers/quiz_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -12,9 +16,7 @@ import 'providers/question_bank_provider.dart';
 import 'screens/login_screen.dart';
 import 'providers/notification_provider.dart';
 import 'providers/quiz_submission_provider.dart';
-import 'providers/assignment_submission_provider.dart'; // ✅ --- ADDED
-import 'services/sync_service.dart';
-import 'services/offline_database_service.dart';
+import 'providers/assignment_submission_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +31,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +42,10 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => GroupProvider()),
         ChangeNotifierProvider(create: (_) => StudentProvider()),
         ChangeNotifierProvider(create: (_) => ContentProvider()),
+        ChangeNotifierProvider(create: (_) => AnnouncementProvider()),
+        ChangeNotifierProvider(create: (_) => AssignmentProvider()),
+        ChangeNotifierProvider(create: (_) => QuizProvider()),
+        ChangeNotifierProvider(create: (_) => CourseMaterialProvider()),
         ChangeNotifierProvider(create: (_) => QuestionBankProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => QuizSubmissionProvider()),
