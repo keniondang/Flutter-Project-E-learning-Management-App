@@ -1,9 +1,9 @@
+import 'package:elearning_management_app/providers/student_course_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/semester.dart';
 import '../models/user_model.dart';
-import '../models/course.dart';
 import '../services/auth_service.dart';
 import '../providers/semester_provider.dart';
 import 'login_screen.dart';
@@ -16,7 +16,7 @@ import '../../providers/notification_provider.dart';
 class StudentHomeScreen extends StatefulWidget {
   final UserModel user;
 
-  const StudentHomeScreen({Key? key, required this.user}) : super(key: key);
+  const StudentHomeScreen({super.key, required this.user});
 
   @override
   State<StudentHomeScreen> createState() => _StudentHomeScreenState();
@@ -24,23 +24,20 @@ class StudentHomeScreen extends StatefulWidget {
 
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   final AuthService _authService = AuthService();
-  final SupabaseClient _supabase = Supabase.instance.client;
 
-  List<Course> _enrolledCourses = [];
-  bool _isLoading = true;
-  String? _selectedSemesterId;
+  Semester? _selectedSemester;
 
   @override
   void initState() {
     super.initState();
     _loadSemesters();
-    _loadNotifications();
+    // _selectedSemester = context.read<SemesterProvider>().currentSemester;
   }
 
   Future<void> _loadNotifications() async {
     await context.read<NotificationProvider>().loadNotifications(
-      widget.user.id,
-    );
+          widget.user.id,
+        );
   }
 
   Future<void> _loadSemesters() async {
@@ -49,63 +46,61 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
     if (semesterProvider.semesters.isNotEmpty) {
       setState(() {
-        _selectedSemesterId =
-            semesterProvider.currentSemester?.id ??
-            semesterProvider.semesters.first.id;
+        _selectedSemester = semesterProvider.currentSemester;
       });
-      _loadEnrolledCourses();
     }
   }
 
-  Future<void> _loadEnrolledCourses() async {
-    if (_selectedSemesterId == null) return;
+  // Future<void> _loadEnrolledCourses() async {
+  //   if (_selectedSemesterId == null) return;
 
-    setState(() => _isLoading = true);
+  //   setState(() => _isLoading = true);
 
-    try {
-      // Get enrolled courses for the student
-      final response = await _supabase
-          .from('enrollments')
-          .select('''
-            groups!inner(
-              course_id,
-              courses!inner(
-                id,
-                code,
-                name,
-                sessions,
-                cover_image,
-                semester_id,
-                created_at
-              )
-            )
-          ''')
-          .eq('student_id', widget.user.id)
-          .eq('groups.courses.semester_id', _selectedSemesterId!);
+  //   try {
+  //     // Get enrolled courses for the student
+  //     final response = await _supabase
+  //         .from('enrollments')
+  //         .select('''
+  //           groups!inner(
+  //             course_id,
+  //             courses!inner(
+  //               id,
+  //               code,
+  //               name,
+  //               sessions,
+  //               cover_image,
+  //               semester_id,
+  //               created_at
+  //             )
+  //           )
+  //         ''')
+  //         .eq('student_id', widget.user.id)
+  //         .eq('groups.courses.semester_id', _selectedSemesterId!);
 
-      final courses = <Course>[];
-      final seenCourseIds = <String>{};
+  //     final courses = (response as Iterable)
+  //         .map((r) => Course.fromJson(json: r['groups']['courses']))
+  //         .toList();
 
-      for (var enrollment in response as List) {
-        final courseData = enrollment['groups']['courses'];
-        final courseId = courseData['id'];
+  //     // for (var enrollment in response as List) {
+  //     //   final courseData = enrollment['groups']['courses'];
+  //     //   final courseId = courseData['id'];
 
-        // Avoid duplicate courses (student might be in multiple groups)
-        if (!seenCourseIds.contains(courseId)) {
-          seenCourseIds.add(courseId);
-          courses.add(Course.fromJson(courseData));
-        }
-      }
+  //     //   // Avoid duplicate courses (student might be in multiple groups)
+  //     //   if (!seenCourseIds.contains(courseId)) {
+  //     //     seenCourseIds.add(courseId);
+  //     //     courses.add(Course.fromJson(courseData));
+  //     //   }
+  //     // }
 
-      setState(() {
-        _enrolledCourses = courses;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Error loading enrolled courses: $e');
-      setState(() => _isLoading = false);
-    }
-  }
+  //     setState(() {
+  //       _enrolledCourses = courses;
+  //       _isLoading = false;
+  //     });
+  //   } catch (e) {
+  //     print('Error loading enrolled courses: $e');
+  //     setState(() => _isLoading = false);
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -203,11 +198,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     ),
                     const SizedBox(width: 8),
                     if (semesterProvider.semesters.isNotEmpty)
-                      DropdownButton<String>(
-                        value: _selectedSemesterId,
+                      DropdownButton<Semester>(
+                        value: _selectedSemester,
                         items: semesterProvider.semesters.map((semester) {
                           return DropdownMenuItem(
-                            value: semester.id,
+                            value: semester,
                             child: Row(
                               children: [
                                 Text(semester.name),
@@ -234,11 +229,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                             ),
                           );
                         }).toList(),
-                        onChanged: (semesterId) {
+                        onChanged: (semester) {
                           setState(() {
-                            _selectedSemesterId = semesterId;
+                            semesterProvider.setCurrentSemester(semester!);
+                            _selectedSemester =
+                                semesterProvider.currentSemester;
                           });
-                          _loadEnrolledCourses();
                         },
                       ),
                   ],
@@ -248,149 +244,157 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
 
           // Courses section
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _enrolledCourses.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.school_outlined,
-                          size: 80,
+          Expanded(child: Consumer<StudentCourseProvider>(
+            builder: (context, provider, child) {
+              if (provider.isLoading || _selectedSemester == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (provider.currentSemester != _selectedSemester!.id) {
+                provider.loadEnrolledCourses(
+                    widget.user.id, _selectedSemester!.id);
+              }
+
+              if (provider.courses.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.school_outlined,
+                        size: 80,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No enrolled courses',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'You are not enrolled in any courses this semester',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
                           color: Colors.grey[400],
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No enrolled courses',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            color: Colors.grey[600],
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return GridView.builder(
+                padding: const EdgeInsets.all(16),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount:
+                      MediaQuery.of(context).size.width > 600 ? 3 : 2,
+                  childAspectRatio: 1.2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                ),
+                itemCount: provider.courses.length,
+                itemBuilder: (context, index) {
+                  final course = provider.courses[index];
+                  return Card(
+                    elevation: 3,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CourseDetailScreen(
+                              course: course,
+                              user: widget.user,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'You are not enrolled in any courses this semester',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[400],
+                        );
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Course header
+                          Container(
+                            height: 80,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.primaries[
+                                      index % Colors.primaries.length],
+                                  Colors.primaries[
+                                          index % Colors.primaries.length]
+                                      .withOpacity(0.7),
+                                ],
+                              ),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(4),
+                                topRight: Radius.circular(4),
+                              ),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                Icons.book,
+                                size: 40,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  )
-                : GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: MediaQuery.of(context).size.width > 600
-                          ? 3
-                          : 2,
-                      childAspectRatio: 1.2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                    ),
-                    itemCount: _enrolledCourses.length,
-                    itemBuilder: (context, index) {
-                      final course = _enrolledCourses[index];
-                      return Card(
-                        elevation: 3,
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => CourseDetailScreen(
-                                  course: course,
-                                  user: widget.user,
-                                ),
-                              ),
-                            );
-                          },
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Course header
-                              Container(
-                                height: 80,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.primaries[index %
-                                          Colors.primaries.length],
-                                      Colors
-                                          .primaries[index %
-                                              Colors.primaries.length]
-                                          .withOpacity(0.7),
-                                    ],
+                          // Course info
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    course.code,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(4),
-                                    topRight: Radius.circular(4),
+                                  Text(
+                                    course.name,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                                child: Center(
-                                  child: Icon(
-                                    Icons.book,
-                                    size: 40,
-                                    color: Colors.white.withOpacity(0.9),
-                                  ),
-                                ),
-                              ),
-                              // Course info
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                  Row(
                                     children: [
+                                      Icon(
+                                        Icons.schedule,
+                                        size: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                      const SizedBox(width: 4),
                                       Text(
-                                        course.code,
+                                        '${course.sessions} sessions',
                                         style: GoogleFonts.poppins(
-                                          fontSize: 12,
+                                          fontSize: 11,
                                           color: Colors.grey[600],
                                         ),
                                       ),
-                                      Text(
-                                        course.name,
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.schedule,
-                                            size: 14,
-                                            color: Colors.grey[600],
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${course.sessions} sessions',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 11,
-                                              color: Colors.grey[600],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
                                     ],
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          )),
         ],
       ),
     );

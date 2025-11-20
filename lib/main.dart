@@ -1,14 +1,16 @@
+import 'package:elearning_management_app/hive/hive_registrar.g.dart';
 import 'package:elearning_management_app/providers/announcement_provider.dart';
 import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:elearning_management_app/providers/course_material_provider.dart';
+import 'package:elearning_management_app/providers/instructor_course_provider.dart';
 import 'package:elearning_management_app/providers/quiz_provider.dart';
+import 'package:elearning_management_app/providers/student_course_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
 import 'providers/semester_provider.dart';
-import 'providers/course_provider.dart';
 import 'providers/group_provider.dart';
 import 'providers/student_provider.dart';
 import 'providers/content_provider.dart';
@@ -17,9 +19,13 @@ import 'screens/login_screen.dart';
 import 'providers/notification_provider.dart';
 import 'providers/quiz_submission_provider.dart';
 import 'providers/assignment_submission_provider.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Hive.initFlutter();
+  Hive.registerAdapters();
 
   // Initialize Supabase
   await Supabase.initialize(
@@ -38,7 +44,8 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SemesterProvider()),
-        ChangeNotifierProvider(create: (_) => CourseProvider()),
+        ChangeNotifierProvider(create: (_) => InstructorCourseProvider()),
+        ChangeNotifierProvider(create: (_) => StudentCourseProvider()),
         ChangeNotifierProvider(create: (_) => GroupProvider()),
         ChangeNotifierProvider(create: (_) => StudentProvider()),
         ChangeNotifierProvider(create: (_) => ContentProvider()),
@@ -51,7 +58,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => QuizSubmissionProvider()),
         ChangeNotifierProvider(
           create: (_) => AssignmentSubmissionProvider(),
-        ), // ✅ --- ADDED
+        ),
       ],
       child: MaterialApp(
         title: 'E-Learning Management',

@@ -1,18 +1,17 @@
+import 'package:elearning_management_app/providers/instructor_course_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../models/course.dart';
 import '../../models/semester.dart';
 import '../../models/user_model.dart';
-import '../../providers/course_provider.dart';
 import '../../providers/semester_provider.dart';
 import '../course_detail_screen.dart';
 
 class CourseManagementScreen extends StatefulWidget {
-  final UserModel user; // ✅ Pass logged-in user
+  final UserModel user;
 
-  const CourseManagementScreen({Key? key, required this.user})
-    : super(key: key);
+  const CourseManagementScreen({super.key, required this.user});
 
   @override
   State<CourseManagementScreen> createState() => _CourseManagementScreenState();
@@ -24,25 +23,25 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
   @override
   void initState() {
     super.initState();
-    _loadInitialData();
+    _selectedSemester = context.read<SemesterProvider>().currentSemester;
+    // _loadInitialData();
   }
 
-  Future<void> _loadInitialData() async {
-    final semesterProvider = context.read<SemesterProvider>();
-    await semesterProvider.loadSemesters();
+  // Future<void> _loadInitialData() async {
+  //   final semesterProvider = context.read<SemesterProvider>();
+  //   await semesterProvider.loadSemesters();
 
-    if (semesterProvider.semesters.isNotEmpty) {
-      setState(() {
-        _selectedSemester =
-            semesterProvider.currentSemester ??
-            semesterProvider.semesters.first;
-      });
+  //   if (semesterProvider.semesters.isNotEmpty) {
+  //     setState(() {
+  //       _selectedSemester = semesterProvider.currentSemester ??
+  //           semesterProvider.semesters.first;
+  //     });
 
-      if (_selectedSemester != null) {
-        context.read<CourseProvider>().loadCourses(_selectedSemester!.id);
-      }
-    }
-  }
+  //     if (_selectedSemester != null) {
+  //       context.read<CourseProvider>().loadCourses(_selectedSemester!.id);
+  //     }
+  //   }
+  // }
 
   void _showAddEditDialog([Course? course]) {
     if (_selectedSemester == null) {
@@ -134,7 +133,7 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                   return;
                 }
 
-                final provider = context.read<CourseProvider>();
+                final provider = context.read<InstructorCourseProvider>();
                 bool success;
 
                 if (isEdit) {
@@ -191,9 +190,10 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final success = await context.read<CourseProvider>().deleteCourse(
-                course.id,
-              );
+              final success =
+                  await context.read<InstructorCourseProvider>().deleteCourse(
+                        course.id,
+                      );
 
               if (success && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -245,7 +245,7 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: DropdownButtonFormField<Semester>(
-                    value: _selectedSemester,
+                    initialValue: _selectedSemester,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -287,10 +287,11 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                       );
                     }).toList(),
                     onChanged: (semester) {
-                      setState(() => _selectedSemester = semester);
-                      if (semester != null) {
-                        context.read<CourseProvider>().loadCourses(semester.id);
-                      }
+                      setState(() {
+                        semesterProvider.setCurrentSemester(semester!);
+                        _selectedSemester = semesterProvider.currentSemester;
+                      });
+                      // context.read<CourseProvider>().loadCourses(semester.id);
                     },
                   ),
                 ),
@@ -300,7 +301,7 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
 
           // Course list
           Expanded(
-            child: Consumer<CourseProvider>(
+            child: Consumer<InstructorCourseProvider>(
               builder: (context, provider, child) {
                 if (_selectedSemester == null) {
                   return Center(
@@ -402,9 +403,8 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                 return GridView.builder(
                   padding: const EdgeInsets.all(16),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: MediaQuery.of(context).size.width > 800
-                        ? 3
-                        : 2,
+                    crossAxisCount:
+                        MediaQuery.of(context).size.width > 800 ? 3 : 2,
                     childAspectRatio: 1.5,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
@@ -593,8 +593,8 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
       floatingActionButton: _selectedSemester != null
           ? FloatingActionButton(
               onPressed: () => _showAddEditDialog(),
-              child: const Icon(Icons.add),
               tooltip: 'Add Course',
+              child: const Icon(Icons.add),
             )
           : null,
     );

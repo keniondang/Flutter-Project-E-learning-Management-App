@@ -1,18 +1,17 @@
+import 'package:elearning_management_app/providers/instructor_course_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../models/course.dart';
 import '../../models/group.dart';
 import '../../models/semester.dart';
-import '../../providers/course_provider.dart';
 import '../../providers/group_provider.dart';
 import '../../providers/semester_provider.dart';
-import '../../providers/student_provider.dart';
 import '../../services/csv_service.dart';
 import 'group_students_screen.dart';
 
 class GroupManagementScreen extends StatefulWidget {
-  const GroupManagementScreen({Key? key}) : super(key: key);
+  const GroupManagementScreen({super.key});
 
   @override
   State<GroupManagementScreen> createState() => _GroupManagementScreenState();
@@ -34,13 +33,14 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
     if (semesterProvider.semesters.isNotEmpty) {
       setState(() {
-        _selectedSemester =
-            semesterProvider.currentSemester ??
+        _selectedSemester = semesterProvider.currentSemester ??
             semesterProvider.semesters.first;
       });
 
       if (_selectedSemester != null) {
-        await context.read<CourseProvider>().loadCourses(_selectedSemester!.id);
+        await context
+            .read<InstructorCourseProvider>()
+            .loadCourses(_selectedSemester!.id);
       }
     }
   }
@@ -279,12 +279,11 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                   .toList();
 
               // Import groups
-              final success = await context
-                  .read<GroupProvider>()
-                  .createMultipleGroups(
-                    courseId: _selectedCourse!.id,
-                    groupNames: groupNames,
-                  );
+              final success =
+                  await context.read<GroupProvider>().createMultipleGroups(
+                        courseId: _selectedCourse!.id,
+                        groupNames: groupNames,
+                      );
 
               if (success && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -321,8 +320,8 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
             onPressed: () async {
               Navigator.pop(context);
               final success = await context.read<GroupProvider>().deleteGroup(
-                group.id,
-              );
+                    group.id,
+                  );
 
               if (success && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -344,7 +343,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final semesterProvider = context.watch<SemesterProvider>();
-    final courseProvider = context.watch<CourseProvider>();
+    final courseProvider = context.watch<InstructorCourseProvider>();
 
     return Scaffold(
       appBar: AppBar(
@@ -407,9 +406,11 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                             _selectedCourse = null;
                           });
                           if (semester != null) {
-                            await context.read<CourseProvider>().loadCourses(
-                              semester.id,
-                            );
+                            await context
+                                .read<InstructorCourseProvider>()
+                                .loadCourses(
+                                  semester.id,
+                                );
                           }
                         },
                       ),

@@ -1,10 +1,10 @@
 class Course {
   final String id;
   final String semesterId;
-  final String code;
-  final String name;
-  final int sessions;
-  final String? coverImage;
+  String code;
+  String name;
+  int sessions;
+  String? coverImage;
   final DateTime createdAt;
 
   // Additional fields for display
@@ -25,7 +25,11 @@ class Course {
     this.studentCount,
   });
 
-  factory Course.fromJson(Map<String, dynamic> json) {
+  factory Course.fromJson(
+      {required Map<String, dynamic> json,
+      semesterName,
+      groupCount,
+      studentCount}) {
     return Course(
       id: json['id'],
       semesterId: json['semester_id'],
@@ -34,9 +38,12 @@ class Course {
       sessions: json['sessions'],
       coverImage: json['cover_image'],
       createdAt: DateTime.parse(json['created_at']),
-      semesterName: json['semester_name'],
-      groupCount: json['group_count'],
-      studentCount: json['student_count'],
+      // semesterName: json['semester_name'],
+      // groupCount: json['group_count'],
+      // studentCount: json['student_count'],
+      semesterName: semesterName ?? json['semester_name'],
+      groupCount: groupCount ?? 0,
+      studentCount: studentCount ?? 0,
     );
   }
 

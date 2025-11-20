@@ -1,7 +1,7 @@
 import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:elearning_management_app/providers/course_material_provider.dart';
-import 'package:elearning_management_app/providers/course_provider.dart';
 import 'package:elearning_management_app/providers/group_provider.dart';
+import 'package:elearning_management_app/providers/instructor_course_provider.dart';
 import 'package:elearning_management_app/providers/quiz_provider.dart';
 import 'package:elearning_management_app/providers/student_provider.dart';
 import 'package:flutter/material.dart';
@@ -153,12 +153,14 @@ class InstructorHomeScreen extends StatelessWidget {
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   children: [
-                    Consumer2<SemesterProvider, CourseProvider>(
+                    Consumer2<SemesterProvider, InstructorCourseProvider>(
                       builder:
                           (context, semesterProvider, courseProvider, child) {
-                        if (courseProvider.courses.isEmpty &&
-                            !courseProvider.isLoading &&
-                            semesterProvider.currentSemester != null) {
+                        if (!courseProvider.isLoading &&
+                            !semesterProvider.isLoading &&
+                            semesterProvider.currentSemester != null &&
+                            courseProvider.currentSemester !=
+                                semesterProvider.currentSemester!.id) {
                           courseProvider.loadCourses(
                               semesterProvider.currentSemester!.id);
                         }
@@ -192,17 +194,17 @@ class InstructorHomeScreen extends StatelessWidget {
                     Consumer2<SemesterProvider, GroupProvider>(
                       builder:
                           (context, semesterProvider, groupProvider, child) {
-                        if (groupProvider.semesterCount == null &&
-                            !groupProvider.isLoading &&
-                            semesterProvider.currentSemester != null) {
+                        if (!groupProvider.isLoading &&
+                            semesterProvider.currentSemester != null &&
+                            groupProvider.currentSemester !=
+                                semesterProvider.currentSemester!.id) {
                           groupProvider.countForSemester(
                               semesterProvider.currentSemester!.id);
                         }
 
                         return _buildStatCard(
                           'Total Groups',
-                          semesterProvider.isLoading ||
-                                  groupProvider.semesterCount == null
+                          semesterProvider.isLoading || groupProvider.isLoading
                               ? 'Loading data'
                               : groupProvider.semesterCount.toString(),
                           Icons.group,
