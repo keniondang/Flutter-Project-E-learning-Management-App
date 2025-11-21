@@ -178,11 +178,27 @@ class InstructorHomeScreen extends StatelessWidget {
                     // Consumer2<SemesterProvider, StudentProvider>(
                     //   builder:
                     //       (context, semesterProvider, studentProvider, child) {
-                    //     if (studentProvider.students.isEmpty &&
-                    //         !studentProvider.isLoading &&
-                    //         semesterProvider.currentSemester != null) {
+                    //     if (!studentProvider.isLoading &&
+                    //         semesterProvider.currentSemester == null) {
                     //       studentProvider.loadAllStudents();
                     //     }
+
+                    //     // return FutureBuilder(
+                    //     //     future: studentProvider.countTotalStudents(),
+                    //     //     builder: (context, snapshot) {
+                    //     //       switch (snapshot){
+                    //     //         case ConnectionState.waiting:
+
+                    //     //         return _buildStatCard(
+                    //     //           'Total Students',
+                    //     //           studentProvider.isLoading
+                    //     //               ? 'Loading data'
+                    //     //               : (await studentProvider.countTotalStudents()).toString(),
+                    //     //           Icons.people,
+                    //     //           Colors.green,
+                    //     //         );
+                    //     //       }
+                    //     //     });
 
                     //     return _buildStatCard(
                     //       'Total Students',
@@ -194,48 +210,146 @@ class InstructorHomeScreen extends StatelessWidget {
                     //     );
                     //   },
                     // ),
-                    Consumer2<SemesterProvider, GroupProvider>(
-                      builder:
-                          (context, semesterProvider, groupProvider, child) {
-                        if (!groupProvider.isLoading &&
-                            semesterProvider.currentSemester != null &&
-                            groupProvider.currentSemester !=
-                                semesterProvider.currentSemester!.id) {
-                          groupProvider.countForSemester(
-                              semesterProvider.currentSemester!.id);
+                    FutureBuilder(
+                        future: context
+                            .read<StudentProvider>()
+                            .countTotalStudents(),
+                        builder: (context, snapshot) {
+                          switch (snapshot.connectionState) {
+                            case ConnectionState.waiting:
+                              return _buildStatCard(
+                                'Total Students',
+                                'Loading data',
+                                Icons.people,
+                                Colors.green,
+                              );
+                            case ConnectionState.done:
+                              return _buildStatCard(
+                                'Total Students',
+                                snapshot.hasError
+                                    ? 'Error loading data'
+                                    : snapshot.data!.toString(),
+                                Icons.people,
+                                Colors.green,
+                              );
+                            default:
+                              return _buildStatCard(
+                                'Total Students',
+                                'Encountered unknown data',
+                                Icons.people,
+                                Colors.green,
+                              );
+                          }
+                        }),
+                    Consumer<SemesterProvider>(
+                      builder: (context, provider, child) {
+                        if (provider.currentSemester == null) {
+                          return _buildStatCard(
+                            'Total Groups',
+                            'Loading data',
+                            Icons.group,
+                            Colors.orange,
+                          );
                         }
 
-                        return _buildStatCard(
-                          'Total Groups',
-                          semesterProvider.isLoading || groupProvider.isLoading
-                              ? 'Loading data'
-                              : groupProvider.semesterCount.toString(),
-                          Icons.group,
-                          Colors.orange,
-                        );
+                        return FutureBuilder(
+                            future: context
+                                .read<GroupProvider>()
+                                .countInSemester(provider.currentSemester!.id),
+                            builder: (context, snapshot) {
+                              switch (snapshot.connectionState) {
+                                case ConnectionState.waiting:
+                                  return _buildStatCard(
+                                    'Total Groups',
+                                    'Loading data',
+                                    Icons.people,
+                                    Colors.orange,
+                                  );
+                                case ConnectionState.done:
+                                  return _buildStatCard(
+                                    'Total Groups',
+                                    snapshot.hasError
+                                        ? 'Error loading data'
+                                        : snapshot.data!.toString(),
+                                    Icons.people,
+                                    Colors.orange,
+                                  );
+                                default:
+                                  return _buildStatCard(
+                                    'Total Groups',
+                                    'Encountered unknown data',
+                                    Icons.people,
+                                    Colors.orange,
+                                  );
+                              }
+                            });
                       },
                     ),
-                    Consumer2<SemesterProvider, AssignmentProvider>(
-                      builder: (context, semesterProvider, assignmentProvider,
-                          child) {
-                        if (assignmentProvider.semesterCount == null &&
-                            !assignmentProvider.isLoading &&
-                            semesterProvider.currentSemester != null) {
-                          assignmentProvider.countForSemester(
-                              semesterProvider.currentSemester!.id);
+                    Consumer<SemesterProvider>(
+                      builder: (context, provider, child) {
+                        if (provider.currentSemester == null) {
+                          return _buildStatCard(
+                            'Total Groups',
+                            'Loading data',
+                            Icons.group,
+                            Colors.orange,
+                          );
                         }
 
-                        return _buildStatCard(
-                          'Total Assignments',
-                          semesterProvider.isLoading ||
-                                  assignmentProvider.semesterCount == null
-                              ? 'Loading data'
-                              : assignmentProvider.semesterCount.toString(),
-                          Icons.assignment,
-                          Colors.purple,
-                        );
+                        return FutureBuilder(
+                            future: context
+                                .read<AssignmentProvider>()
+                                .countInSemester(provider.currentSemester!.id),
+                            builder: (context, snapshot) {
+                              switch (snapshot.connectionState) {
+                                case ConnectionState.waiting:
+                                  return _buildStatCard(
+                                    'Total Assignments',
+                                    'Loading data',
+                                    Icons.assessment,
+                                    Colors.purple,
+                                  );
+                                case ConnectionState.done:
+                                  return _buildStatCard(
+                                    'Total Assignments',
+                                    snapshot.hasError
+                                        ? 'Error loading data'
+                                        : snapshot.data!.toString(),
+                                    Icons.assessment,
+                                    Colors.purple,
+                                  );
+                                default:
+                                  return _buildStatCard(
+                                    'Total Assignments',
+                                    'Encountered unknown data',
+                                    Icons.assessment,
+                                    Colors.purple,
+                                  );
+                              }
+                            });
                       },
                     ),
+                    // Consumer2<SemesterProvider, AssignmentProvider>(
+                    //   builder: (context, semesterProvider, assignmentProvider,
+                    //       child) {
+                    //     if (assignmentProvider.semesterCount == null &&
+                    //         !assignmentProvider.isLoading &&
+                    //         semesterProvider.currentSemester != null) {
+                    //       assignmentProvider.countForSemester(
+                    //           semesterProvider.currentSemester!.id);
+                    //     }
+
+                    //     return _buildStatCard(
+                    //       'Total Assignments',
+                    //       semesterProvider.isLoading ||
+                    //               assignmentProvider.semesterCount == null
+                    //           ? 'Loading data'
+                    //           : assignmentProvider.semesterCount.toString(),
+                    //       Icons.assignment,
+                    //       Colors.purple,
+                    //     );
+                    //   },
+                    // ),
                     Consumer2<SemesterProvider, QuizProvider>(
                       builder:
                           (context, semesterProvider, quizProvider, child) {

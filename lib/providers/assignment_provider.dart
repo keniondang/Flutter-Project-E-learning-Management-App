@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/assignment.dart';
 
 class AssignmentProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final _boxName = 'assignment-box';
 
   int? _semesterCount;
   int? get semesterCount => _semesterCount;
@@ -22,83 +24,118 @@ class AssignmentProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      final response = await _supabase
-          .from('assignments')
-          .select()
-          .eq('course_id', courseId)
-          .order('due_date', ascending: true);
+    final box = await Hive.openBox<Assignment>(_boxName);
 
-      _assignments =
-          (response as List).map((json) => Assignment.fromJson(json)).toList();
+    if (!box.values.any((x) => x.courseId == courseId)) {
+      try {
+        final response = await _supabase
+            .from('assignments')
+            .select('*, courses(semester_id)')
+            .eq('course_id', courseId);
 
-      // Load submission counts
-      for (var assignment in _assignments) {
-        await _loadAssignmentStats(assignment);
+        await box.putAll(Map.fromEntries(
+            await Future.wait((response as Iterable).map((json) async {
+          final assignment = Assignment.fromJson(
+            json: json,
+            semesterId: json['courses']['semester_id'],
+            submissionCount: await _fetchSubmissionCount(json['id']),
+          );
+
+          return MapEntry(assignment.id, assignment);
+        }))));
+
+        // // Load submission counts
+        // for (var assignment in _assignments) {
+        //   await _loadAssignmentStats(assignment);
+        // }
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading quizzes: $e');
       }
-    } catch (e) {
-      _error = e.toString();
-      print('Error loading quizzes: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
+
+    _assignments = box.values.where((x) => x.courseId == courseId).toList();
+
+    _isLoading = false;
+    notifyListeners();
   }
 
-  Future<void> countForSemester(String semesterId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  Future<int> countInSemester(String semesterId) async {
+    final box = await Hive.openBox<Assignment>(_boxName);
 
+    if (!box.values.any((x) => x.semesterId == semesterId)) {
+      try {
+        final response = await _supabase
+            .from('assignments')
+            .select('*, courses(semester_id)')
+            .eq('courses.semester_id', semesterId);
+
+        await box.putAll(
+            Map.fromEntries(await Future.wait(response.map((json) async {
+          final assignment = Assignment.fromJson(
+            json: json,
+            semesterId: json['courses']['semester_id'],
+            submissionCount: await _fetchSubmissionCount(json['id']),
+          );
+
+          return MapEntry(assignment.id, assignment);
+        }))));
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading quizzes: $e');
+      }
+    }
+
+    return box.values.where((x) => x.semesterId == semesterId).length;
+  }
+
+  // Future<void> _loadAssignmentStats(Assignment assignment) async {
+  //   try {
+  //     final submissionResponse = await _supabase
+  //         .from('assignment_submissions')
+  //         .select('id')
+  //         .eq('assignment_id', assignment.id);
+
+  //     final index = _assignments.indexWhere((a) => a.id == assignment.id);
+  //     if (index != -1) {
+  //       _assignments[index] = Assignment(
+  //         id: assignment.id,
+  //         courseId: assignment.courseId,
+  //         instructorId: assignment.instructorId,
+  //         title: assignment.title,
+  //         description: assignment.description,
+  //         fileAttachments: assignment.fileAttachments,
+  //         startDate: assignment.startDate,
+  //         dueDate: assignment.dueDate,
+  //         lateSubmissionAllowed: assignment.lateSubmissionAllowed,
+  //         lateDueDate: assignment.lateDueDate,
+  //         maxAttempts: assignment.maxAttempts,
+  //         maxFileSize: assignment.maxFileSize,
+  //         allowedFileTypes: assignment.allowedFileTypes,
+  //         scopeType: assignment.scopeType,
+  //         targetGroups: assignment.targetGroups,
+  //         totalPoints: assignment.totalPoints,
+  //         createdAt: assignment.createdAt,
+  //         submissionCount: (submissionResponse as List).length,
+  //       );
+  //     }
+  //   } catch (e) {
+  //     print('Error loading assignment stats: $e');
+  //   }
+  // }
+
+  Future<int> _fetchSubmissionCount(String assignmentId) async {
     try {
       final response = await _supabase
-          .from('assignments')
-          .select('id, courses(id)')
-          .eq('courses.semester_id', semesterId)
-          .count(CountOption.estimated);
-
-      _semesterCount = response.count;
-    } catch (e) {
-      _error = e.toString();
-      print('Error loading quizzes: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> _loadAssignmentStats(Assignment assignment) async {
-    try {
-      final submissionResponse = await _supabase
           .from('assignment_submissions')
           .select('id')
-          .eq('assignment_id', assignment.id);
+          .eq('assignment_id', assignmentId)
+          .count();
 
-      final index = _assignments.indexWhere((a) => a.id == assignment.id);
-      if (index != -1) {
-        _assignments[index] = Assignment(
-          id: assignment.id,
-          courseId: assignment.courseId,
-          instructorId: assignment.instructorId,
-          title: assignment.title,
-          description: assignment.description,
-          fileAttachments: assignment.fileAttachments,
-          startDate: assignment.startDate,
-          dueDate: assignment.dueDate,
-          lateSubmissionAllowed: assignment.lateSubmissionAllowed,
-          lateDueDate: assignment.lateDueDate,
-          maxAttempts: assignment.maxAttempts,
-          maxFileSize: assignment.maxFileSize,
-          allowedFileTypes: assignment.allowedFileTypes,
-          scopeType: assignment.scopeType,
-          targetGroups: assignment.targetGroups,
-          totalPoints: assignment.totalPoints,
-          createdAt: assignment.createdAt,
-          submissionCount: (submissionResponse as List).length,
-        );
-      }
+      return response.count;
     } catch (e) {
       print('Error loading assignment stats: $e');
+      return 0;
     }
   }
 
@@ -120,7 +157,7 @@ class AssignmentProvider extends ChangeNotifier {
     required int totalPoints,
   }) async {
     try {
-      await _supabase.from('assignments').insert({
+      final response = await _supabase.from('assignments').insert({
         'course_id': courseId,
         'instructor_id': instructorId,
         'title': title,
@@ -136,12 +173,25 @@ class AssignmentProvider extends ChangeNotifier {
         'scope_type': scopeType,
         'target_groups': targetGroups,
         'total_points': totalPoints,
-      });
+      }).select('*, courses(semester_id)');
 
-      await loadAssignments(courseId);
+      final assignment = response
+          .map((json) => Assignment.fromJson(
+              json: json,
+              semesterId: json['courses']['semester_id'],
+              submissionCount: 0))
+          .first;
+
+      final box = await Hive.openBox<Assignment>(_boxName);
+
+      await box.put(assignment.id, assignment);
+      _assignments.add(assignment);
+
+      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
       return false;
     }

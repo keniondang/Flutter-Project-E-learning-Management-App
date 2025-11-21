@@ -83,6 +83,27 @@ class StudentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<int> countTotalStudents() async {
+    final box = await Hive.openBox<Student>(_boxName);
+
+    if (box.isEmpty) {
+      try {
+        final response =
+            await _supabase.from('users').select().eq('role', 'student');
+
+        await box.putAll(Map.fromEntries((response as Iterable).map((json) {
+          final student = Student.fromJson(json: json);
+          return MapEntry(student.id, student);
+        })));
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading students in group: $e');
+      }
+    }
+
+    return box.length;
+  }
+
   // Create new student
   Future<Map<String, dynamic>> createStudent({
     required String username,

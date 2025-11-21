@@ -27,11 +27,9 @@ class SemesterProvider extends ChangeNotifier {
           .select()
           .order('created_at', ascending: false);
 
-      _semesters = (response as List)
-          .map((json) => Semester.fromJson(json))
-          .toList();
+      _semesters =
+          (response as List).map((json) => Semester.fromJson(json)).toList();
 
-      // ✅ Safely set current semester (may remain null if none exist)
       if (_semesters.isEmpty) {
         _currentSemester = null;
       } else {
@@ -60,8 +58,7 @@ class SemesterProvider extends ChangeNotifier {
       if (setAsCurrent) {
         await _supabase
             .from('semesters')
-            .update({'is_current': false})
-            .eq('is_current', true);
+            .update({'is_current': false}).eq('is_current', true);
       }
 
       await _supabase.from('semesters').insert({
@@ -90,14 +87,13 @@ class SemesterProvider extends ChangeNotifier {
       if (setAsCurrent) {
         await _supabase
             .from('semesters')
-            .update({'is_current': false})
-            .eq('is_current', true);
+            .update({'is_current': false}).eq('is_current', true);
       }
 
       await _supabase
           .from('semesters')
-          .update({'code': code, 'name': name, 'is_current': setAsCurrent})
-          .eq('id', id);
+          .update({'code': code, 'name': name, 'is_current': setAsCurrent}).eq(
+              'id', id);
 
       await loadSemesters();
       return true;

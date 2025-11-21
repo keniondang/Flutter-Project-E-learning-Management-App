@@ -1,105 +1,160 @@
 import 'package:flutter/material.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/group.dart';
 
 class GroupProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final _boxName = 'group-box';
 
-  int? _semesterCount;
   List<Group> _groups = [];
-  bool _isLoading = false;
-  String? _error;
-
-  // This is used to remember which course we are looking at
-  String? _currentCourseId;
-
-  int? get semesterCount => _semesterCount;
   List<Group> get groups => _groups;
+
+  bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  String? _error;
   String? get error => _error;
 
   // Load groups for a course
   Future<void> loadGroups(String courseId) async {
     _isLoading = true;
     _error = null;
-    _currentCourseId = courseId; // Remember this courseId
     notifyListeners();
 
-    try {
-      final response = await _supabase
-          .from('groups')
-          .select('*, courses(name)')
-          .eq('course_id', courseId)
-          .order('name');
+    final box = await Hive.openBox<Group>(_boxName);
 
-      _groups = (response as List).map((json) {
-        String? courseName;
-        if (json['courses'] != null) {
-          courseName = json['courses']['name'];
-        }
+    if (!box.values.any((x) => x.courseId == courseId)) {
+      try {
+        final response = await _supabase
+            .from('groups')
+            .select('*, courses(name, semester_id)')
+            .eq('course_id', courseId);
+        // .order('name');
 
-        return Group.fromJson({...json, 'course_name': courseName});
-      }).toList();
+        await box.putAll(Map.fromEntries(
+            await Future.wait((response as Iterable).map((json) async {
+          String? courseName;
+          String? semesterId;
 
-      // Load student count for each group
-      for (var group in _groups) {
-        await _loadGroupStats(group);
+          if (json['courses'] != null) {
+            courseName = json['courses']['name'];
+            semesterId = json['courses']['semester_id'];
+          }
+
+          final group = Group.fromJson(
+            json: json,
+            courseName: courseName,
+            studentCount: await _fetchStudentCount(json['id']),
+            semesterId: semesterId,
+          );
+
+          return MapEntry(group.id, group);
+        }))));
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading groups: $e');
       }
-    } catch (e) {
-      _error = e.toString();
-      print('Error loading groups: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
+
+    _groups = box.values.where((x) => x.courseId == courseId).toList();
+
+    _isLoading = false;
+    notifyListeners();
   }
 
-  Future<void> countForSemester(String semesterId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  Future<int> countInSemester(String semesterId) async {
+    final box = await Hive.openBox<Group>(_boxName);
 
-    try {
-      final response = await _supabase
-          .from('groups')
-          .select('id, courses(id)')
-          .eq('courses.semester_id', semesterId)
-          .count(CountOption.estimated);
+    if (!box.values.any((x) => x.semesterId == semesterId)) {
+      try {
+        final response = await _supabase
+            .from('groups')
+            .select('*, courses(name, semester_id)')
+            .eq('courses.semester_id', semesterId);
 
-      _semesterCount = response.count;
-    } catch (e) {
-      _error = e.toString();
-      print('Error loading groups: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+        await box.putAll(Map.fromEntries(
+            await Future.wait((response as Iterable).map((json) async {
+          String? courseName;
+          String? semesterId;
+
+          if (json['courses'] != null) {
+            courseName = json['courses']['name'];
+            semesterId = json['courses']['semester_id'];
+          }
+
+          final group = Group.fromJson(
+            json: json,
+            courseName: courseName,
+            studentCount: await _fetchStudentCount(json['id']),
+            semesterId: semesterId,
+          );
+
+          return MapEntry(group.id, group);
+        }))));
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading groups: $e');
+      }
     }
+
+    return box.values.where((x) => x.semesterId == semesterId).length;
   }
 
   // Load stats for a group
-  Future<void> _loadGroupStats(Group group) async {
+  // Future<void> _loadGroupStats(Group group) async {
+  //   try {
+  //     final response = await _supabase
+  //         .from('enrollments')
+  //         .select('student_id')
+  //         .eq('group_id', group.id);
+
+  //     final studentCount = (response as List).length;
+
+  //     // Update group with stats
+  //     final index = _groups.indexWhere((g) => g.id == group.id);
+  //     if (index != -1) {
+  //       _groups[index] = Group(
+  //         id: group.id,
+  //         courseId: group.courseId,
+  //         name: group.name,
+  //         createdAt: group.createdAt,
+  //         courseName: group.courseName,
+  //         studentCount: studentCount,
+  //       );
+  //     }
+  //   } catch (e) {
+  //     print('Error loading group stats: $e');
+  //   }
+  // }
+
+  Future<int> _fetchStudentCount(String groupId) async {
     try {
       final response = await _supabase
           .from('enrollments')
           .select('student_id')
-          .eq('group_id', group.id);
+          .eq('group_id', groupId)
+          .count();
 
-      final studentCount = (response as List).length;
+      // final studentCount = (response as List).length;
 
-      // Update group with stats
-      final index = _groups.indexWhere((g) => g.id == group.id);
-      if (index != -1) {
-        _groups[index] = Group(
-          id: group.id,
-          courseId: group.courseId,
-          name: group.name,
-          createdAt: group.createdAt,
-          courseName: group.courseName,
-          studentCount: studentCount,
-        );
-      }
+      // // Update group with stats
+      // final index = _groups.indexWhere((g) => g.id == group.id);
+      // if (index != -1) {
+      //   _groups[index] = Group(
+      //     id: group.id,
+      //     courseId: group.courseId,
+      //     name: group.name,
+      //     createdAt: group.createdAt,
+      //     courseName: group.courseName,
+      //     studentCount: studentCount,
+      //   );
+      // }
+
+      return response.count;
     } catch (e) {
       print('Error loading group stats: $e');
+      return 0;
     }
   }
 
@@ -109,15 +164,31 @@ class GroupProvider extends ChangeNotifier {
     required String name,
   }) async {
     try {
-      await _supabase.from('groups').insert({
+      final response = await _supabase.from('groups').insert({
         'course_id': courseId,
         'name': name,
-      });
+      }).select('*, courses(name)');
 
-      await loadGroups(courseId);
+      final box = await Hive.openBox<Group>(_boxName);
+
+      final newGroup = (response as Iterable).map((json) {
+        String? courseName;
+
+        if (json['courses'] != null) {
+          courseName = json['courses']['name'];
+        }
+
+        return Group.fromJson(json: json, courseName: courseName);
+      }).first;
+
+      await box.put(newGroup.id, newGroup);
+      _groups.add(newGroup);
+
+      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
       return false;
     }
@@ -146,25 +217,52 @@ class GroupProvider extends ChangeNotifier {
   // Update group
   Future<bool> updateGroup({required String id, required String name}) async {
     try {
-      await _supabase.from('groups').update({'name': name}).eq('id', id);
+      final response = await _supabase
+          .from('groups')
+          .update({'name': name})
+          .eq('id', id)
+          .select('*, course(name)');
 
       // Update local list
-      final index = _groups.indexWhere((g) => g.id == id);
-      if (index != -1) {
-        final group = _groups[index];
-        _groups[index] = Group(
-          id: group.id,
-          courseId: group.courseId,
-          name: name,
-          createdAt: group.createdAt,
-          courseName: group.courseName,
-          studentCount: group.studentCount,
-        );
-        notifyListeners();
-      }
+      // final index = _groups.indexWhere((g) => g.id == id);
+      // if (index != -1) {
+      //   final group = _groups[index];
+      //   _groups[index] = Group(
+      //     id: group.id,
+      //     courseId: group.courseId,
+      //     name: name,
+      //     createdAt: group.createdAt,
+      //     courseName: group.courseName,
+      //     studentCount: group.studentCount,
+      //   );
+      //   notifyListeners();
+      // }
+
+      final box = await Hive.openBox<Group>(_boxName);
+
+      final group = (response as Iterable).map((json) {
+        String? courseName;
+
+        if (json['courses'] != null) {
+          courseName = json['courses']['name'];
+        }
+
+        final old = box.get(json['id']);
+
+        return Group.fromJson(
+            json: json,
+            courseName: courseName,
+            studentCount: old!.studentCount);
+      }).first;
+
+      await box.put(group.id, group);
+      _groups[_groups.indexWhere((x) => x.id == group.id)] = group;
+
+      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
       return false;
     }
@@ -174,19 +272,19 @@ class GroupProvider extends ChangeNotifier {
   Future<bool> deleteGroup(String id) async {
     try {
       await _supabase.from('groups').delete().eq('id', id);
+
+      final box = await Hive.openBox<Group>(_boxName);
+
+      await box.delete(id);
       _groups.removeWhere((group) => group.id == id);
+
       notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
       return false;
-    }
-  }
-
-  Future<void> refreshCurrentCourseGroups() async {
-    if (_currentCourseId != null) {
-      await loadGroups(_currentCourseId!);
     }
   }
 }

@@ -148,7 +148,7 @@ class ContentProvider extends ChangeNotifier {
           .order('due_date', ascending: true);
 
       _assignments = (response as List)
-          .map((json) => Assignment.fromJson(json))
+          .map((json) => Assignment.fromJson(json: json))
           .toList();
 
       // Load submission counts

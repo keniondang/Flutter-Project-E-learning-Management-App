@@ -167,3 +167,149 @@ class StudentAdapter extends TypeAdapter<Student> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
+
+class GroupAdapter extends TypeAdapter<Group> {
+  @override
+  final typeId = 3;
+
+  @override
+  Group read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return Group(
+      id: fields[0] as String,
+      courseId: fields[1] as String,
+      name: fields[2] as String,
+      createdAt: fields[3] as DateTime,
+      courseName: fields[4] as String?,
+      studentCount: (fields[5] as num?)?.toInt(),
+      semesterId: fields[6] as String?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Group obj) {
+    writer
+      ..writeByte(7)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.courseId)
+      ..writeByte(2)
+      ..write(obj.name)
+      ..writeByte(3)
+      ..write(obj.createdAt)
+      ..writeByte(4)
+      ..write(obj.courseName)
+      ..writeByte(5)
+      ..write(obj.studentCount)
+      ..writeByte(6)
+      ..write(obj.semesterId);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class AssignmentAdapter extends TypeAdapter<Assignment> {
+  @override
+  final typeId = 4;
+
+  @override
+  Assignment read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return Assignment(
+      id: fields[0] as String,
+      courseId: fields[1] as String,
+      instructorId: fields[2] as String,
+      title: fields[3] as String,
+      description: fields[4] as String,
+      fileAttachments: (fields[5] as List).cast<String>(),
+      startDate: fields[6] as DateTime,
+      dueDate: fields[7] as DateTime,
+      lateSubmissionAllowed: fields[8] as bool,
+      lateDueDate: fields[9] as DateTime?,
+      maxAttempts: (fields[10] as num).toInt(),
+      maxFileSize: (fields[11] as num).toInt(),
+      allowedFileTypes: (fields[12] as List).cast<String>(),
+      scopeType: fields[13] as String,
+      targetGroups: (fields[14] as List).cast<String>(),
+      totalPoints: (fields[15] as num).toInt(),
+      createdAt: fields[16] as DateTime,
+      semesterId: fields[17] as String?,
+      submissionCount: (fields[18] as num?)?.toInt(),
+      hasSubmitted: fields[19] as bool?,
+      grade: (fields[20] as num?)?.toDouble(),
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Assignment obj) {
+    writer
+      ..writeByte(21)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.courseId)
+      ..writeByte(2)
+      ..write(obj.instructorId)
+      ..writeByte(3)
+      ..write(obj.title)
+      ..writeByte(4)
+      ..write(obj.description)
+      ..writeByte(5)
+      ..write(obj.fileAttachments)
+      ..writeByte(6)
+      ..write(obj.startDate)
+      ..writeByte(7)
+      ..write(obj.dueDate)
+      ..writeByte(8)
+      ..write(obj.lateSubmissionAllowed)
+      ..writeByte(9)
+      ..write(obj.lateDueDate)
+      ..writeByte(10)
+      ..write(obj.maxAttempts)
+      ..writeByte(11)
+      ..write(obj.maxFileSize)
+      ..writeByte(12)
+      ..write(obj.allowedFileTypes)
+      ..writeByte(13)
+      ..write(obj.scopeType)
+      ..writeByte(14)
+      ..write(obj.targetGroups)
+      ..writeByte(15)
+      ..write(obj.totalPoints)
+      ..writeByte(16)
+      ..write(obj.createdAt)
+      ..writeByte(17)
+      ..write(obj.semesterId)
+      ..writeByte(18)
+      ..write(obj.submissionCount)
+      ..writeByte(19)
+      ..write(obj.hasSubmitted)
+      ..writeByte(20)
+      ..write(obj.grade);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AssignmentAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}

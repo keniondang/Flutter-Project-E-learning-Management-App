@@ -7,7 +7,9 @@ import 'package:elearning_management_app/hive/hive_adapters.dart';
 
 extension HiveRegistrar on HiveInterface {
   void registerAdapters() {
+    registerAdapter(AssignmentAdapter());
     registerAdapter(CourseAdapter());
+    registerAdapter(GroupAdapter());
     registerAdapter(StudentAdapter());
     registerAdapter(UserModelAdapter());
   }
@@ -15,7 +17,9 @@ extension HiveRegistrar on HiveInterface {
 
 extension IsolatedHiveRegistrar on IsolatedHiveInterface {
   void registerAdapters() {
+    registerAdapter(AssignmentAdapter());
     registerAdapter(CourseAdapter());
+    registerAdapter(GroupAdapter());
     registerAdapter(StudentAdapter());
     registerAdapter(UserModelAdapter());
   }

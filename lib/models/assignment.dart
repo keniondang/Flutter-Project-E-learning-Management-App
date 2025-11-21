@@ -17,6 +17,8 @@ class Assignment {
   final int totalPoints;
   final DateTime createdAt;
 
+  final String? semesterId;
+
   // Additional fields for display
   final int? submissionCount;
   final bool? hasSubmitted;
@@ -40,12 +42,16 @@ class Assignment {
     required this.targetGroups,
     required this.totalPoints,
     required this.createdAt,
+    this.semesterId,
     this.submissionCount,
     this.hasSubmitted,
     this.grade,
   });
 
-  factory Assignment.fromJson(Map<String, dynamic> json) {
+  factory Assignment.fromJson(
+      {required Map<String, dynamic> json,
+      String? semesterId,
+      int? submissionCount}) {
     return Assignment(
       id: json['id'],
       courseId: json['course_id'],
@@ -66,9 +72,10 @@ class Assignment {
       targetGroups: List<String>.from(json['target_groups'] ?? []),
       totalPoints: json['total_points'] ?? 100,
       createdAt: DateTime.parse(json['created_at']),
-      submissionCount: json['submission_count'],
+      submissionCount: submissionCount ?? json['submission_count'],
       hasSubmitted: json['has_submitted'],
       grade: json['grade']?.toDouble(),
+      semesterId: semesterId ?? json['semester_id'],
     );
   }
 
@@ -147,9 +154,8 @@ class AssignmentSubmission {
       isLate: json['is_late'] ?? false,
       grade: json['grade']?.toDouble(),
       feedback: json['feedback'],
-      gradedAt: json['graded_at'] != null
-          ? DateTime.parse(json['graded_at'])
-          : null,
+      gradedAt:
+          json['graded_at'] != null ? DateTime.parse(json['graded_at']) : null,
     );
   }
 }
