@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/semester.dart';
 
 class SemesterProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final _boxName = 'semester-box';
 
   List<Semester> _semesters = [];
-  Semester? _currentSemester;
-  bool _isLoading = false;
-  String? _error;
-
   List<Semester> get semesters => _semesters;
+
+  Semester? _currentSemester;
   Semester? get currentSemester => _currentSemester;
+  bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  String? _error;
   String? get error => _error;
 
   // Load all semesters
@@ -21,30 +24,31 @@ class SemesterProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      final response = await _supabase
-          .from('semesters')
-          .select()
-          .order('created_at', ascending: false);
+    final box = await Hive.openBox<Semester>(_boxName);
 
-      _semesters =
-          (response as List).map((json) => Semester.fromJson(json)).toList();
+    if (box.isEmpty) {
+      try {
+        final response = await _supabase
+            .from('semesters')
+            .select()
+            .order('created_at', ascending: false);
 
-      if (_semesters.isEmpty) {
-        _currentSemester = null;
-      } else {
-        _currentSemester = _semesters.firstWhere(
-          (s) => s.isCurrent,
-          orElse: () => _semesters.first,
-        );
+        // _semesters =
+        //     (response as List).map((json) => Semester.fromJson(json)).toList();
+
+        await box.putAll(Map.fromEntries(response
+            .map((json) => MapEntry(json['id'], Semester.fromJson(json)))));
+      } catch (e) {
+        _error = e.toString();
+        debugPrint('Error loading semesters: $e');
       }
-    } catch (e) {
-      _error = e.toString();
-      debugPrint('Error loading semesters: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
+
+    _semesters = box.values.toList();
+    _setCurrentSemester();
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   // Create new semester
@@ -61,16 +65,25 @@ class SemesterProvider extends ChangeNotifier {
             .update({'is_current': false}).eq('is_current', true);
       }
 
-      await _supabase.from('semesters').insert({
+      final response = await _supabase.from('semesters').insert({
         'code': code,
         'name': name,
         'is_current': setAsCurrent,
-      });
+      }).select();
 
-      await loadSemesters();
+      final semester = response.map((json) => Semester.fromJson(json)).first;
+
+      final box = await Hive.openBox<Semester>(_boxName);
+
+      await box.put(semester.id, semester);
+      _semesters.add(semester);
+      _setCurrentSemester();
+
+      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
       return false;
     }
@@ -90,12 +103,21 @@ class SemesterProvider extends ChangeNotifier {
             .update({'is_current': false}).eq('is_current', true);
       }
 
-      await _supabase
+      final response = await _supabase
           .from('semesters')
-          .update({'code': code, 'name': name, 'is_current': setAsCurrent}).eq(
-              'id', id);
+          .update({'code': code, 'name': name, 'is_current': setAsCurrent})
+          .eq('id', id)
+          .select();
 
-      await loadSemesters();
+      final semester = response.map((json) => Semester.fromJson(json)).first;
+
+      final box = await Hive.openBox<Semester>(_boxName);
+
+      await box.put(semester.id, semester);
+      _semesters[_semesters.indexWhere((x) => x.id == semester.id)] = semester;
+      _setCurrentSemester();
+
+      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
@@ -108,7 +130,12 @@ class SemesterProvider extends ChangeNotifier {
   Future<bool> deleteSemester(String id) async {
     try {
       await _supabase.from('semesters').delete().eq('id', id);
-      await loadSemesters();
+      final box = await Hive.openBox<Semester>(_boxName);
+
+      await box.delete(id);
+      _semesters.removeAt(_semesters.indexWhere((x) => x.id == id));
+      _setCurrentSemester();
+
       return true;
     } catch (e) {
       _error = e.toString();
@@ -121,5 +148,16 @@ class SemesterProvider extends ChangeNotifier {
   Future<void> setCurrentSemester(Semester semester) async {
     _currentSemester = semester;
     notifyListeners();
+  }
+
+  void _setCurrentSemester() {
+    if (_semesters.isEmpty) {
+      _currentSemester = null;
+    } else {
+      _currentSemester = _semesters.firstWhere(
+        (s) => s.isCurrent,
+        orElse: () => _semesters.first,
+      );
+    }
   }
 }

@@ -1,3 +1,4 @@
+import 'package:elearning_management_app/providers/announcement_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -46,15 +47,16 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
 
   Future<void> _createAnnouncement() async {
     if (_formKey.currentState!.validate()) {
-      final success = await context.read<ContentProvider>().createAnnouncement(
-        courseId: widget.course.id,
-        instructorId: widget.instructorId,
-        title: _titleController.text,
-        content: _contentController.text,
-        fileAttachments: _fileAttachments,
-        scopeType: _scopeType,
-        targetGroups: _selectedGroups,
-      );
+      final success =
+          await context.read<AnnouncementProvider>().createAnnouncement(
+                courseId: widget.course.id,
+                instructorId: widget.instructorId,
+                title: _titleController.text,
+                content: _contentController.text,
+                fileAttachments: _fileAttachments,
+                scopeType: _scopeType,
+                targetGroups: _selectedGroups,
+              );
 
       if (success && mounted) {
         Navigator.pop(context);
@@ -190,7 +192,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                             });
                           },
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ),

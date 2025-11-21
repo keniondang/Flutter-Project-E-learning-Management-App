@@ -175,41 +175,6 @@ class InstructorHomeScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    // Consumer2<SemesterProvider, StudentProvider>(
-                    //   builder:
-                    //       (context, semesterProvider, studentProvider, child) {
-                    //     if (!studentProvider.isLoading &&
-                    //         semesterProvider.currentSemester == null) {
-                    //       studentProvider.loadAllStudents();
-                    //     }
-
-                    //     // return FutureBuilder(
-                    //     //     future: studentProvider.countTotalStudents(),
-                    //     //     builder: (context, snapshot) {
-                    //     //       switch (snapshot){
-                    //     //         case ConnectionState.waiting:
-
-                    //     //         return _buildStatCard(
-                    //     //           'Total Students',
-                    //     //           studentProvider.isLoading
-                    //     //               ? 'Loading data'
-                    //     //               : (await studentProvider.countTotalStudents()).toString(),
-                    //     //           Icons.people,
-                    //     //           Colors.green,
-                    //     //         );
-                    //     //       }
-                    //     //     });
-
-                    //     return _buildStatCard(
-                    //       'Total Students',
-                    //       studentProvider.isLoading
-                    //           ? 'Loading data'
-                    //           : studentProvider.students.length.toString(),
-                    //       Icons.people,
-                    //       Colors.green,
-                    //     );
-                    //   },
-                    // ),
                     FutureBuilder(
                         future: context
                             .read<StudentProvider>()
@@ -350,46 +315,49 @@ class InstructorHomeScreen extends StatelessWidget {
                     //     );
                     //   },
                     // ),
-                    Consumer2<SemesterProvider, QuizProvider>(
-                      builder:
-                          (context, semesterProvider, quizProvider, child) {
-                        if (quizProvider.semesterCount == null &&
-                            !quizProvider.isLoading &&
-                            semesterProvider.currentSemester != null) {
-                          quizProvider.countForSemester(
-                              semesterProvider.currentSemester!.id);
+
+                    Consumer<SemesterProvider>(
+                      builder: (context, provider, child) {
+                        if (provider.currentSemester == null) {
+                          return _buildStatCard(
+                            'Total Quizzes',
+                            'Loading data',
+                            Icons.quiz,
+                            Colors.red,
+                          );
                         }
 
-                        return _buildStatCard(
-                          'Total Quizzes',
-                          semesterProvider.isLoading ||
-                                  quizProvider.semesterCount == null
-                              ? 'Loading data'
-                              : quizProvider.semesterCount.toString(),
-                          Icons.quiz,
-                          Colors.red,
-                        );
-                      },
-                    ),
-                    Consumer2<SemesterProvider, CourseMaterialProvider>(
-                      builder: (context, semesterProvider,
-                          courseMaterialProvider, child) {
-                        if (courseMaterialProvider.semesterCount == null &&
-                            !courseMaterialProvider.isLoading &&
-                            semesterProvider.currentSemester != null) {
-                          courseMaterialProvider.countForSemester(
-                              semesterProvider.currentSemester!.id);
-                        }
-
-                        return _buildStatCard(
-                          'Total Materials',
-                          semesterProvider.isLoading ||
-                                  courseMaterialProvider.semesterCount == null
-                              ? 'Loading data'
-                              : courseMaterialProvider.semesterCount.toString(),
-                          Icons.folder,
-                          Colors.teal,
-                        );
+                        return FutureBuilder(
+                            future: context
+                                .read<QuizProvider>()
+                                .countInSemester(provider.currentSemester!.id),
+                            builder: (context, snapshot) {
+                              switch (snapshot.connectionState) {
+                                case ConnectionState.waiting:
+                                  return _buildStatCard(
+                                    'Total Quizzes',
+                                    'Loading data',
+                                    Icons.quiz,
+                                    Colors.red,
+                                  );
+                                case ConnectionState.done:
+                                  return _buildStatCard(
+                                    'Total Quizzes',
+                                    snapshot.hasError
+                                        ? 'Error loading data'
+                                        : snapshot.data!.toString(),
+                                    Icons.quiz,
+                                    Colors.red,
+                                  );
+                                default:
+                                  return _buildStatCard(
+                                    'Total Quizzes',
+                                    'Encountered unknown data',
+                                    Icons.quiz,
+                                    Colors.red,
+                                  );
+                              }
+                            });
                       },
                     ),
                   ],

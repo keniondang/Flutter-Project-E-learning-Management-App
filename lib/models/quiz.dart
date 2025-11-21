@@ -16,12 +16,13 @@ class Quiz {
   final List<String> targetGroups;
   final DateTime createdAt;
 
+  final String? semesterId;
+
   // Additional fields
   final int? attemptCount;
   final double? highestScore;
   final bool? isCompleted;
 
-  // ✅ --- ADD THIS FIELD --- ✅
   final int? submissionCount;
 
   Quiz({
@@ -45,31 +46,35 @@ class Quiz {
     this.highestScore,
     this.isCompleted,
     this.submissionCount, // ✅ Add to constructor
+    this.semesterId,
   });
 
-  factory Quiz.fromJson(Map<String, dynamic> json) {
+  factory Quiz.fromJson(
+      {required Map<String, dynamic> json,
+      String? semesterId,
+      int? submissionCount}) {
     return Quiz(
-      id: json['id'],
-      courseId: json['course_id'],
-      instructorId: json['instructor_id'],
-      title: json['title'],
-      description: json['description'],
-      openTime: DateTime.parse(json['open_time']),
-      closeTime: DateTime.parse(json['close_time']),
-      durationMinutes: json['duration_minutes'],
-      maxAttempts: json['max_attempts'] ?? 1,
-      easyQuestions: json['easy_questions'] ?? 0,
-      mediumQuestions: json['medium_questions'] ?? 0,
-      hardQuestions: json['hard_questions'] ?? 0,
-      totalPoints: json['total_points'] ?? 100,
-      scopeType: json['scope_type'],
-      targetGroups: List<String>.from(json['target_groups'] ?? []),
-      createdAt: DateTime.parse(json['created_at']),
-      attemptCount: json['attempt_count'],
-      highestScore: json['highest_score']?.toDouble(),
-      isCompleted: json['is_completed'],
-      submissionCount: json['submission_count'], // ✅ Add from JSON
-    );
+        id: json['id'],
+        courseId: json['course_id'],
+        instructorId: json['instructor_id'],
+        title: json['title'],
+        description: json['description'],
+        openTime: DateTime.parse(json['open_time']),
+        closeTime: DateTime.parse(json['close_time']),
+        durationMinutes: json['duration_minutes'],
+        maxAttempts: json['max_attempts'] ?? 1,
+        easyQuestions: json['easy_questions'] ?? 0,
+        mediumQuestions: json['medium_questions'] ?? 0,
+        hardQuestions: json['hard_questions'] ?? 0,
+        totalPoints: json['total_points'] ?? 100,
+        scopeType: json['scope_type'],
+        targetGroups: List<String>.from(json['target_groups'] ?? []),
+        createdAt: DateTime.parse(json['created_at']),
+        attemptCount: json['attempt_count'],
+        highestScore: json['highest_score']?.toDouble(),
+        isCompleted: json['is_completed'],
+        submissionCount: submissionCount ?? json['submission_count'],
+        semesterId: semesterId ?? json['semester_id']);
   }
 
   Map<String, dynamic> toJson() {

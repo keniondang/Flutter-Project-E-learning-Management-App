@@ -1,12 +1,11 @@
 import 'package:elearning_management_app/models/announcement.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AnnouncementProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-
-  int? _semesterCount;
-  int? get semesterCount => _semesterCount;
+  final _boxName = 'announcement-box';
 
   List<Announcement> _announcements = [];
   List<Announcement> get announcements => _announcements;
@@ -22,84 +21,63 @@ class AnnouncementProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      final response = await _supabase
-          .from('announcements')
-          .select()
-          .eq('course_id', courseId)
-          .order('created_at', ascending: false);
+    final box = await Hive.openBox<Announcement>(_boxName);
 
-      _announcements = (response as List)
-          .map((json) => Announcement.fromJson(json))
-          .toList();
+    if (!box.values.any((x) => x.courseId == courseId)) {
+      try {
+        final response = await _supabase
+            .from('announcements')
+            .select()
+            .eq('course_id', courseId);
 
-      // Load view counts and comment counts
-      for (var announcement in _announcements) {
-        await _loadAnnouncementStats(announcement);
+        await box.putAll(
+            Map.fromEntries(await Future.wait(response.map((json) async {
+          final announcement = Announcement.fromJson(
+              json: json,
+              viewCount: await _fetchViewCount(json['id']),
+              commentCount: await _fetchCommentCount(json['id']));
+
+          return MapEntry(announcement.id, announcement);
+        }))));
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading quizzes: $e');
       }
-    } catch (e) {
-      _error = e.toString();
-      print('Error loading quizzes: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
+
+    _announcements = box.values.where((x) => x.courseId == courseId).toList();
+
+    _isLoading = false;
+    notifyListeners();
   }
 
-  Future<void> countForSemester(String semesterId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
+  Future<int> _fetchViewCount(String announcementId) async {
     try {
       final response = await _supabase
-          .from('announcements')
-          .select('id, courses(id)')
-          .eq('courses.semester_id', semesterId)
-          .count(CountOption.estimated);
-
-      _semesterCount = response.count;
-    } catch (e) {
-      _error = e.toString();
-      print('Error loading quizzes: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> _loadAnnouncementStats(Announcement announcement) async {
-    try {
-      // Get view count
-      final viewResponse = await _supabase
           .from('announcement_views')
           .select('id')
-          .eq('announcement_id', announcement.id);
+          .eq('announcement_id', announcementId)
+          .count();
 
-      // Get comment count
-      final commentResponse = await _supabase
+      return response.count;
+    } catch (e) {
+      print('Error loading announcement: $e');
+      return 0;
+    }
+  }
+
+  Future<int> _fetchCommentCount(String announcementId) async {
+    try {
+      final response = await _supabase
           .from('announcement_comments')
           .select('id')
-          .eq('announcement_id', announcement.id);
+          .eq('announcement_id', announcementId)
+          .count();
 
-      final index = _announcements.indexWhere((a) => a.id == announcement.id);
-      if (index != -1) {
-        _announcements[index] = Announcement(
-          id: announcement.id,
-          courseId: announcement.courseId,
-          instructorId: announcement.instructorId,
-          title: announcement.title,
-          content: announcement.content,
-          fileAttachments: announcement.fileAttachments,
-          scopeType: announcement.scopeType,
-          targetGroups: announcement.targetGroups,
-          createdAt: announcement.createdAt,
-          viewCount: (viewResponse as List).length,
-          commentCount: (commentResponse as List).length,
-        );
-      }
+      return response.count;
     } catch (e) {
-      print('Error loading announcement stats: $e');
+      print('Error loading announcement: $e');
+      return 0;
     }
   }
 
@@ -113,7 +91,7 @@ class AnnouncementProvider extends ChangeNotifier {
     required List<String> targetGroups,
   }) async {
     try {
-      await _supabase.from('announcements').insert({
+      final response = await _supabase.from('announcements').insert({
         'course_id': courseId,
         'instructor_id': instructorId,
         'title': title,
@@ -121,12 +99,23 @@ class AnnouncementProvider extends ChangeNotifier {
         'file_attachments': fileAttachments,
         'scope_type': scopeType,
         'target_groups': targetGroups,
-      });
+      }).select();
 
-      await loadAnnouncements(courseId);
+      final announcement = response
+          .map((json) =>
+              Announcement.fromJson(json: json, viewCount: 0, commentCount: 0))
+          .first;
+
+      final box = await Hive.openBox<Announcement>(_boxName);
+
+      await box.put(announcement.id, announcement);
+      _announcements.add(announcement);
+
+      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
       return false;
     }

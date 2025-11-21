@@ -38,15 +38,13 @@ class NotificationProvider extends ChangeNotifier {
     try {
       await _supabase
           .from('notifications')
-          .update({'is_read': true})
-          .eq('id', notificationId);
+          .update({'is_read': true}).eq('id', notificationId);
 
       final index = _notifications.indexWhere((n) => n['id'] == notificationId);
       if (index != -1) {
         _notifications[index]['is_read'] = true;
-        _unreadCount = _notifications
-            .where((n) => n['is_read'] == false)
-            .length;
+        _unreadCount =
+            _notifications.where((n) => n['is_read'] == false).length;
         notifyListeners();
       }
     } catch (e) {

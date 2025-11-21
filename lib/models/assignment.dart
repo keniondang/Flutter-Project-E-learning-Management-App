@@ -141,12 +141,13 @@ class AssignmentSubmission {
     this.gradedAt,
   });
 
-  factory AssignmentSubmission.fromJson(Map<String, dynamic> json) {
+  factory AssignmentSubmission.fromJson(
+      {required Map<String, dynamic> json, String? studentName}) {
     return AssignmentSubmission(
       id: json['id'],
       assignmentId: json['assignment_id'],
       studentId: json['student_id'],
-      studentName: json['student_name'] ?? 'Unknown',
+      studentName: studentName ?? 'Unknown',
       submissionFiles: List<String>.from(json['submission_files'] ?? []),
       submissionText: json['submission_text'],
       attemptNumber: json['attempt_number'] ?? 1,

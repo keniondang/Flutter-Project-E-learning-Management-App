@@ -1,3 +1,4 @@
+import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -92,26 +93,25 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
 
   Future<void> _createAssignment() async {
     if (_formKey.currentState!.validate()) {
-      final success = await context.read<ContentProvider>().createAssignment(
-        courseId: widget.course.id,
-        instructorId: widget.instructorId,
-        title: _titleController.text,
-        description: _descriptionController.text,
-        fileAttachments: _fileAttachments,
-        startDate: _startDate,
-        dueDate: _dueDate,
-        lateSubmissionAllowed: _lateSubmissionAllowed,
-        lateDueDate: _lateDueDate,
-        maxAttempts: int.parse(_maxAttemptsController.text),
-        maxFileSize:
-            int.parse(_maxFileSizeController.text) *
-            1024 *
-            1024, // Convert MB to bytes
-        allowedFileTypes: _allowedFileTypes,
-        scopeType: _scopeType,
-        targetGroups: _selectedGroups,
-        totalPoints: int.parse(_pointsController.text),
-      );
+      final success = await context.read<AssignmentProvider>().createAssignment(
+            courseId: widget.course.id,
+            instructorId: widget.instructorId,
+            title: _titleController.text,
+            description: _descriptionController.text,
+            fileAttachments: _fileAttachments,
+            startDate: _startDate,
+            dueDate: _dueDate,
+            lateSubmissionAllowed: _lateSubmissionAllowed,
+            lateDueDate: _lateDueDate,
+            maxAttempts: int.parse(_maxAttemptsController.text),
+            maxFileSize: int.parse(_maxFileSizeController.text) *
+                1024 *
+                1024, // Convert MB to bytes
+            allowedFileTypes: _allowedFileTypes,
+            scopeType: _scopeType,
+            targetGroups: _selectedGroups,
+            totalPoints: int.parse(_pointsController.text),
+          );
 
       if (success && mounted) {
         Navigator.pop(context);
@@ -320,29 +320,28 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                       ),
                       Wrap(
                         spacing: 8,
-                        children:
-                            [
-                              '.pdf',
-                              '.docx',
-                              '.txt',
-                              '.zip',
-                              '.jpg',
-                              '.png',
-                            ].map((type) {
-                              return FilterChip(
-                                label: Text(type),
-                                selected: _allowedFileTypes.contains(type),
-                                onSelected: (selected) {
-                                  setState(() {
-                                    if (selected) {
-                                      _allowedFileTypes.add(type);
-                                    } else {
-                                      _allowedFileTypes.remove(type);
-                                    }
-                                  });
-                                },
-                              );
-                            }).toList(),
+                        children: [
+                          '.pdf',
+                          '.docx',
+                          '.txt',
+                          '.zip',
+                          '.jpg',
+                          '.png',
+                        ].map((type) {
+                          return FilterChip(
+                            label: Text(type),
+                            selected: _allowedFileTypes.contains(type),
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _allowedFileTypes.add(type);
+                                } else {
+                                  _allowedFileTypes.remove(type);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
                       ),
                     ],
                   ),

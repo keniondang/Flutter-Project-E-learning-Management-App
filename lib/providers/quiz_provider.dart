@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/quiz.dart';
 
 class QuizProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-
-  int? _semesterCount;
-  int? get semesterCount => _semesterCount;
+  final _boxName = 'box-name';
 
   List<Quiz> _quizzes = [];
   List<Quiz> get quizzes => _quizzes;
@@ -22,83 +21,114 @@ class QuizProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      final response = await _supabase
-          .from('quizzes')
-          .select()
-          .eq('course_id', courseId)
-          .order('close_time', ascending: true);
+    final box = await Hive.openBox<Quiz>(_boxName);
 
-      _quizzes = (response as List).map((json) => Quiz.fromJson(json)).toList();
+    if (!box.values.any((x) => x.courseId == courseId)) {
+      try {
+        final response = await _supabase
+            .from('quizzes')
+            .select('*, courses(semester_id)')
+            .eq('course_id', courseId);
 
-      for (var quiz in _quizzes) {
-        await _loadQuizStats(quiz);
+        await box.putAll(
+            Map.fromEntries(await Future.wait(response.map((json) async {
+          final quiz = Quiz.fromJson(
+              json: json,
+              semesterId: json['courses']['semester_id'],
+              submissionCount: await _fetchSubmissionCount(json['id']));
+
+          return MapEntry(quiz.id, quiz);
+        }))));
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading quizzes: $e');
       }
-    } catch (e) {
-      _error = e.toString();
-      print('Error loading quizzes: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
+
+    _quizzes = box.values.where((x) => x.courseId == courseId).toList();
+
+    _isLoading = false;
+    notifyListeners();
   }
 
-  Future<void> countForSemester(String semesterId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  Future<int> countInSemester(String semesterId) async {
+    final box = await Hive.openBox<Quiz>(_boxName);
 
+    if (!box.values.any((x) => x.semesterId == semesterId)) {
+      try {
+        final response = await _supabase
+            .from('quizzes')
+            .select('*, courses(semester_id)')
+            .eq('courses.semester_id', semesterId);
+
+        await box.putAll(
+            Map.fromEntries(await Future.wait(response.map((json) async {
+          final quiz = Quiz.fromJson(
+              json: json,
+              semesterId: json['courses']['semester_id'],
+              submissionCount: await _fetchSubmissionCount(json['id']));
+
+          return MapEntry(quiz.id, quiz);
+        }))));
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading quizzes: $e');
+      }
+    }
+
+    return box.values.where((x) => x.semesterId == semesterId).length;
+  }
+
+  Future<int> _fetchSubmissionCount(String quizId) async {
     try {
       final response = await _supabase
-          .from('quizzes')
-          .select('id, courses(id)')
-          .eq('courses.semester_id', semesterId)
-          .count(CountOption.estimated);
-
-      _semesterCount = response.count;
-    } catch (e) {
-      _error = e.toString();
-      print('Error loading quizzes: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> _loadQuizStats(Quiz quiz) async {
-    try {
-      final submissionResponse = await _supabase
           .from('quiz_attempts')
           .select('id')
-          .eq('quiz_id', quiz.id)
-          .eq('is_completed', true); // Only count completed attempts
+          .eq('quiz_id', quizId)
+          .eq('is_completed', true)
+          .count(); // Only count completed attempts
 
-      final index = _quizzes.indexWhere((q) => q.id == quiz.id);
-      if (index != -1) {
-        _quizzes[index] = Quiz(
-          id: quiz.id,
-          courseId: quiz.courseId,
-          instructorId: quiz.instructorId,
-          title: quiz.title,
-          description: quiz.description,
-          openTime: quiz.openTime,
-          closeTime: quiz.closeTime,
-          durationMinutes: quiz.durationMinutes,
-          maxAttempts: quiz.maxAttempts,
-          easyQuestions: quiz.easyQuestions,
-          mediumQuestions: quiz.mediumQuestions,
-          hardQuestions: quiz.hardQuestions,
-          totalPoints: quiz.totalPoints,
-          scopeType: quiz.scopeType,
-          targetGroups: quiz.targetGroups,
-          createdAt: quiz.createdAt,
-          submissionCount: (submissionResponse as List).length,
-        );
-      }
+      return response.count;
     } catch (e) {
-      print('Error loading quiz stats: $e');
+      print('Error loading assignment stats: $e');
+      return 0;
     }
   }
+
+  // Future<void> _loadQuizStats(Quiz quiz) async {
+  //   try {
+  //     final submissionResponse = await _supabase
+  //         .from('quiz_attempts')
+  //         .select('id')
+  //         .eq('quiz_id', quiz.id)
+  //         .eq('is_completed', true); // Only count completed attempts
+
+  //     final index = _quizzes.indexWhere((q) => q.id == quiz.id);
+  //     if (index != -1) {
+  //       _quizzes[index] = Quiz(
+  //         id: quiz.id,
+  //         courseId: quiz.courseId,
+  //         instructorId: quiz.instructorId,
+  //         title: quiz.title,
+  //         description: quiz.description,
+  //         openTime: quiz.openTime,
+  //         closeTime: quiz.closeTime,
+  //         durationMinutes: quiz.durationMinutes,
+  //         maxAttempts: quiz.maxAttempts,
+  //         easyQuestions: quiz.easyQuestions,
+  //         mediumQuestions: quiz.mediumQuestions,
+  //         hardQuestions: quiz.hardQuestions,
+  //         totalPoints: quiz.totalPoints,
+  //         scopeType: quiz.scopeType,
+  //         targetGroups: quiz.targetGroups,
+  //         createdAt: quiz.createdAt,
+  //         submissionCount: (submissionResponse as List).length,
+  //       );
+  //     }
+  //   } catch (e) {
+  //     print('Error loading quiz stats: $e');
+  //   }
+  // }
 
   Future<bool> createQuiz({
     required String courseId,
@@ -117,7 +147,7 @@ class QuizProvider extends ChangeNotifier {
     required List<String> targetGroups,
   }) async {
     try {
-      await _supabase.from('quizzes').insert({
+      final response = await _supabase.from('quizzes').insert({
         'course_id': courseId,
         'instructor_id': instructorId,
         'title': title,
@@ -132,12 +162,25 @@ class QuizProvider extends ChangeNotifier {
         'total_points': totalPoints,
         'scope_type': scopeType,
         'target_groups': targetGroups,
-      });
+      }).select('*, courses(semester_id)');
 
-      await loadQuizzes(courseId);
+      final quiz = response
+          .map((json) => Quiz.fromJson(
+              json: json,
+              semesterId: json['courses']['semester_id'],
+              submissionCount: 0))
+          .first;
+
+      final box = await Hive.openBox<Quiz>(_boxName);
+
+      await box.put(quiz.id, quiz);
+      _quizzes.add(quiz);
+
+      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
       return false;
     }

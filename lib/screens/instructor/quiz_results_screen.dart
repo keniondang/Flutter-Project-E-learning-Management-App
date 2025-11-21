@@ -1,3 +1,4 @@
+import 'package:elearning_management_app/providers/quiz_attempt_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +11,7 @@ import '../../providers/student_provider.dart';
 class QuizResultsScreen extends StatefulWidget {
   final Quiz quiz;
 
-  const QuizResultsScreen({Key? key, required this.quiz}) : super(key: key);
+  const QuizResultsScreen({super.key, required this.quiz});
 
   @override
   State<QuizResultsScreen> createState() => _QuizResultsScreenState();
@@ -31,8 +32,8 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
     // Assign _studentsFuture *synchronously* here, before _loadData is called.
     // This guarantees it is initialized before the build method runs.
     _studentsFuture = context.read<StudentProvider>().loadStudentsInCourse(
-      widget.quiz.courseId,
-    );
+          widget.quiz.courseId,
+        );
 
     _loadData(); // Now _loadData will load submissions and await the future
     _searchController.addListener(_filterSubmissions);
@@ -40,7 +41,7 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
 
   Future<void> _loadData() async {
     // Load submissions
-    final submissionProvider = context.read<QuizSubmissionProvider>();
+    final submissionProvider = context.read<QuizAttemptProvider>();
     await submissionProvider.loadSubmissions(widget.quiz.id);
 
     // Await the future that was already started in initState
@@ -92,7 +93,7 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
             icon: const Icon(Icons.download),
             onPressed: () async {
               // Pass student list to export
-              final provider = context.read<QuizSubmissionProvider>();
+              final provider = context.read<QuizAttemptProvider>();
               final error = await provider.exportSubmissionsToCSV(
                 widget.quiz,
                 _allStudents,
@@ -146,7 +147,7 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
                 }
 
                 // Students loaded, now listen to submissions
-                return Consumer<QuizSubmissionProvider>(
+                return Consumer<QuizAttemptProvider>(
                   builder: (context, submissionProvider, child) {
                     if (submissionProvider.isLoading) {
                       // Show a loading indicator but keep the student list

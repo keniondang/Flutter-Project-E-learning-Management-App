@@ -7,9 +7,6 @@ class AssignmentProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
   final _boxName = 'assignment-box';
 
-  int? _semesterCount;
-  int? get semesterCount => _semesterCount;
-
   List<Assignment> _assignments = [];
   List<Assignment> get assignments => _assignments;
 
@@ -33,8 +30,8 @@ class AssignmentProvider extends ChangeNotifier {
             .select('*, courses(semester_id)')
             .eq('course_id', courseId);
 
-        await box.putAll(Map.fromEntries(
-            await Future.wait((response as Iterable).map((json) async {
+        await box.putAll(
+            Map.fromEntries(await Future.wait(response.map((json) async {
           final assignment = Assignment.fromJson(
             json: json,
             semesterId: json['courses']['semester_id'],
@@ -43,14 +40,9 @@ class AssignmentProvider extends ChangeNotifier {
 
           return MapEntry(assignment.id, assignment);
         }))));
-
-        // // Load submission counts
-        // for (var assignment in _assignments) {
-        //   await _loadAssignmentStats(assignment);
-        // }
       } catch (e) {
         _error = e.toString();
-        print('Error loading quizzes: $e');
+        print('Error loading asignments: $e');
       }
     }
 
@@ -73,10 +65,9 @@ class AssignmentProvider extends ChangeNotifier {
         await box.putAll(
             Map.fromEntries(await Future.wait(response.map((json) async {
           final assignment = Assignment.fromJson(
-            json: json,
-            semesterId: json['courses']['semester_id'],
-            submissionCount: await _fetchSubmissionCount(json['id']),
-          );
+              json: json,
+              semesterId: json['courses']['semester_id'],
+              submissionCount: await _fetchSubmissionCount(json['id']));
 
           return MapEntry(assignment.id, assignment);
         }))));
@@ -88,41 +79,6 @@ class AssignmentProvider extends ChangeNotifier {
 
     return box.values.where((x) => x.semesterId == semesterId).length;
   }
-
-  // Future<void> _loadAssignmentStats(Assignment assignment) async {
-  //   try {
-  //     final submissionResponse = await _supabase
-  //         .from('assignment_submissions')
-  //         .select('id')
-  //         .eq('assignment_id', assignment.id);
-
-  //     final index = _assignments.indexWhere((a) => a.id == assignment.id);
-  //     if (index != -1) {
-  //       _assignments[index] = Assignment(
-  //         id: assignment.id,
-  //         courseId: assignment.courseId,
-  //         instructorId: assignment.instructorId,
-  //         title: assignment.title,
-  //         description: assignment.description,
-  //         fileAttachments: assignment.fileAttachments,
-  //         startDate: assignment.startDate,
-  //         dueDate: assignment.dueDate,
-  //         lateSubmissionAllowed: assignment.lateSubmissionAllowed,
-  //         lateDueDate: assignment.lateDueDate,
-  //         maxAttempts: assignment.maxAttempts,
-  //         maxFileSize: assignment.maxFileSize,
-  //         allowedFileTypes: assignment.allowedFileTypes,
-  //         scopeType: assignment.scopeType,
-  //         targetGroups: assignment.targetGroups,
-  //         totalPoints: assignment.totalPoints,
-  //         createdAt: assignment.createdAt,
-  //         submissionCount: (submissionResponse as List).length,
-  //       );
-  //     }
-  //   } catch (e) {
-  //     print('Error loading assignment stats: $e');
-  //   }
-  // }
 
   Future<int> _fetchSubmissionCount(String assignmentId) async {
     try {

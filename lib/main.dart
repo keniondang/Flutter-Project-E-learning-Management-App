@@ -3,23 +3,23 @@ import 'package:elearning_management_app/providers/announcement_provider.dart';
 import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:elearning_management_app/providers/course_material_provider.dart';
 import 'package:elearning_management_app/providers/instructor_course_provider.dart';
+import 'package:elearning_management_app/providers/quiz_attempt_provider.dart';
 import 'package:elearning_management_app/providers/quiz_provider.dart';
 import 'package:elearning_management_app/providers/student_course_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'config/supabase_config.dart';
-import 'providers/semester_provider.dart';
-import 'providers/group_provider.dart';
-import 'providers/student_provider.dart';
-import 'providers/content_provider.dart';
-import 'providers/question_bank_provider.dart';
-import 'screens/login_screen.dart';
-import 'providers/notification_provider.dart';
-import 'providers/quiz_submission_provider.dart';
 import 'providers/assignment_submission_provider.dart';
-import 'package:hive_ce_flutter/hive_flutter.dart';
+import 'providers/group_provider.dart';
+import 'providers/notification_provider.dart';
+import 'providers/question_bank_provider.dart';
+import 'providers/semester_provider.dart';
+import 'providers/student_provider.dart';
+import 'screens/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,14 +48,14 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => StudentCourseProvider()),
         ChangeNotifierProvider(create: (_) => GroupProvider()),
         ChangeNotifierProvider(create: (_) => StudentProvider()),
-        ChangeNotifierProvider(create: (_) => ContentProvider()),
+        // ChangeNotifierProvider(create: (_) => ContentProvider()),
         ChangeNotifierProvider(create: (_) => AnnouncementProvider()),
         ChangeNotifierProvider(create: (_) => AssignmentProvider()),
         ChangeNotifierProvider(create: (_) => QuizProvider()),
         ChangeNotifierProvider(create: (_) => CourseMaterialProvider()),
         ChangeNotifierProvider(create: (_) => QuestionBankProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
-        ChangeNotifierProvider(create: (_) => QuizSubmissionProvider()),
+        ChangeNotifierProvider(create: (_) => QuizAttemptProvider()),
         ChangeNotifierProvider(
           create: (_) => AssignmentSubmissionProvider(),
         ),

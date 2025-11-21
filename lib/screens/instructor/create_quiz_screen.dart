@@ -1,3 +1,4 @@
+import 'package:elearning_management_app/providers/quiz_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -59,9 +60,8 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
     setState(() {
       _availableGroups = context.read<GroupProvider>().groups;
       _availableEasy = questions.where((q) => q.difficulty == 'easy').length;
-      _availableMedium = questions
-          .where((q) => q.difficulty == 'medium')
-          .length;
+      _availableMedium =
+          questions.where((q) => q.difficulty == 'medium').length;
       _availableHard = questions.where((q) => q.difficulty == 'hard').length;
     });
   }
@@ -142,24 +142,24 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
         return;
       }
 
-      final success = await context.read<ContentProvider>().createQuiz(
-        courseId: widget.course.id,
-        instructorId: widget.instructorId,
-        title: _titleController.text,
-        description: _descriptionController.text.isNotEmpty
-            ? _descriptionController.text
-            : null,
-        openTime: _openTime,
-        closeTime: _closeTime,
-        durationMinutes: int.parse(_durationController.text),
-        maxAttempts: int.parse(_maxAttemptsController.text),
-        easyQuestions: easyCount,
-        mediumQuestions: mediumCount,
-        hardQuestions: hardCount,
-        totalPoints: int.parse(_totalPointsController.text),
-        scopeType: _scopeType,
-        targetGroups: _selectedGroups,
-      );
+      final success = await context.read<QuizProvider>().createQuiz(
+            courseId: widget.course.id,
+            instructorId: widget.instructorId,
+            title: _titleController.text,
+            description: _descriptionController.text.isNotEmpty
+                ? _descriptionController.text
+                : null,
+            openTime: _openTime,
+            closeTime: _closeTime,
+            durationMinutes: int.parse(_durationController.text),
+            maxAttempts: int.parse(_maxAttemptsController.text),
+            easyQuestions: easyCount,
+            mediumQuestions: mediumCount,
+            hardQuestions: hardCount,
+            totalPoints: int.parse(_totalPointsController.text),
+            scopeType: _scopeType,
+            targetGroups: _selectedGroups,
+          );
 
       if (success && mounted) {
         Navigator.pop(context);
@@ -175,8 +175,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totalQuestions =
-        (int.tryParse(_easyQuestionsController.text) ?? 0) +
+    final totalQuestions = (int.tryParse(_easyQuestionsController.text) ?? 0) +
         (int.tryParse(_mediumQuestionsController.text) ?? 0) +
         (int.tryParse(_hardQuestionsController.text) ?? 0);
 

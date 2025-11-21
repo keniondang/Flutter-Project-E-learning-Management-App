@@ -1,3 +1,7 @@
+import 'package:elearning_management_app/providers/announcement_provider.dart';
+import 'package:elearning_management_app/providers/assignment_provider.dart';
+import 'package:elearning_management_app/providers/course_material_provider.dart';
+import 'package:elearning_management_app/providers/quiz_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -26,8 +30,8 @@ class CourseDetailScreen extends StatefulWidget {
   final Course course;
   final UserModel user;
 
-  const CourseDetailScreen({Key? key, required this.course, required this.user})
-    : super(key: key);
+  const CourseDetailScreen(
+      {super.key, required this.course, required this.user});
 
   @override
   State<CourseDetailScreen> createState() => _CourseDetailScreenState();
@@ -47,7 +51,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   Future<void> _loadContent() async {
     // Only load content for the first two tabs.
     // The People tab will load its own data.
-    await context.read<ContentProvider>().loadCourseContent(widget.course.id);
+    await context
+        .read<AnnouncementProvider>()
+        .loadAnnouncements(widget.course.id);
   }
 
   @override
@@ -219,7 +225,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   }
 
   Widget _buildStreamTab() {
-    return Consumer<ContentProvider>(
+    return Consumer<AnnouncementProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading) {
           return const Center(child: CircularProgressIndicator());
@@ -262,9 +268,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
+                        const CircleAvatar(
                           backgroundColor: Colors.blue,
-                          child: const Icon(Icons.person, color: Colors.white),
+                          child: Icon(Icons.person, color: Colors.white),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -348,16 +354,21 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   }
 
   Widget _buildClassworkTab() {
-    return Consumer<ContentProvider>(
-      builder: (context, provider, child) {
-        if (provider.isLoading) {
+    return Consumer3<AssignmentProvider, QuizProvider, CourseMaterialProvider>(
+      builder: (context, assignmentProvider, quizProvider,
+          courseMaterialProvider, child) {
+        if (assignmentProvider.isLoading ||
+            quizProvider.isLoading ||
+            courseMaterialProvider.isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 
         final allContent = [
-          ...provider.assignments.map((a) => {'type': 'assignment', 'item': a}),
-          ...provider.quizzes.map((q) => {'type': 'quiz', 'item': q}),
-          ...provider.materials.map((m) => {'type': 'material', 'item': m}),
+          ...assignmentProvider.assignments
+              .map((a) => {'type': 'assignment', 'item': a}),
+          ...quizProvider.quizzes.map((q) => {'type': 'quiz', 'item': q}),
+          ...courseMaterialProvider.materials
+              .map((m) => {'type': 'material', 'item': m}),
         ];
 
         if (allContent.isEmpty) {
@@ -473,14 +484,14 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                           backgroundColor: Colors.red[100],
                         )
                       : quiz.isOpen
-                      ? Chip(
-                          label: const Text('Open'),
-                          backgroundColor: Colors.green[100],
-                        )
-                      : Chip(
-                          label: const Text('Scheduled'),
-                          backgroundColor: Colors.orange[100],
-                        ),
+                          ? Chip(
+                              label: const Text('Open'),
+                              backgroundColor: Colors.green[100],
+                            )
+                          : Chip(
+                              label: const Text('Scheduled'),
+                              backgroundColor: Colors.orange[100],
+                            ),
                   onTap: () {
                     if (isStudent) {
                       if (quiz.isOpen) {

@@ -1,22 +1,23 @@
-import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:csv/csv.dart';
-import 'package:universal_html/html.dart' as html;
+import 'package:elearning_management_app/models/quiz.dart';
+import 'package:elearning_management_app/models/student.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import '../models/quiz.dart';
-import '../models/student.dart'; // ✅ --- ADD THIS IMPORT --- ✅
+import 'package:flutter/material.dart';
+import 'package:hive_ce/hive.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:universal_html/html.dart' as html;
 
-class QuizSubmissionProvider extends ChangeNotifier {
+class QuizAttemptProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final _boxName = 'quiz-attempt-box';
 
-  // ✅ --- Use the new model --- ✅
   List<QuizAttempt> _submissions = [];
-  bool _isLoading = false;
-  String? _error;
-
-  // ✅ --- Use the new model --- ✅
   List<QuizAttempt> get submissions => _submissions;
+
+  bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  String? _error;
   String? get error => _error;
 
   // Load submissions for a specific quiz
@@ -25,35 +26,37 @@ class QuizSubmissionProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      final response = await _supabase
-          .from('quiz_attempts')
-          .select('*, users!quiz_attempts_student_id_fkey(full_name)')
-          .eq('quiz_id', quizId)
-          .eq('is_completed', true) // We only care about completed attempts
-          .order('submitted_at', ascending: false);
+    final box = await Hive.openBox<QuizAttempt>(_boxName);
 
-      // ✅ --- Parse into the new model --- ✅
-      _submissions = (response as List)
-          .map((json) => QuizAttempt.fromJson(json))
-          .toList();
-    } catch (e) {
-      _error = e.toString();
-      print('Error loading submissions: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    if (!box.values.any((x) => x.quizId == quizId)) {
+      try {
+        final response = await _supabase
+            .from('quiz_attempts')
+            .select('*, users!quiz_attempts_student_id_fkey(full_name)')
+            .eq('quiz_id', quizId)
+            .eq('is_completed', true) // We only care about completed attempts
+            .order('submitted_at', ascending: false);
+
+        await box.putAll(Map.fromEntries(response
+            .map((json) => MapEntry(json['id'], QuizAttempt.fromJson(json)))));
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading submissions: $e');
+      }
     }
+
+    _submissions = box.values.where((x) => x.quizId == quizId).toList();
+
+    _isLoading = false;
+    notifyListeners();
   }
 
-  // ✅ --- ADDED HELPER FUNCTION --- ✅
   // Gets the latest submission for a student
   QuizAttempt? getSubmissionForStudent(String studentId) {
     try {
       // Find all submissions for this student and sort by attempt number
-      var studentSubmissions = _submissions
-          .where((s) => s.studentId == studentId)
-          .toList();
+      var studentSubmissions =
+          _submissions.where((s) => s.studentId == studentId).toList();
       if (studentSubmissions.isEmpty) return null;
 
       studentSubmissions.sort(
@@ -65,7 +68,6 @@ class QuizSubmissionProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ --- MODIFIED CSV EXPORT --- ✅
   // Now requires the full list of students to include those who haven't submitted
   Future<String?> exportSubmissionsToCSV(
     Quiz quiz,
@@ -98,9 +100,8 @@ class QuizSubmissionProvider extends ChangeNotifier {
           // Student has submitted
           final score = submission.score ?? 0.0;
           final totalPoints = quiz.totalPoints;
-          final percentage = totalPoints > 0
-              ? (score / totalPoints) * 100
-              : 0.0;
+          final percentage =
+              totalPoints > 0 ? (score / totalPoints) * 100 : 0.0;
 
           csvData.add([
             student.fullName,

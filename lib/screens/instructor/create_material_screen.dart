@@ -1,3 +1,4 @@
+import 'package:elearning_management_app/providers/course_material_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -45,16 +46,17 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
           .where((link) => link.isNotEmpty)
           .toList();
 
-      final success = await context.read<ContentProvider>().createMaterial(
-        courseId: widget.course.id,
-        instructorId: widget.instructorId,
-        title: _titleController.text,
-        description: _descriptionController.text.isNotEmpty
-            ? _descriptionController.text
-            : null,
-        fileUrls: _fileUrls,
-        externalLinks: externalLinks,
-      );
+      final success =
+          await context.read<CourseMaterialProvider>().createMaterial(
+                courseId: widget.course.id,
+                instructorId: widget.instructorId,
+                title: _titleController.text,
+                description: _descriptionController.text.isNotEmpty
+                    ? _descriptionController.text
+                    : null,
+                fileUrls: _fileUrls,
+                externalLinks: externalLinks,
+              );
 
       if (success && mounted) {
         Navigator.pop(context);

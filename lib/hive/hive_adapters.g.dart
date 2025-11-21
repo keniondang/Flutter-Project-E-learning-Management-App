@@ -313,3 +313,421 @@ class AssignmentAdapter extends TypeAdapter<Assignment> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
+
+class QuizAdapter extends TypeAdapter<Quiz> {
+  @override
+  final typeId = 5;
+
+  @override
+  Quiz read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return Quiz(
+      id: fields[0] as String,
+      courseId: fields[1] as String,
+      instructorId: fields[2] as String,
+      title: fields[3] as String,
+      description: fields[4] as String?,
+      openTime: fields[5] as DateTime,
+      closeTime: fields[6] as DateTime,
+      durationMinutes: (fields[7] as num).toInt(),
+      maxAttempts: (fields[8] as num).toInt(),
+      easyQuestions: (fields[9] as num).toInt(),
+      mediumQuestions: (fields[10] as num).toInt(),
+      hardQuestions: (fields[11] as num).toInt(),
+      totalPoints: (fields[12] as num).toInt(),
+      scopeType: fields[13] as String,
+      targetGroups: (fields[14] as List).cast<String>(),
+      createdAt: fields[15] as DateTime,
+      attemptCount: (fields[17] as num?)?.toInt(),
+      highestScore: (fields[18] as num?)?.toDouble(),
+      isCompleted: fields[19] as bool?,
+      submissionCount: (fields[20] as num?)?.toInt(),
+      semesterId: fields[16] as String?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Quiz obj) {
+    writer
+      ..writeByte(21)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.courseId)
+      ..writeByte(2)
+      ..write(obj.instructorId)
+      ..writeByte(3)
+      ..write(obj.title)
+      ..writeByte(4)
+      ..write(obj.description)
+      ..writeByte(5)
+      ..write(obj.openTime)
+      ..writeByte(6)
+      ..write(obj.closeTime)
+      ..writeByte(7)
+      ..write(obj.durationMinutes)
+      ..writeByte(8)
+      ..write(obj.maxAttempts)
+      ..writeByte(9)
+      ..write(obj.easyQuestions)
+      ..writeByte(10)
+      ..write(obj.mediumQuestions)
+      ..writeByte(11)
+      ..write(obj.hardQuestions)
+      ..writeByte(12)
+      ..write(obj.totalPoints)
+      ..writeByte(13)
+      ..write(obj.scopeType)
+      ..writeByte(14)
+      ..write(obj.targetGroups)
+      ..writeByte(15)
+      ..write(obj.createdAt)
+      ..writeByte(16)
+      ..write(obj.semesterId)
+      ..writeByte(17)
+      ..write(obj.attemptCount)
+      ..writeByte(18)
+      ..write(obj.highestScore)
+      ..writeByte(19)
+      ..write(obj.isCompleted)
+      ..writeByte(20)
+      ..write(obj.submissionCount);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is QuizAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class AnnouncementAdapter extends TypeAdapter<Announcement> {
+  @override
+  final typeId = 6;
+
+  @override
+  Announcement read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return Announcement(
+      id: fields[0] as String,
+      courseId: fields[1] as String,
+      instructorId: fields[2] as String,
+      title: fields[3] as String,
+      content: fields[4] as String,
+      fileAttachments: (fields[5] as List).cast<String>(),
+      scopeType: fields[6] as String,
+      targetGroups: (fields[7] as List).cast<String>(),
+      createdAt: fields[8] as DateTime,
+      viewCount: (fields[9] as num?)?.toInt(),
+      commentCount: (fields[10] as num?)?.toInt(),
+      hasViewed: fields[11] as bool?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Announcement obj) {
+    writer
+      ..writeByte(12)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.courseId)
+      ..writeByte(2)
+      ..write(obj.instructorId)
+      ..writeByte(3)
+      ..write(obj.title)
+      ..writeByte(4)
+      ..write(obj.content)
+      ..writeByte(5)
+      ..write(obj.fileAttachments)
+      ..writeByte(6)
+      ..write(obj.scopeType)
+      ..writeByte(7)
+      ..write(obj.targetGroups)
+      ..writeByte(8)
+      ..write(obj.createdAt)
+      ..writeByte(9)
+      ..write(obj.viewCount)
+      ..writeByte(10)
+      ..write(obj.commentCount)
+      ..writeByte(11)
+      ..write(obj.hasViewed);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AnnouncementAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class CourseMaterialAdapter extends TypeAdapter<CourseMaterial> {
+  @override
+  final typeId = 7;
+
+  @override
+  CourseMaterial read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return CourseMaterial(
+      id: fields[0] as String,
+      courseId: fields[1] as String,
+      instructorId: fields[2] as String,
+      title: fields[3] as String,
+      description: fields[4] as String?,
+      fileUrls: (fields[5] as List).cast<String>(),
+      externalLinks: (fields[6] as List).cast<String>(),
+      createdAt: fields[7] as DateTime,
+      viewCount: (fields[9] as num?)?.toInt(),
+      downloadCount: (fields[10] as num?)?.toInt(),
+      hasViewed: fields[11] as bool?,
+      semesterId: fields[8] as String?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, CourseMaterial obj) {
+    writer
+      ..writeByte(12)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.courseId)
+      ..writeByte(2)
+      ..write(obj.instructorId)
+      ..writeByte(3)
+      ..write(obj.title)
+      ..writeByte(4)
+      ..write(obj.description)
+      ..writeByte(5)
+      ..write(obj.fileUrls)
+      ..writeByte(6)
+      ..write(obj.externalLinks)
+      ..writeByte(7)
+      ..write(obj.createdAt)
+      ..writeByte(8)
+      ..write(obj.semesterId)
+      ..writeByte(9)
+      ..write(obj.viewCount)
+      ..writeByte(10)
+      ..write(obj.downloadCount)
+      ..writeByte(11)
+      ..write(obj.hasViewed);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CourseMaterialAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class SemesterAdapter extends TypeAdapter<Semester> {
+  @override
+  final typeId = 8;
+
+  @override
+  Semester read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return Semester(
+      id: fields[0] as String,
+      code: fields[1] as String,
+      name: fields[2] as String,
+      isCurrent: fields[3] as bool,
+      createdAt: fields[4] as DateTime,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Semester obj) {
+    writer
+      ..writeByte(5)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.code)
+      ..writeByte(2)
+      ..write(obj.name)
+      ..writeByte(3)
+      ..write(obj.isCurrent)
+      ..writeByte(4)
+      ..write(obj.createdAt);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SemesterAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class QuestionAdapter extends TypeAdapter<Question> {
+  @override
+  final typeId = 9;
+
+  @override
+  Question read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return Question(
+      id: fields[0] as String,
+      courseId: fields[1] as String,
+      questionText: fields[2] as String,
+      options: (fields[3] as List).cast<QuestionOption>(),
+      difficulty: fields[4] as String,
+      createdAt: fields[5] as DateTime,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Question obj) {
+    writer
+      ..writeByte(6)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.courseId)
+      ..writeByte(2)
+      ..write(obj.questionText)
+      ..writeByte(3)
+      ..write(obj.options)
+      ..writeByte(4)
+      ..write(obj.difficulty)
+      ..writeByte(5)
+      ..write(obj.createdAt);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is QuestionAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class QuestionOptionAdapter extends TypeAdapter<QuestionOption> {
+  @override
+  final typeId = 10;
+
+  @override
+  QuestionOption read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return QuestionOption(
+      text: fields[0] as String,
+      isCorrect: fields[1] as bool,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, QuestionOption obj) {
+    writer
+      ..writeByte(2)
+      ..writeByte(0)
+      ..write(obj.text)
+      ..writeByte(1)
+      ..write(obj.isCorrect);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is QuestionOptionAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class QuizAttemptAdapter extends TypeAdapter<QuizAttempt> {
+  @override
+  final typeId = 11;
+
+  @override
+  QuizAttempt read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return QuizAttempt(
+      id: fields[0] as String,
+      quizId: fields[1] as String,
+      studentId: fields[2] as String,
+      studentName: fields[3] as String,
+      attemptNumber: (fields[4] as num).toInt(),
+      startedAt: fields[5] as DateTime,
+      submittedAt: fields[6] as DateTime?,
+      score: (fields[7] as num?)?.toDouble(),
+      isCompleted: fields[8] as bool,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, QuizAttempt obj) {
+    writer
+      ..writeByte(9)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.quizId)
+      ..writeByte(2)
+      ..write(obj.studentId)
+      ..writeByte(3)
+      ..write(obj.studentName)
+      ..writeByte(4)
+      ..write(obj.attemptNumber)
+      ..writeByte(5)
+      ..write(obj.startedAt)
+      ..writeByte(6)
+      ..write(obj.submittedAt)
+      ..writeByte(7)
+      ..write(obj.score)
+      ..writeByte(8)
+      ..write(obj.isCompleted);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is QuizAttemptAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
