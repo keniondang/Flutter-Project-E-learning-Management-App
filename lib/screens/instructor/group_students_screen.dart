@@ -12,10 +12,10 @@ class GroupStudentsScreen extends StatefulWidget {
   final Course course;
 
   const GroupStudentsScreen({
-    Key? key,
+    super.key,
     required this.group,
     required this.course,
-  }) : super(key: key);
+  });
 
   @override
   State<GroupStudentsScreen> createState() => _GroupStudentsScreenState();
@@ -61,14 +61,11 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                   return const Text('Error loading students');
                 }
 
-                // ✅ --- FIX 1: FILTERING --- ✅
                 // Get the list of students already in this group (from the main provider state)
-                final studentsInGroup = context
-                    .read<StudentProvider>()
-                    .students;
-                final studentIdsInGroup = studentsInGroup
-                    .map((s) => s.id)
-                    .toSet();
+                final studentsInGroup =
+                    context.read<StudentProvider>().students;
+                final studentIdsInGroup =
+                    studentsInGroup.map((s) => s.id).toSet();
 
                 // Get all students and filter out the ones already in the group
                 final allStudents = snapshot.data!;
@@ -77,7 +74,6 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                     .toList();
 
                 return DropdownButtonFormField<Student>(
-                  // ✅ --- FIX 2: THE RED SCREEN ERROR --- ✅
                   // The `hint` property tells the dropdown what to show when
                   // `value` (selectedStudent) is null. This fixes the assertion error.
                   value: selectedStudent,
@@ -115,16 +111,15 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
 
                         final success = await provider.enrollStudentInGroup(
                           studentId: selectedStudent!.id,
-                          groupId: widget.group.id,
+                          group: widget.group,
                           courseId: widget.course.id,
                         );
 
                         if (success && mounted) {
                           Navigator.pop(context);
-                          await _loadStudents();
-                          context
-                              .read<GroupProvider>()
-                              .refreshCurrentCourseGroups();
+                          // context
+                          //     .read<GroupProvider>()
+                          //     .refreshCurrentCourseGroups();
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -169,16 +164,14 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
             onPressed: () async {
               Navigator.pop(context);
 
-              final success = await context
-                  .read<StudentProvider>()
-                  .removeStudentFromGroup(
-                    studentId: student.id,
-                    groupId: widget.group.id,
-                  );
+              final success =
+                  await context.read<StudentProvider>().removeStudentFromGroup(
+                        studentId: student.id,
+                        groupId: widget.group.id,
+                      );
 
               if (success && mounted) {
-                await _loadStudents();
-                context.read<GroupProvider>().refreshCurrentCourseGroups();
+                // context.read<GroupProvider>().refreshCurrentCourseGroups();
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -194,6 +187,11 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   @override

@@ -11,7 +11,7 @@ class CoursePeopleTab extends StatefulWidget {
   final UserModel user;
 
   const CoursePeopleTab({Key? key, required this.course, required this.user})
-    : super(key: key);
+      : super(key: key);
 
   @override
   State<CoursePeopleTab> createState() => _CoursePeopleTabState();
@@ -84,7 +84,7 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
                 ),
               ),
             );
-          }).toList(),
+          }),
 
         const SizedBox(height: 24),
         const Divider(),
@@ -120,12 +120,12 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
                   style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
                 ),
                 subtitle: Text(
-                  'Group: ${student.groupName ?? 'No group'}',
+                  'Group: ${student.groupMap.entries.singleWhere((e) => widget.course.groupIds.contains(e.key), orElse: () => const MapEntry('', 'No group')).value}',
                   style: GoogleFonts.poppins(fontSize: 12),
                 ),
               ),
             );
-          }).toList(),
+          }),
       ],
     );
   }

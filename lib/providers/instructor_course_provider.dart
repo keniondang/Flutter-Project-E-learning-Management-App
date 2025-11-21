@@ -10,9 +10,6 @@ class InstructorCourseProvider extends ChangeNotifier {
   String _currentSemester = "";
   String get currentSemester => _currentSemester;
 
-  int? _semesterCount;
-  int? get semesterCount => _semesterCount;
-
   List<Course> _courses = [];
   List<Course> get courses => _courses;
 
@@ -20,17 +17,10 @@ class InstructorCourseProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   String? _error;
-
   String? get error => _error;
-
-  // CourseProvider({required Directory isarDir}) : _isarDir = isarDir;
 
   // Load courses for a semester
   Future<void> loadCourses(String semesterId) async {
-    if (semesterId == _currentSemester) {
-      return;
-    }
-
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -39,7 +29,7 @@ class InstructorCourseProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Course>(_boxName);
 
-    if (!box.containsKey(semesterId)) {
+    if (!box.values.any((x) => x.semesterId == semesterId)) {
       try {
         final response = await _supabase
             .from('courses')
@@ -55,15 +45,15 @@ class InstructorCourseProvider extends ChangeNotifier {
             semesterName = json['semesters']['name'];
           }
 
-          final groupCount = _fetchGroupCount(json['id']);
-          final studentCount = _fetchStudentCount(json['id']);
+          final groupResponse = _fetchGroup(json['id']);
+          final studentResponse = _fetchStudent(json['id']);
 
           final course = Course.fromJson(
-            json: json,
-            semesterName: semesterName,
-            groupCount: await groupCount,
-            studentCount: await studentCount,
-          );
+              json: json,
+              semesterName: semesterName,
+              groupIds:
+                  (await groupResponse).map((x) => x['id'] as String).toSet(),
+              studentCount: await studentResponse);
 
           return MapEntry(course.id, course);
         }))));
@@ -79,17 +69,14 @@ class InstructorCourseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<int> _fetchGroupCount(dynamic courseId) async {
-    final response = await _supabase
-        .from('groups')
-        .select('id')
-        .eq('course_id', courseId)
-        .count();
+  Future<Iterable<Map<String, dynamic>>> _fetchGroup(String courseId) async {
+    final response =
+        await _supabase.from('groups').select('id').eq('course_id', courseId);
 
-    return response.count;
+    return response;
   }
 
-  Future<int> _fetchStudentCount(dynamic courseId) async {
+  Future<int> _fetchStudent(String courseId) async {
     final response = await _supabase
         .from('enrollments')
         .select('student_id, groups!inner(course_id)')
@@ -114,11 +101,9 @@ class InstructorCourseProvider extends ChangeNotifier {
         'name': name,
         'sessions': sessions,
         'cover_image': coverImage,
-      }).select('*, semesters(name)');
+      }).select('*');
 
-      final box = await Hive.openBox<Course>(_boxName);
-
-      final newCourse = (response as List).map((json) {
+      final newCourse = (response as Iterable).map((json) {
         // Extract semester name from relation
         String? semesterName;
 
@@ -126,17 +111,12 @@ class InstructorCourseProvider extends ChangeNotifier {
           semesterName = json['semesters']['name'];
         }
 
-        final old = box.get(json['id']);
-
-        return Course.fromJson(
-          json: json,
-          semesterName: semesterName,
-          groupCount: old?.groupCount ?? 0,
-          studentCount: old?.studentCount ?? 0,
-        );
+        return Course.fromJson(json: json, semesterName: semesterName);
       }).first;
 
-      box.put(newCourse.id, newCourse);
+      final box = await Hive.openBox<Course>(_boxName);
+
+      await box.put(newCourse.id, newCourse);
       _courses.add(newCourse);
 
       notifyListeners();
@@ -184,18 +164,19 @@ class InstructorCourseProvider extends ChangeNotifier {
         return Course.fromJson(
           json: json,
           semesterName: semesterName,
-          groupCount: old?.groupCount ?? 0,
-          studentCount: old?.studentCount ?? 0,
+          groupIds: old?.groupIds ?? {},
+          studentCount: old?.studentCount,
         );
       }).first;
 
-      box.put(newCourse.id, newCourse);
+      await box.put(newCourse.id, newCourse);
       _courses[_courses.indexWhere((x) => x.id == newCourse.id)] = newCourse;
 
       notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
       return false;
     }
@@ -208,7 +189,7 @@ class InstructorCourseProvider extends ChangeNotifier {
 
       final box = await Hive.openBox<Course>(_boxName);
 
-      box.delete(id);
+      await box.delete(id);
       _courses.removeWhere((x) => x.id == id);
 
       notifyListeners();

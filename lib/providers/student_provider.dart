@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/group.dart';
 import '../models/student.dart';
 
 class StudentProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final _boxName = 'student-box';
 
   List<Student> _students = [];
-  bool _isLoading = false;
-  String? _error;
-
   List<Student> get students => _students;
+
+  bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  String? _error;
   String? get error => _error;
 
   // Load all students
@@ -19,23 +23,27 @@ class StudentProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      final response = await _supabase
-          .from('users')
-          .select()
-          .eq('role', 'student')
-          .order('full_name');
+    final box = await Hive.openBox<Student>(_boxName);
 
-      _students = (response as List)
-          .map((json) => Student.fromJson(json))
-          .toList();
-    } catch (e) {
-      _error = e.toString();
-      print('Error loading students: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    if (box.isEmpty) {
+      try {
+        final response =
+            await _supabase.from('users').select().eq('role', 'student');
+
+        await box.putAll(Map.fromEntries((response as Iterable).map((json) {
+          final student = Student.fromJson(json: json);
+          return MapEntry(student.id, student);
+        })));
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading students: $e');
+      }
     }
+
+    _students = box.values.toList();
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   // Load students in a group
@@ -44,32 +52,35 @@ class StudentProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      final response = await _supabase
-          .from('enrollments')
-          .select(
-            '*, users!enrollments_student_id_fkey(*), groups(name, courses(name))',
-          )
-          .eq('group_id', groupId);
+    final box = await Hive.openBox<Student>(_boxName);
 
-      _students = (response as List).map((json) {
-        final userJson = json['users'];
-        final groupJson = json['groups'];
+    if (!box.values.any((x) => x.groupMap.containsKey(groupId))) {
+      try {
+        final response = await _supabase
+            .from('enrollments')
+            .select(
+              '*, users!enrollments_student_id_fkey(id), groups(name)',
+            )
+            .eq('group_id', groupId);
 
-        return Student.fromJson({
-          ...userJson,
-          'group_id': groupId,
-          'group_name': groupJson?['name'],
-          'course_name': groupJson?['courses']?['name'],
-        });
-      }).toList();
-    } catch (e) {
-      _error = e.toString();
-      print('Error loading students in group: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+        await box.putAll(Map.fromEntries((response as Iterable).map((json) {
+          final userId = json['users']['id'];
+          final student = box.get(userId)!;
+          student.groupMap[groupId] = json['groups']['name'];
+
+          return MapEntry(student.id, student);
+        })));
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading students in group: $e');
+      }
     }
+
+    _students =
+        box.values.where((x) => x.groupMap.containsKey(groupId)).toList();
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   // Create new student
@@ -80,7 +91,12 @@ class StudentProvider extends ChangeNotifier {
     required String fullName,
   }) async {
     try {
-      // Check if username already exists
+      final box = await Hive.openBox<Student>(_boxName);
+
+      if (box.values.any((x) => x.username == username)) {
+        return {'success': false, 'message': 'Username already exists'};
+      }
+
       final existing = await _supabase
           .from('users')
           .select('id')
@@ -91,15 +107,21 @@ class StudentProvider extends ChangeNotifier {
         return {'success': false, 'message': 'Username already exists'};
       }
 
-      await _supabase.from('users').insert({
+      final response = await _supabase.from('users').insert({
         'username': username,
         'email': email,
         'password': password,
         'full_name': fullName,
         'role': 'student',
-      });
+      }).select();
 
-      await loadAllStudents();
+      final newStudent = (response as Iterable)
+          .map((json) => Student.fromJson(json: json))
+          .first;
+
+      await box.put(newStudent.id, newStudent);
+      _students.add(newStudent);
+
       return {'success': true, 'message': 'Student created successfully'};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -144,7 +166,7 @@ class StudentProvider extends ChangeNotifier {
       }
     }
 
-    await loadAllStudents();
+    // await loadAllStudents();
 
     return {
       'success': errorCount == 0,
@@ -158,10 +180,19 @@ class StudentProvider extends ChangeNotifier {
   // Enroll student in group
   Future<bool> enrollStudentInGroup({
     required String studentId,
-    required String groupId,
+    required Group group,
     required String courseId,
   }) async {
     try {
+      final box = await Hive.openBox<Student>(_boxName);
+
+      if (box.get(studentId)?.courseIds.contains(courseId) ?? false) {
+        _error =
+            'Student is already enrolled in another group for this course.';
+        notifyListeners();
+        return false;
+      }
+
       // Check if student is already enrolled in ANY group for THIS course
       final existingEnrollment = await _supabase
           .from('enrollments')
@@ -183,12 +214,20 @@ class StudentProvider extends ChangeNotifier {
       // If no existing enrollment in this course, proceed to add
       await _supabase.from('enrollments').insert({
         'student_id': studentId,
-        'group_id': groupId,
+        'group_id': group.id,
       });
 
+      final student = box.get(studentId)!;
+      student.groupMap[group.id] = group.name;
+      await box.put(student.id, student);
+
+      _students.add(student);
+
+      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
       return false;
     }
@@ -278,9 +317,20 @@ class StudentProvider extends ChangeNotifier {
           .eq('student_id', studentId)
           .eq('group_id', groupId);
 
+      final box = await Hive.openBox<Student>(_boxName);
+
+      final student = box.get(studentId)!;
+      student.groupMap.remove(groupId);
+      await box.put(student.id, student);
+
+      _students =
+          box.values.where((x) => x.groupMap.containsKey(groupId)).toList();
+
+      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
       return false;
     }
@@ -295,13 +345,31 @@ class StudentProvider extends ChangeNotifier {
     try {
       await _supabase
           .from('users')
-          .update({'email': email, 'full_name': fullName})
-          .eq('id', id);
+          .update({'email': email, 'full_name': fullName}).eq('id', id);
 
-      await loadAllStudents();
+      final box = await Hive.openBox<Student>(_boxName);
+
+      final student = box.get(id)!;
+
+      await box.put(
+          student.id,
+          Student(
+            id: student.id,
+            email: email,
+            username: student.username,
+            fullName: fullName,
+            avatarUrl: student.avatarUrl,
+            groupMap: student.groupMap,
+            courseIds: student.courseIds,
+          ));
+
+      _students = box.values.toList();
+
+      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
       return false;
     }
@@ -311,68 +379,82 @@ class StudentProvider extends ChangeNotifier {
   Future<bool> deleteStudent(String id) async {
     try {
       await _supabase.from('users').delete().eq('id', id);
-      _students.removeWhere((student) => student.id == id);
+      final box = await Hive.openBox<Student>(_boxName);
+
+      await box.delete(id);
+      _students = box.values.toList();
+
       notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
       return false;
     }
   }
 
-  // ✅ --- NEW METHOD --- ✅
-  // Fetches all students but does NOT notify listeners or change state.
-  // This is for use in dialogs/dropdowns.
   Future<List<Student>> fetchAllStudents() async {
-    try {
-      final response = await _supabase
-          .from('users')
-          .select()
-          .eq('role', 'student')
-          .order('full_name');
+    final box = await Hive.openBox<Student>(_boxName);
 
-      return (response as List).map((json) => Student.fromJson(json)).toList();
-    } catch (e) {
-      print('Error fetching all students: $e');
-      return [];
+    if (box.isEmpty) {
+      try {
+        final response =
+            await _supabase.from('users').select().eq('role', 'student');
+        // .order('full_name');
+
+        await box.putAll(Map.fromEntries((response as Iterable).map((json) {
+          final student = Student.fromJson(json: json);
+          return MapEntry(student.id, student);
+        })));
+      } catch (e) {
+        print('Error fetching all students: $e');
+        // return [];
+      }
     }
+
+    return box.values.toList();
   }
 
-  // ✅ --- NEW FUNCTION FOR PEOPLE TAB --- ✅
   // Load all students enrolled in a specific course and update state
   Future<void> loadStudentsForCourse(String courseId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
-    try {
-      final response = await _supabase
-          .from('enrollments')
-          .select(
-            'users!enrollments_student_id_fkey(*), groups!inner(course_id, name)',
-          )
-          .eq('groups.course_id', courseId);
+    final box = await Hive.openBox<Student>(_boxName);
 
-      final studentMap = <String, Student>{};
-      for (var row in (response as List)) {
-        if (row['users'] != null) {
-          final student = Student.fromJson({
-            ...row['users'],
-            'group_name': row['groups']?['name'],
-          });
-          studentMap[student.id] = student;
-        }
+    if (!box.values.any((x) => x.courseIds.contains(courseId))) {
+      try {
+        final response = await _supabase
+            .from('enrollments')
+            .select(
+              'users!enrollments_student_id_fkey(id), groups!inner(id, course_id, name)',
+            )
+            .eq('groups.course_id', courseId);
+
+        await box.putAll(Map.fromEntries((response as Iterable).map((json) {
+          final userId = json['users']['id'];
+          final groupJson = json['groups'];
+
+          final student = box.get(userId)!;
+
+          student.groupMap[groupJson['id']] = groupJson['name'];
+          student.courseIds.add(courseId);
+
+          return MapEntry(student.id, student);
+        })));
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading students for course: $e');
       }
-      _students = studentMap.values.toList();
-      _students.sort((a, b) => a.fullName.compareTo(b.fullName));
-    } catch (e) {
-      _error = e.toString();
-      print('Error loading students for course: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
+
+    _students =
+        box.values.where((x) => x.courseIds.contains(courseId)).toList();
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   // Load all students enrolled in a specific course
@@ -380,25 +462,30 @@ class StudentProvider extends ChangeNotifier {
     // This function fetches and returns a list,
     // but does not update the main provider state (_students).
     // This is ideal for one-off fetches like in the results screen.
-    try {
-      final response = await _supabase
-          .from('enrollments')
-          .select(
-            'users!enrollments_student_id_fkey(*), groups!inner(course_id)',
-          )
-          .eq('groups.course_id', courseId);
 
-      // Use a Set to avoid duplicate students
-      final studentSet = <Student>{};
-      for (var row in (response as List)) {
-        if (row['users'] != null) {
-          studentSet.add(Student.fromJson(row['users']));
-        }
+    final box = await Hive.openBox<Student>(_boxName);
+
+    if (!box.values.any((x) => x.courseIds.contains(courseId))) {
+      try {
+        final response = await _supabase
+            .from('enrollments')
+            .select(
+              'users!enrollments_student_id_fkey(id), groups!inner(course_id, name)',
+            )
+            .eq('groups.course_id', courseId);
+
+        await box.putAll(Map.fromEntries((response as Iterable).map((json) {
+          final userId = json['users']['id'];
+          final student = box.get(userId)!;
+          student.courseIds.add(courseId);
+
+          return MapEntry(student.id, student);
+        })));
+      } catch (e) {
+        print('Error loading students in course: $e');
       }
-      return studentSet.toList();
-    } catch (e) {
-      print('Error loading students in course: $e');
-      return [];
     }
+
+    return box.values.where((x) => x.courseIds.contains(courseId)).toList();
   }
 }

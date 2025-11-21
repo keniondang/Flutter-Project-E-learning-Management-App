@@ -175,22 +175,25 @@ class InstructorHomeScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    Consumer<StudentProvider>(
-                      builder: (context, provider, child) {
-                        if (provider.students.isEmpty && !provider.isLoading) {
-                          provider.loadAllStudents();
-                        }
+                    // Consumer2<SemesterProvider, StudentProvider>(
+                    //   builder:
+                    //       (context, semesterProvider, studentProvider, child) {
+                    //     if (studentProvider.students.isEmpty &&
+                    //         !studentProvider.isLoading &&
+                    //         semesterProvider.currentSemester != null) {
+                    //       studentProvider.loadAllStudents();
+                    //     }
 
-                        return _buildStatCard(
-                          'Total Students',
-                          provider.isLoading
-                              ? 'Loading data'
-                              : provider.students.length.toString(),
-                          Icons.people,
-                          Colors.green,
-                        );
-                      },
-                    ),
+                    //     return _buildStatCard(
+                    //       'Total Students',
+                    //       studentProvider.isLoading
+                    //           ? 'Loading data'
+                    //           : studentProvider.students.length.toString(),
+                    //       Icons.people,
+                    //       Colors.green,
+                    //     );
+                    //   },
+                    // ),
                     Consumer2<SemesterProvider, GroupProvider>(
                       builder:
                           (context, semesterProvider, groupProvider, child) {

@@ -51,57 +51,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     }
   }
 
-  // Future<void> _loadEnrolledCourses() async {
-  //   if (_selectedSemesterId == null) return;
-
-  //   setState(() => _isLoading = true);
-
-  //   try {
-  //     // Get enrolled courses for the student
-  //     final response = await _supabase
-  //         .from('enrollments')
-  //         .select('''
-  //           groups!inner(
-  //             course_id,
-  //             courses!inner(
-  //               id,
-  //               code,
-  //               name,
-  //               sessions,
-  //               cover_image,
-  //               semester_id,
-  //               created_at
-  //             )
-  //           )
-  //         ''')
-  //         .eq('student_id', widget.user.id)
-  //         .eq('groups.courses.semester_id', _selectedSemesterId!);
-
-  //     final courses = (response as Iterable)
-  //         .map((r) => Course.fromJson(json: r['groups']['courses']))
-  //         .toList();
-
-  //     // for (var enrollment in response as List) {
-  //     //   final courseData = enrollment['groups']['courses'];
-  //     //   final courseId = courseData['id'];
-
-  //     //   // Avoid duplicate courses (student might be in multiple groups)
-  //     //   if (!seenCourseIds.contains(courseId)) {
-  //     //     seenCourseIds.add(courseId);
-  //     //     courses.add(Course.fromJson(courseData));
-  //     //   }
-  //     // }
-
-  //     setState(() {
-  //       _enrolledCourses = courses;
-  //       _isLoading = false;
-  //     });
-  //   } catch (e) {
-  //     print('Error loading enrolled courses: $e');
-  //     setState(() => _isLoading = false);
-  //   }
-  // }
-
   @override
   Widget build(BuildContext context) {
     final semesterProvider = context.watch<SemesterProvider>();
