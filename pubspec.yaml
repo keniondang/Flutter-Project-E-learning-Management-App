@@ -9,7 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
+  # HTTP requests for chatbot
+  http: ^1.2.0
   # Supabase for backend
   supabase_flutter: ^2.5.0
   
