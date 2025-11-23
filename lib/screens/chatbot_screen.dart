@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import '../services/rag_service.dart'; // Import the service we just made
+import '../services/rag_service.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -13,14 +13,21 @@ class ChatbotScreen extends StatefulWidget {
 class _ChatbotScreenState extends State<ChatbotScreen> {
   final RagService _ragService = RagService();
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   
-  // State variables
-  List<Map<String, String>> messages = []; // Stores {role: "user"|"bot", text: "..."}
+  // Initial Greeting
+  List<Map<String, String>> messages = [
+    {
+      "role": "bot", 
+      "text": "Hello! I have studied the Course Guide. You can ask me questions about it directly, or upload your own PDF for specific help!"
+    }
+  ];
+  
   bool _isUploading = false;
   bool _isTyping = false;
   String? _uploadedFileName;
 
-  // 1. Pick and Upload PDF
+  // 1. Pick and Upload PDF (Optional now)
   Future<void> _pickAndUploadPdf() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -39,7 +46,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           _uploadedFileName = result.files.single.name;
           messages.add({
             "role": "bot", 
-            "text": "I've studied $_uploadedFileName! Ask me anything about it."
+            "text": "I've added $_uploadedFileName to my knowledge! Ask me about it."
           });
         });
       } catch (e) {
@@ -50,7 +57,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     }
   }
 
-  // 2. Send Message
+  // 2. Send Message (Unlocked)
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -61,14 +68,32 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       _isTyping = true;
       _controller.clear();
     });
+    
+    // Scroll to bottom
+    _scrollToBottom();
 
     // Get answer from Python
     final answer = await _ragService.askQuestion(text);
 
     // Add bot response to UI
-    setState(() {
-      _isTyping = false;
-      messages.add({"role": "bot", "text": answer});
+    if (mounted) {
+      setState(() {
+        _isTyping = false;
+        messages.add({"role": "bot", "text": answer});
+      });
+      _scrollToBottom();
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
@@ -81,78 +106,125 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           IconButton(
             icon: const Icon(Icons.upload_file),
             onPressed: _isUploading ? null : _pickAndUploadPdf,
-            tooltip: "Upload PDF",
+            tooltip: "Upload Custom PDF",
           ),
         ],
       ),
       body: Column(
         children: [
-          // Info Banner
-          if (_uploadedFileName != null)
-            Container(
-              padding: const EdgeInsets.all(8),
-              color: Colors.green.shade100,
-              width: double.infinity,
-              child: Text(
-                "Active Source: $_uploadedFileName",
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.green),
-              ),
+          // Info Banner (Dynamic)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            width: double.infinity,
+            color: _uploadedFileName != null ? Colors.green.shade100 : Colors.blue.shade50,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _uploadedFileName != null ? Icons.attach_file : Icons.library_books,
+                  size: 16,
+                  color: _uploadedFileName != null ? Colors.green[800] : Colors.blue[800],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _uploadedFileName != null 
+                    ? "Focus: $_uploadedFileName + Guide" 
+                    : "Focus: General Course Guide",
+                  style: TextStyle(
+                    color: _uploadedFileName != null ? Colors.green[900] : Colors.blue[900],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
+          ),
 
           // Chat Area
           Expanded(
-            child: messages.isEmpty
-                ? const Center(child: Text("Upload a PDF to start learning!"))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) {
-                      final msg = messages[index];
-                      final isUser = msg['role'] == 'user';
-                      return Align(
-                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isUser ? Colors.blue : Colors.grey[300],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            msg['text']!,
-                            style: TextStyle(color: isUser ? Colors.white : Colors.black),
-                          ),
-                        ),
-                      );
-                    },
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16),
+              itemCount: messages.length,
+              itemBuilder: (context, index) {
+                final msg = messages[index];
+                final isUser = msg['role'] == 'user';
+                return Align(
+                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.all(12),
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.75,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isUser ? Colors.blue : Colors.grey[200],
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(12),
+                        topRight: const Radius.circular(12),
+                        bottomLeft: isUser ? const Radius.circular(12) : Radius.zero,
+                        bottomRight: isUser ? Radius.zero : const Radius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      msg['text']!,
+                      style: TextStyle(color: isUser ? Colors.white : Colors.black87),
+                    ),
                   ),
+                );
+              },
+            ),
           ),
           
           // Loading Indicator
           if (_isTyping || _isUploading)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: LinearProgressIndicator(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 16, height: 16, 
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(_isUploading ? "Reading PDF..." : "AI is thinking...", style: const TextStyle(color: Colors.grey)),
+                ],
+              ),
             ),
 
           // Input Field
-          Padding(
-            padding: const EdgeInsets.all(8.0),
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  offset: const Offset(0, -2),
+                  blurRadius: 5,
+                )
+              ],
+            ),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _controller,
+                    onSubmitted: (_) => _isTyping ? null : _sendMessage(),
                     decoration: const InputDecoration(
                       hintText: "Ask a question...",
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(24)),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.send),
-                  onPressed: (_uploadedFileName == null || _isTyping) ? null : _sendMessage,
+                  color: Colors.blue,
+                  // FIX: Button is now enabled unless AI is currently typing
+                  onPressed: _isTyping ? null : _sendMessage, 
                 ),
               ],
             ),

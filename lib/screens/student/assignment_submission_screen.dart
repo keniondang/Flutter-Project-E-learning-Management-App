@@ -50,10 +50,10 @@ class _AssignmentSubmissionScreenState
 
       if (response != null) {
         setState(() {
-          _existingSubmission = AssignmentSubmission.fromJson({
+          _existingSubmission = AssignmentSubmission.fromJson(json: { // <--- Added "json:"
             ...response,
             'student_name': widget.student.fullName,
-          });
+})        ;
           _currentAttempt = (_existingSubmission!.attemptNumber) + 1;
           _submissionTextController.text =
               _existingSubmission!.submissionText ?? '';

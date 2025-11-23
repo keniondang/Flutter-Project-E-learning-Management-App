@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:fl_chart/fl_chart.dart';
+// import 'package:fl_chart/fl_chart.dart'; // Keep this if you use charts
 import '../../models/user_model.dart';
+import '../chatbot_screen.dart'; // <--- 1. ADD THIS IMPORT
 
 class StudentDashboardScreen extends StatefulWidget {
   final UserModel student;
@@ -29,13 +30,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   Future<void> _loadDashboardData() async {
     try {
-      // Load dashboard statistics
       final stats = await _supabase
           .from('student_dashboard')
           .select()
           .eq('student_id', widget.student.id);
 
-      // Load upcoming deadlines
       final now = DateTime.now();
       final deadlines = await _supabase
           .from('assignments')
@@ -44,16 +43,18 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           .order('due_date')
           .limit(5);
 
-      setState(() {
-        if (stats.isNotEmpty) {
-          _dashboardData = stats.first;
-        }
-        _upcomingDeadlines = List<Map<String, dynamic>>.from(deadlines);
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          if (stats.isNotEmpty) {
+            _dashboardData = stats.first;
+          }
+          _upcomingDeadlines = List<Map<String, dynamic>>.from(deadlines);
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      print('Error loading dashboard: $e');
-      setState(() => _isLoading = false);
+      debugPrint('Error loading dashboard: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -65,6 +66,21 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text('My Dashboard', style: GoogleFonts.poppins())),
+      
+      // 2. ADD THIS FLOATING ACTION BUTTON --------------------------
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatbotScreen()),
+          );
+        },
+        label: const Text('AI Tutor'),
+        icon: const Icon(Icons.auto_awesome),
+        backgroundColor: Colors.blueAccent,
+      ),
+      // -------------------------------------------------------------
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -129,9 +145,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     else
                       ..._upcomingDeadlines.map((deadline) {
                         final dueDate = DateTime.parse(deadline['due_date']);
-                        final daysLeft = dueDate
-                            .difference(DateTime.now())
-                            .inDays;
+                        final daysLeft = dueDate.difference(DateTime.now()).inDays;
 
                         return ListTile(
                           leading: CircleAvatar(
@@ -155,7 +169,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                             ),
                           ),
                           subtitle: Text(
-                            '${deadline['courses']['name']} • ${daysLeft == 0 ? "Today" : "$daysLeft days left"}',
+                            '${deadline['courses']['name']} • ${daysLeft <= 0 ? "Today" : "$daysLeft days left"}',
                             style: GoogleFonts.poppins(fontSize: 12),
                           ),
                         );
