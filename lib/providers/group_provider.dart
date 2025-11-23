@@ -63,6 +63,38 @@ class GroupProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateGroupStudentCount(String groupId, int change) async {
+    try {
+      final box = await Hive.openBox<Group>(_boxName);
+      final index = _groups.indexWhere((g) => g.id == groupId);
+
+      if (index != -1) {
+        final oldGroup = _groups[index];
+        final newCount = (oldGroup.studentCount ?? 0) + change;
+
+        // Create new object with updated count
+        final newGroup = Group(
+          id: oldGroup.id,
+          courseId: oldGroup.courseId,
+          name: oldGroup.name,
+          createdAt: oldGroup.createdAt,
+          courseName: oldGroup.courseName,
+          studentCount: newCount < 0 ? 0 : newCount, // Prevent negative
+          semesterId: oldGroup.semesterId,
+        );
+
+        // Update Hive
+        await box.put(groupId, newGroup);
+        
+        // Update local list
+        _groups[index] = newGroup;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error updating group student count: $e');
+    }
+  }
+
   Future<int> countInSemester(String semesterId) async {
     final box = await Hive.openBox<Group>(_boxName);
 
@@ -101,33 +133,6 @@ class GroupProvider extends ChangeNotifier {
     return box.values.where((x) => x.semesterId == semesterId).length;
   }
 
-  // Load stats for a group
-  // Future<void> _loadGroupStats(Group group) async {
-  //   try {
-  //     final response = await _supabase
-  //         .from('enrollments')
-  //         .select('student_id')
-  //         .eq('group_id', group.id);
-
-  //     final studentCount = (response as List).length;
-
-  //     // Update group with stats
-  //     final index = _groups.indexWhere((g) => g.id == group.id);
-  //     if (index != -1) {
-  //       _groups[index] = Group(
-  //         id: group.id,
-  //         courseId: group.courseId,
-  //         name: group.name,
-  //         createdAt: group.createdAt,
-  //         courseName: group.courseName,
-  //         studentCount: studentCount,
-  //       );
-  //     }
-  //   } catch (e) {
-  //     print('Error loading group stats: $e');
-  //   }
-  // }
-
   Future<int> _fetchStudentCount(String groupId) async {
     try {
       final response = await _supabase
@@ -135,21 +140,6 @@ class GroupProvider extends ChangeNotifier {
           .select('student_id')
           .eq('group_id', groupId)
           .count();
-
-      // final studentCount = (response as List).length;
-
-      // // Update group with stats
-      // final index = _groups.indexWhere((g) => g.id == group.id);
-      // if (index != -1) {
-      //   _groups[index] = Group(
-      //     id: group.id,
-      //     courseId: group.courseId,
-      //     name: group.name,
-      //     createdAt: group.createdAt,
-      //     courseName: group.courseName,
-      //     studentCount: studentCount,
-      //   );
-      // }
 
       return response.count;
     } catch (e) {
@@ -222,21 +212,6 @@ class GroupProvider extends ChangeNotifier {
           .update({'name': name})
           .eq('id', id)
           .select('*, course(name)');
-
-      // Update local list
-      // final index = _groups.indexWhere((g) => g.id == id);
-      // if (index != -1) {
-      //   final group = _groups[index];
-      //   _groups[index] = Group(
-      //     id: group.id,
-      //     courseId: group.courseId,
-      //     name: name,
-      //     createdAt: group.createdAt,
-      //     courseName: group.courseName,
-      //     studentCount: group.studentCount,
-      //   );
-      //   notifyListeners();
-      // }
 
       final box = await Hive.openBox<Group>(_boxName);
 

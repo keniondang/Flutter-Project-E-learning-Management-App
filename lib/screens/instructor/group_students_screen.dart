@@ -75,7 +75,7 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
 
                 return DropdownButtonFormField<Student>(
                   // The `hint` property tells the dropdown what to show when
-                  // `value` (selectedStudent) is null. This fixes the assertion error.
+                  // `value` (selectedStudent) is null.
                   value: selectedStudent,
                   hint: const Text('Select a student'),
 
@@ -117,9 +117,9 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
 
                         if (success && mounted) {
                           Navigator.pop(context);
-                          // context
-                          //     .read<GroupProvider>()
-                          //     .refreshCurrentCourseGroups();
+                          
+                          // Increment by 1
+                          context.read<GroupProvider>().updateGroupStudentCount(widget.group.id, 1);
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -171,7 +171,8 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                       );
 
               if (success && mounted) {
-                // context.read<GroupProvider>().refreshCurrentCourseGroups();
+                // Decrement by 1
+                context.read<GroupProvider>().updateGroupStudentCount(widget.group.id, -1);
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
