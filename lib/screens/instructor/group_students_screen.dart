@@ -118,7 +118,7 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                         if (success && mounted) {
                           Navigator.pop(context);
                           
-                          // Increment by 1
+                          // ✅ UPDATE COUNT: Increment by 1
                           context.read<GroupProvider>().updateGroupStudentCount(widget.group.id, 1);
 
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -171,7 +171,7 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                       );
 
               if (success && mounted) {
-                // Decrement by 1
+                // ✅ UPDATE COUNT: Decrement by 1
                 context.read<GroupProvider>().updateGroupStudentCount(widget.group.id, -1);
 
                 ScaffoldMessenger.of(context).showSnackBar(

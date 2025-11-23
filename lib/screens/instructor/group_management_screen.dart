@@ -118,6 +118,14 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                     backgroundColor: Colors.green,
                   ),
                 );
+              } else if (mounted) {
+                // ✅ Show error message if duplicate or other error
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(provider.error ?? 'Failed to save group'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
             child: Text(isEdit ? 'Update' : 'Add'),
@@ -127,6 +135,9 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
     );
   }
 
+  // ... (Rest of the file remains unchanged: _showCSVImportDialog, _handleCSVImport, _confirmDelete, build method)
+  // Ensure you keep the rest of the existing code here.
+  
   void _showCSVImportDialog() {
     if (_selectedCourse == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -206,7 +217,6 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
     final data = result['data'] as List<Map<String, dynamic>>;
     final headers = result['headers'] as List<String>;
 
-    // Validate headers
     if (!headers.contains('group_name')) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -217,7 +227,6 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       return;
     }
 
-    // Show preview dialog
     _showCSVPreviewDialog(data);
   }
 
@@ -272,13 +281,11 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
             onPressed: () async {
               Navigator.pop(context);
 
-              // Extract group names
               final groupNames = data
                   .map((row) => row['group_name']?.toString() ?? '')
                   .where((name) => name.isNotEmpty)
                   .toList();
 
-              // Import groups
               final success =
                   await context.read<GroupProvider>().createMultipleGroups(
                         courseId: _selectedCourse!.id,
@@ -363,13 +370,11 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       ),
       body: Column(
         children: [
-          // Semester and Course selectors
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.grey[100],
             child: Column(
               children: [
-                // Semester selector
                 Row(
                   children: [
                     Text(
@@ -418,7 +423,6 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Course selector
                 Row(
                   children: [
                     Text(
@@ -462,8 +466,6 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
               ],
             ),
           ),
-
-          // Group list
           Expanded(
             child: Consumer<GroupProvider>(
               builder: (context, provider, child) {

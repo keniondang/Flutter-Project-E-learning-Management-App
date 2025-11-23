@@ -1,5 +1,4 @@
 import 'package:elearning_management_app/providers/assignment_provider.dart';
-import 'package:elearning_management_app/providers/course_material_provider.dart';
 import 'package:elearning_management_app/providers/group_provider.dart';
 import 'package:elearning_management_app/providers/instructor_course_provider.dart';
 import 'package:elearning_management_app/providers/quiz_provider.dart';
@@ -153,6 +152,7 @@ class InstructorHomeScreen extends StatelessWidget {
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   children: [
+                    // --- TOTAL COURSES ---
                     Consumer2<SemesterProvider, InstructorCourseProvider>(
                       builder:
                           (context, semesterProvider, courseProvider, child) {
@@ -168,195 +168,155 @@ class InstructorHomeScreen extends StatelessWidget {
                         return _buildStatCard(
                           'Total Courses',
                           semesterProvider.isLoading || courseProvider.isLoading
-                              ? 'Loading data'
+                              ? 'Loading...'
                               : courseProvider.courses.length.toString(),
                           Icons.book,
                           Colors.blue,
                         );
                       },
                     ),
-                    FutureBuilder(
-                        future: context
-                            .read<StudentProvider>()
-                            .countTotalStudents(),
-                        builder: (context, snapshot) {
-                          switch (snapshot.connectionState) {
-                            case ConnectionState.waiting:
+
+                    // --- TOTAL STUDENTS ---
+                    Consumer<StudentProvider>(
+                      builder: (context, studentProvider, child) {
+                        return FutureBuilder(
+                            future: studentProvider.countTotalStudents(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return _buildStatCard(
+                                  'Total Students',
+                                  'Loading...',
+                                  Icons.people,
+                                  Colors.green,
+                                );
+                              }
                               return _buildStatCard(
                                 'Total Students',
-                                'Loading data',
+                                snapshot.data?.toString() ?? '0',
                                 Icons.people,
                                 Colors.green,
                               );
-                            case ConnectionState.done:
-                              return _buildStatCard(
-                                'Total Students',
-                                snapshot.hasError
-                                    ? 'Error loading data'
-                                    : snapshot.data!.toString(),
-                                Icons.people,
-                                Colors.green,
-                              );
-                            default:
-                              return _buildStatCard(
-                                'Total Students',
-                                'Encountered unknown data',
-                                Icons.people,
-                                Colors.green,
-                              );
-                          }
-                        }),
-                    Consumer<SemesterProvider>(
-                      builder: (context, provider, child) {
-                        if (provider.currentSemester == null) {
+                            });
+                      },
+                    ),
+
+                    // --- TOTAL GROUPS (FIXED) ---
+                    // Changed from Consumer to Consumer2 to listen to GroupProvider changes
+                    Consumer2<SemesterProvider, GroupProvider>(
+                      builder:
+                          (context, semesterProvider, groupProvider, child) {
+                        if (semesterProvider.currentSemester == null) {
                           return _buildStatCard(
                             'Total Groups',
-                            'Loading data',
+                            '-',
                             Icons.group,
                             Colors.orange,
                           );
                         }
 
+                        // We use FutureBuilder here, but because we are inside a Consumer2
+                        // listening to GroupProvider, if GroupProvider notifies listeners
+                        // (e.g. after adding a group), this whole block rebuilds,
+                        // triggering the Future to run again and fetch the new count.
                         return FutureBuilder(
-                            future: context
-                                .read<GroupProvider>()
-                                .countInSemester(provider.currentSemester!.id),
+                            future: groupProvider.countInSemester(
+                                semesterProvider.currentSemester!.id),
                             builder: (context, snapshot) {
                               switch (snapshot.connectionState) {
                                 case ConnectionState.waiting:
                                   return _buildStatCard(
                                     'Total Groups',
-                                    'Loading data',
-                                    Icons.people,
+                                    'Loading...',
+                                    Icons.group,
                                     Colors.orange,
                                   );
                                 case ConnectionState.done:
                                   return _buildStatCard(
                                     'Total Groups',
-                                    snapshot.hasError
-                                        ? 'Error loading data'
-                                        : snapshot.data!.toString(),
-                                    Icons.people,
+                                    snapshot.data?.toString() ?? '0',
+                                    Icons.group,
                                     Colors.orange,
                                   );
                                 default:
                                   return _buildStatCard(
                                     'Total Groups',
-                                    'Encountered unknown data',
-                                    Icons.people,
+                                    'Error',
+                                    Icons.group,
                                     Colors.orange,
                                   );
                               }
                             });
                       },
                     ),
-                    Consumer<SemesterProvider>(
-                      builder: (context, provider, child) {
-                        if (provider.currentSemester == null) {
+
+                    // --- TOTAL ASSIGNMENTS ---
+                    Consumer2<SemesterProvider, AssignmentProvider>(
+                      builder: (context, semesterProvider, assignmentProvider,
+                          child) {
+                        if (semesterProvider.currentSemester == null) {
                           return _buildStatCard(
-                            'Total Groups',
-                            'Loading data',
-                            Icons.group,
-                            Colors.orange,
+                            'Total Assignments',
+                            '-',
+                            Icons.assessment,
+                            Colors.purple,
                           );
                         }
 
                         return FutureBuilder(
-                            future: context
-                                .read<AssignmentProvider>()
-                                .countInSemester(provider.currentSemester!.id),
+                            future: assignmentProvider.countInSemester(
+                                semesterProvider.currentSemester!.id),
                             builder: (context, snapshot) {
-                              switch (snapshot.connectionState) {
-                                case ConnectionState.waiting:
-                                  return _buildStatCard(
-                                    'Total Assignments',
-                                    'Loading data',
-                                    Icons.assessment,
-                                    Colors.purple,
-                                  );
-                                case ConnectionState.done:
-                                  return _buildStatCard(
-                                    'Total Assignments',
-                                    snapshot.hasError
-                                        ? 'Error loading data'
-                                        : snapshot.data!.toString(),
-                                    Icons.assessment,
-                                    Colors.purple,
-                                  );
-                                default:
-                                  return _buildStatCard(
-                                    'Total Assignments',
-                                    'Encountered unknown data',
-                                    Icons.assessment,
-                                    Colors.purple,
-                                  );
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return _buildStatCard(
+                                  'Total Assignments',
+                                  'Loading...',
+                                  Icons.assessment,
+                                  Colors.purple,
+                                );
                               }
+                              return _buildStatCard(
+                                'Total Assignments',
+                                snapshot.data?.toString() ?? '0',
+                                Icons.assessment,
+                                Colors.purple,
+                              );
                             });
                       },
                     ),
-                    // Consumer2<SemesterProvider, AssignmentProvider>(
-                    //   builder: (context, semesterProvider, assignmentProvider,
-                    //       child) {
-                    //     if (assignmentProvider.semesterCount == null &&
-                    //         !assignmentProvider.isLoading &&
-                    //         semesterProvider.currentSemester != null) {
-                    //       assignmentProvider.countForSemester(
-                    //           semesterProvider.currentSemester!.id);
-                    //     }
 
-                    //     return _buildStatCard(
-                    //       'Total Assignments',
-                    //       semesterProvider.isLoading ||
-                    //               assignmentProvider.semesterCount == null
-                    //           ? 'Loading data'
-                    //           : assignmentProvider.semesterCount.toString(),
-                    //       Icons.assignment,
-                    //       Colors.purple,
-                    //     );
-                    //   },
-                    // ),
-
-                    Consumer<SemesterProvider>(
-                      builder: (context, provider, child) {
-                        if (provider.currentSemester == null) {
+                    // --- TOTAL QUIZZES ---
+                    Consumer2<SemesterProvider, QuizProvider>(
+                      builder: (context, semesterProvider, quizProvider, child) {
+                        if (semesterProvider.currentSemester == null) {
                           return _buildStatCard(
                             'Total Quizzes',
-                            'Loading data',
+                            '-',
                             Icons.quiz,
                             Colors.red,
                           );
                         }
 
                         return FutureBuilder(
-                            future: context
-                                .read<QuizProvider>()
-                                .countInSemester(provider.currentSemester!.id),
+                            future: quizProvider.countInSemester(
+                                semesterProvider.currentSemester!.id),
                             builder: (context, snapshot) {
-                              switch (snapshot.connectionState) {
-                                case ConnectionState.waiting:
-                                  return _buildStatCard(
-                                    'Total Quizzes',
-                                    'Loading data',
-                                    Icons.quiz,
-                                    Colors.red,
-                                  );
-                                case ConnectionState.done:
-                                  return _buildStatCard(
-                                    'Total Quizzes',
-                                    snapshot.hasError
-                                        ? 'Error loading data'
-                                        : snapshot.data!.toString(),
-                                    Icons.quiz,
-                                    Colors.red,
-                                  );
-                                default:
-                                  return _buildStatCard(
-                                    'Total Quizzes',
-                                    'Encountered unknown data',
-                                    Icons.quiz,
-                                    Colors.red,
-                                  );
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return _buildStatCard(
+                                  'Total Quizzes',
+                                  'Loading...',
+                                  Icons.quiz,
+                                  Colors.red,
+                                );
                               }
+                              return _buildStatCard(
+                                'Total Quizzes',
+                                snapshot.data?.toString() ?? '0',
+                                Icons.quiz,
+                                Colors.red,
+                              );
                             });
                       },
                     ),
