@@ -29,7 +29,6 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
   }
 
   Future<void> _loadStudents() async {
-    // This populates the provider.students list with ONLY this group's members
     await context.read<StudentProvider>().loadStudentsInGroup(widget.group.id);
   }
 
@@ -61,31 +60,24 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                   return const Text('Error loading students');
                 }
 
-                // Get the list of students already in this group (from the main provider state)
                 final studentsInGroup =
                     context.read<StudentProvider>().students;
                 final studentIdsInGroup =
                     studentsInGroup.map((s) => s.id).toSet();
 
-                // Get all students and filter out the ones already in the group
                 final allStudents = snapshot.data!;
                 final availableStudents = allStudents
                     .where((student) => !studentIdsInGroup.contains(student.id))
                     .toList();
 
                 return DropdownButtonFormField<Student>(
-                  // The `hint` property tells the dropdown what to show when
-                  // `value` (selectedStudent) is null.
                   value: selectedStudent,
                   hint: const Text('Select a student'),
-
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-
-                  // Use the newly filtered list
                   items: availableStudents.map((student) {
                     return DropdownMenuItem(
                       value: student,
@@ -118,8 +110,8 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                         if (success && mounted) {
                           Navigator.pop(context);
                           
-                          // ✅ UPDATE COUNT: Increment by 1
-                          context.read<GroupProvider>().updateGroupStudentCount(widget.group.id, 1);
+                          // ✅ CHANGE 1: Use refreshGroupStats instead of updateGroupStudentCount
+                          await context.read<GroupProvider>().refreshGroupStats(widget.group.id);
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -171,8 +163,8 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                       );
 
               if (success && mounted) {
-                // ✅ UPDATE COUNT: Decrement by 1
-                context.read<GroupProvider>().updateGroupStudentCount(widget.group.id, -1);
+                // ✅ CHANGE 2: Use refreshGroupStats instead of updateGroupStudentCount
+                await context.read<GroupProvider>().refreshGroupStats(widget.group.id);
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(

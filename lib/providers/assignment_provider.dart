@@ -59,7 +59,8 @@ class AssignmentProvider extends ChangeNotifier {
       try {
         final response = await _supabase
             .from('assignments')
-            .select('*, courses(semester_id)')
+            // FIX: Use !inner here too
+            .select('*, courses!inner(semester_id)') 
             .eq('courses.semester_id', semesterId);
 
         await box.putAll(
@@ -73,7 +74,7 @@ class AssignmentProvider extends ChangeNotifier {
         }))));
       } catch (e) {
         _error = e.toString();
-        print('Error loading quizzes: $e');
+        print('Error loading assignments count: $e');
       }
     }
 

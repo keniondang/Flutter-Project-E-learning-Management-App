@@ -62,23 +62,22 @@ class GroupProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Update count locally
-  Future<void> updateGroupStudentCount(String groupId, int change) async {
+  // Refresh stats from DB
+  Future<void> refreshGroupStats(String groupId) async {
     try {
+      final count = await _fetchStudentCount(groupId);
       final box = await Hive.openBox<Group>(_boxName);
       final index = _groups.indexWhere((g) => g.id == groupId);
 
       if (index != -1) {
         final oldGroup = _groups[index];
-        final newCount = (oldGroup.studentCount ?? 0) + change;
-
         final newGroup = Group(
           id: oldGroup.id,
           courseId: oldGroup.courseId,
           name: oldGroup.name,
           createdAt: oldGroup.createdAt,
           courseName: oldGroup.courseName,
-          studentCount: newCount < 0 ? 0 : newCount,
+          studentCount: count,
           semesterId: oldGroup.semesterId,
         );
 
@@ -87,15 +86,45 @@ class GroupProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Error updating group student count: $e');
+      print('Error refreshing group stats: $e');
     }
   }
 
   Future<int> countInSemester(String semesterId) async {
     final box = await Hive.openBox<Group>(_boxName);
-    
-    // Logic to count...
-    // (Existing implementation preserved)
+
+    if (!box.values.any((x) => x.semesterId == semesterId)) {
+      try {
+        final response = await _supabase
+            .from('groups')
+            .select('*, courses!inner(name, semester_id)')
+            .eq('courses.semester_id', semesterId);
+
+        await box.putAll(Map.fromEntries(
+            await Future.wait((response as Iterable).map((json) async {
+          String? courseName;
+          String? semesterId;
+
+          if (json['courses'] != null) {
+            courseName = json['courses']['name'];
+            semesterId = json['courses']['semester_id'];
+          }
+
+          final group = Group.fromJson(
+            json: json,
+            courseName: courseName,
+            studentCount: await _fetchStudentCount(json['id']),
+            semesterId: semesterId,
+          );
+
+          return MapEntry(group.id, group);
+        }))));
+      } catch (e) {
+        _error = e.toString();
+        print('Error loading groups: $e');
+      }
+    }
+
     return box.values.where((x) => x.semesterId == semesterId).length;
   }
 
@@ -112,7 +141,7 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  // Create new group with validation
+  // Create new group
   Future<bool> createGroup({
     required String courseId,
     required String name,
@@ -120,6 +149,7 @@ class GroupProvider extends ChangeNotifier {
     try {
       final box = await Hive.openBox<Group>(_boxName);
 
+      // Validation
       final nameExists = box.values.any((g) =>
           g.courseId == courseId &&
           g.name.trim().toLowerCase() == name.trim().toLowerCase());
@@ -130,17 +160,28 @@ class GroupProvider extends ChangeNotifier {
         return false;
       }
 
+      // ✅ FIX 1: Select semester_id from the relation
       final response = await _supabase.from('groups').insert({
         'course_id': courseId,
-        'name': name.trim(), // Trim whitespace
-      }).select('*, courses(name)');
+        'name': name.trim(),
+      }).select('*, courses(name, semester_id)'); 
 
       final newGroup = (response as Iterable).map((json) {
         String? courseName;
+        String? semesterId;
+
+        // ✅ FIX 2: Extract semesterId properly
         if (json['courses'] != null) {
           courseName = json['courses']['name'];
+          semesterId = json['courses']['semester_id'];
         }
-        return Group.fromJson(json: json, courseName: courseName);
+
+        // ✅ FIX 3: Pass semesterId to the model
+        return Group.fromJson(
+          json: json, 
+          courseName: courseName,
+          semesterId: semesterId
+        );
       }).first;
 
       await box.put(newGroup.id, newGroup);
@@ -175,17 +216,16 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  // Update group with validation
+  // Update group
   Future<bool> updateGroup({required String id, required String name}) async {
     try {
       final box = await Hive.openBox<Group>(_boxName);
       final currentGroup = box.get(id);
 
       if (currentGroup != null) {
-        // ✅ VALIDATION: Check duplicates excluding self
         final nameExists = box.values.any((g) =>
             g.courseId == currentGroup.courseId &&
-            g.id != id && // Don't check against self
+            g.id != id && 
             g.name.trim().toLowerCase() == name.trim().toLowerCase());
 
         if (nameExists) {
@@ -195,22 +235,30 @@ class GroupProvider extends ChangeNotifier {
         }
       }
 
+      // ✅ FIX 4: Select semester_id here too for consistency
       final response = await _supabase
           .from('groups')
           .update({'name': name.trim()})
           .eq('id', id)
-          .select('*, courses(name)');
+          .select('*, courses(name, semester_id)');
 
       final group = (response as Iterable).map((json) {
         String? courseName;
+        String? semesterId;
+
         if (json['courses'] != null) {
           courseName = json['courses']['name'];
+          semesterId = json['courses']['semester_id'];
         }
+
         final old = box.get(json['id']);
+
         return Group.fromJson(
             json: json,
             courseName: courseName,
-            studentCount: old!.studentCount);
+            studentCount: old!.studentCount,
+            semesterId: semesterId // ✅ Pass it here too
+        );
       }).first;
 
       await box.put(group.id, group);
