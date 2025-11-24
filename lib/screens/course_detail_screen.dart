@@ -14,7 +14,7 @@ import 'instructor/create_quiz_screen.dart';
 import 'instructor/create_material_screen.dart';
 import 'instructor/question_bank_screen.dart';
 import 'instructor/quiz_results_screen.dart';
-import 'instructor/assignment_results_screen.dart'; // Make sure this import is here
+import 'instructor/assignment_results_screen.dart';
 import '../models/assignment.dart';
 import '../models/quiz.dart';
 import '../models/course_material.dart';
@@ -24,7 +24,7 @@ import 'student/assignment_submission_screen.dart';
 import 'student/quiz_taking_screen.dart';
 import 'student/material_viewer_screen.dart';
 import 'shared/forum_screen.dart';
-import 'shared/course_people_tab.dart'; // ✅ --- ADD THIS IMPORT --- ✅
+import 'shared/course_people_tab.dart';
 
 class CourseDetailScreen extends StatefulWidget {
   final Course course;
@@ -49,11 +49,14 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   }
 
   Future<void> _loadContent() async {
-    // Only load content for the first two tabs.
-    // The People tab will load its own data.
-    await context
-        .read<AnnouncementProvider>()
-        .loadAnnouncements(widget.course.id);
+    // ✅ FIX: Load ALL content types, not just announcements
+    // Using Future.wait to load them in parallel for better performance
+    await Future.wait([
+      context.read<AnnouncementProvider>().loadAnnouncements(widget.course.id),
+      context.read<AssignmentProvider>().loadAssignments(widget.course.id),
+      context.read<QuizProvider>().loadQuizzes(widget.course.id),
+      context.read<CourseMaterialProvider>().loadCourseMaterials(widget.course.id),
+    ]);
   }
 
   @override
@@ -84,7 +87,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
           ],
         ),
         actions: [
-          // Forum available for both students and instructors
           IconButton(
             icon: const Icon(Icons.forum),
             tooltip: 'Forum',
@@ -218,7 +220,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
         children: [
           _buildStreamTab(),
           _buildClassworkTab(),
-          _buildPeopleTab(), // ✅ --- MODIFIED HERE --- ✅
+          _buildPeopleTab(),
         ],
       ),
     );
@@ -566,7 +568,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     );
   }
 
-  // ✅ --- THIS IS THE MODIFIED METHOD --- ✅
   Widget _buildPeopleTab() {
     return CoursePeopleTab(course: widget.course, user: widget.user);
   }

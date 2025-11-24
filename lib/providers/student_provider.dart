@@ -54,26 +54,33 @@ class StudentProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Student>(_boxName);
 
-    if (!box.values.any((x) => x.groupMap.containsKey(groupId))) {
-      try {
-        final response = await _supabase
-            .from('enrollments')
-            .select(
-              '*, users!enrollments_student_id_fkey(id), groups(name)',
-            )
-            .eq('group_id', groupId);
+    // ✅ FIX: Always fetch fresh enrollment data for the group
+    try {
+      final response = await _supabase
+          .from('enrollments')
+          .select(
+            '*, users!enrollments_student_id_fkey(id, email, username, full_name, avatar_url), groups(id, name, course_id)',
+          )
+          .eq('group_id', groupId);
 
-        await box.putAll(Map.fromEntries((response as Iterable).map((json) {
-          final userId = json['users']['id'];
-          final student = box.get(userId)!;
-          student.groupMap[groupId] = json['groups']['name'];
+      // Update all students in this group
+      await box.putAll(Map.fromEntries((response as Iterable).map((json) {
+        final userId = json['users']['id'];
+        final groupJson = json['groups'];
+        
+        // Get existing student or create new
+        final existingStudent = box.get(userId);
+        final student = existingStudent ?? Student.fromJson(json: json['users']);
+        
+        // Update group mapping and course IDs
+        student.groupMap[groupJson['id']] = groupJson['name'];
+        student.courseIds.add(groupJson['course_id']);
 
-          return MapEntry(student.id, student);
-        })));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading students in group: $e');
-      }
+        return MapEntry(student.id, student);
+      })));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading students in group: $e');
     }
 
     _students =
@@ -240,6 +247,7 @@ class StudentProvider extends ChangeNotifier {
 
       final student = box.get(studentId)!;
       student.groupMap[group.id] = group.name;
+      student.courseIds.add(courseId);
       await box.put(student.id, student);
 
       _students.add(student);
@@ -437,7 +445,7 @@ class StudentProvider extends ChangeNotifier {
     return box.values.toList();
   }
 
-  // Load all students enrolled in a specific course and update state
+  // ✅ FIXED: Load all students enrolled in a specific course and update state
   Future<void> loadStudentsForCourse(String courseId) async {
     _isLoading = true;
     _error = null;
@@ -445,30 +453,33 @@ class StudentProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Student>(_boxName);
 
-    if (!box.values.any((x) => x.courseIds.contains(courseId))) {
-      try {
-        final response = await _supabase
-            .from('enrollments')
-            .select(
-              'users!enrollments_student_id_fkey(id), groups!inner(id, course_id, name)',
-            )
-            .eq('groups.course_id', courseId);
+    // ✅ FIX: Always fetch fresh enrollment data for this course
+    try {
+      final response = await _supabase
+          .from('enrollments')
+          .select(
+            'users!enrollments_student_id_fkey(id, email, username, full_name, avatar_url), groups!inner(id, course_id, name)',
+          )
+          .eq('groups.course_id', courseId);
 
-        await box.putAll(Map.fromEntries((response as Iterable).map((json) {
-          final userId = json['users']['id'];
-          final groupJson = json['groups'];
+      // Update all students in this course
+      await box.putAll(Map.fromEntries((response as Iterable).map((json) {
+        final userId = json['users']['id'];
+        final groupJson = json['groups'];
 
-          final student = box.get(userId)!;
+        // Get existing student or create new
+        final existingStudent = box.get(userId);
+        final student = existingStudent ?? Student.fromJson(json: json['users']);
 
-          student.groupMap[groupJson['id']] = groupJson['name'];
-          student.courseIds.add(courseId);
+        // Update group mapping and course IDs
+        student.groupMap[groupJson['id']] = groupJson['name'];
+        student.courseIds.add(courseId);
 
-          return MapEntry(student.id, student);
-        })));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading students for course: $e');
-      }
+        return MapEntry(student.id, student);
+      })));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading students for course: $e');
     }
 
     _students =
@@ -478,33 +489,36 @@ class StudentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Load all students enrolled in a specific course
+  // ✅ FIXED: Load all students enrolled in a specific course (no state update)
   Future<List<Student>> loadStudentsInCourse(String courseId) async {
-    // This function fetches and returns a list,
-    // but does not update the main provider state (_students).
-    // This is ideal for one-off fetches like in the results screen.
-
     final box = await Hive.openBox<Student>(_boxName);
 
-    if (!box.values.any((x) => x.courseIds.contains(courseId))) {
-      try {
-        final response = await _supabase
-            .from('enrollments')
-            .select(
-              'users!enrollments_student_id_fkey(id), groups!inner(course_id, name)',
-            )
-            .eq('groups.course_id', courseId);
+    // ✅ FIX: Always fetch fresh enrollment data for this course
+    try {
+      final response = await _supabase
+          .from('enrollments')
+          .select(
+            'users!enrollments_student_id_fkey(id, email, username, full_name, avatar_url), groups!inner(id, course_id, name)',
+          )
+          .eq('groups.course_id', courseId);
 
-        await box.putAll(Map.fromEntries((response as Iterable).map((json) {
-          final userId = json['users']['id'];
-          final student = box.get(userId)!;
-          student.courseIds.add(courseId);
+      // Update all students in this course
+      await box.putAll(Map.fromEntries((response as Iterable).map((json) {
+        final userId = json['users']['id'];
+        final groupJson = json['groups'];
 
-          return MapEntry(student.id, student);
-        })));
-      } catch (e) {
-        print('Error loading students in course: $e');
-      }
+        // Get existing student or create new
+        final existingStudent = box.get(userId);
+        final student = existingStudent ?? Student.fromJson(json: json['users']);
+
+        // Update group mapping and course IDs
+        student.groupMap[groupJson['id']] = groupJson['name'];
+        student.courseIds.add(courseId);
+
+        return MapEntry(student.id, student);
+      })));
+    } catch (e) {
+      print('Error loading students in course: $e');
     }
 
     return box.values.where((x) => x.courseIds.contains(courseId)).toList();
