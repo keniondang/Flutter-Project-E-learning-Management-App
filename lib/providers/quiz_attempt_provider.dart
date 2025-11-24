@@ -51,21 +51,40 @@ class QuizAttemptProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Gets the latest submission for a student
+  // ✅ UPDATED: Gets the HIGHEST scoring submission for a student
   QuizAttempt? getSubmissionForStudent(String studentId) {
     try {
-      // Find all submissions for this student and sort by attempt number
+      // Find all submissions for this student
       var studentSubmissions =
           _submissions.where((s) => s.studentId == studentId).toList();
+      
       if (studentSubmissions.isEmpty) return null;
 
-      studentSubmissions.sort(
-        (a, b) => b.attemptNumber.compareTo(a.attemptNumber),
-      );
+      // Sort by score (highest first), then by attempt number (latest first)
+      studentSubmissions.sort((a, b) {
+        // First compare scores
+        final scoreA = a.score ?? 0.0;
+        final scoreB = b.score ?? 0.0;
+        
+        if (scoreA != scoreB) {
+          return scoreB.compareTo(scoreA); // Higher score first
+        }
+        
+        // If scores are equal, return the latest attempt
+        return b.attemptNumber.compareTo(a.attemptNumber);
+      });
+      
       return studentSubmissions.first;
     } catch (e) {
       return null;
     }
+  }
+
+  // ✅ NEW: Get all attempts for a student (for viewing history)
+  List<QuizAttempt> getAllAttemptsForStudent(String studentId) {
+    var attempts = _submissions.where((s) => s.studentId == studentId).toList();
+    attempts.sort((a, b) => a.attemptNumber.compareTo(b.attemptNumber));
+    return attempts;
   }
 
   // Now requires the full list of students to include those who haven't submitted
@@ -83,22 +102,24 @@ class QuizAttemptProvider extends ChangeNotifier {
         [
           'Student Name',
           'Status',
-          'Attempt Number',
-          'Score',
+          'Total Attempts',
+          'Highest Score',
           'Total Points',
           'Percentage',
-          'Submitted At',
+          'Best Attempt Number',
+          'Last Submitted At',
         ],
       ];
 
       // Rows
       for (var student in allStudents) {
-        // Find this student's submission
-        final submission = getSubmissionForStudent(student.id);
+        // Find this student's HIGHEST scoring attempt
+        final bestSubmission = getSubmissionForStudent(student.id);
+        final allAttempts = getAllAttemptsForStudent(student.id);
 
-        if (submission != null) {
+        if (bestSubmission != null) {
           // Student has submitted
-          final score = submission.score ?? 0.0;
+          final score = bestSubmission.score ?? 0.0;
           final totalPoints = quiz.totalPoints;
           final percentage =
               totalPoints > 0 ? (score / totalPoints) * 100 : 0.0;
@@ -106,12 +127,13 @@ class QuizAttemptProvider extends ChangeNotifier {
           csvData.add([
             student.fullName,
             'Submitted',
-            submission.attemptNumber,
+            allAttempts.length,
             score.toStringAsFixed(2),
             totalPoints.toString(),
             '${percentage.toStringAsFixed(2)}%',
-            submission.submittedAt != null
-                ? submission.submittedAt!.toIso8601String()
+            bestSubmission.attemptNumber,
+            bestSubmission.submittedAt != null
+                ? bestSubmission.submittedAt!.toIso8601String()
                 : 'N/A',
           ]);
         } else {
@@ -119,6 +141,7 @@ class QuizAttemptProvider extends ChangeNotifier {
           csvData.add([
             student.fullName,
             'Not Submitted',
+            0,
             'N/A',
             'N/A',
             'N/A',
@@ -135,7 +158,7 @@ class QuizAttemptProvider extends ChangeNotifier {
         final bytes = Uri.encodeComponent(csv);
         final anchor =
             html.AnchorElement(href: 'data:text/plain;charset=utf-8,$bytes')
-              ..setAttribute('download', 'quiz_${quiz.title}_submissions.csv')
+              ..setAttribute('download', 'quiz_${quiz.title}_results.csv')
               ..click();
       } else {
         // Mobile/Desktop will be implemented later

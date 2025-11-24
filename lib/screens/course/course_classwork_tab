@@ -1,0 +1,982 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../../../models/course.dart';
+import '../../../models/user_model.dart';
+import '../../../models/quiz.dart';
+import '../../../models/assignment.dart';
+import '../../../models/material.dart' as app_material;
+import '../../../providers/student_quiz_provider.dart';
+import '../../../providers/assignment_provider.dart';
+import '../../../providers/material_provider.dart';
+import '../../../widgets/student_quiz_card.dart';
+import '../../student/quiz_attempt_history_screen.dart';
+
+/// Course Classwork Tab for Students
+/// Shows: Assignments, Quizzes (with attempt tracking), Materials
+class CourseClassworkTab extends StatefulWidget {
+  final Course course;
+  final UserModel student;
+
+  const CourseClassworkTab({
+    Key? key,
+    required this.course,
+    required this.student,
+  }) : super(key: key);
+
+  @override
+  State<CourseClassworkTab> createState() => _CourseClassworkTabState();
+}
+
+class _CourseClassworkTabState extends State<CourseClassworkTab>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _loadData();
+
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.toLowerCase();
+      });
+    });
+  }
+
+  Future<void> _loadData() async {
+    // Load quizzes with attempt data for this student
+    await context.read<StudentQuizProvider>().loadQuizzesForStudent(
+          widget.course.id,
+          widget.student.id,
+        );
+
+    // Load assignments
+    await context.read<AssignmentProvider>().loadAssignments(widget.course.id);
+
+    // Load materials
+    await context.read<MaterialProvider>().loadMaterials(widget.course.id);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Search Bar
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: Colors.white,
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search classwork...',
+              hintStyle: GoogleFonts.poppins(fontSize: 14),
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Colors.blue, width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.grey[50],
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+            ),
+          ),
+        ),
+
+        // Tabs
+        Container(
+          color: Colors.white,
+          child: TabBar(
+            controller: _tabController,
+            labelColor: Colors.blue,
+            unselectedLabelColor: Colors.grey,
+            labelStyle: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            unselectedLabelStyle: GoogleFonts.poppins(fontSize: 14),
+            indicatorColor: Colors.blue,
+            tabs: const [
+              Tab(text: 'Assignments'),
+              Tab(text: 'Quizzes'),
+              Tab(text: 'Materials'),
+            ],
+          ),
+        ),
+
+        // Tab Content
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildAssignmentsTab(),
+              _buildQuizzesTab(),
+              _buildMaterialsTab(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ASSIGNMENTS TAB
+  // ═══════════════════════════════════════════════════════════
+  Widget _buildAssignmentsTab() {
+    return Consumer<AssignmentProvider>(
+      builder: (context, provider, child) {
+        if (provider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (provider.error != null) {
+          return _buildErrorWidget(
+            'Error loading assignments',
+            provider.error!,
+          );
+        }
+
+        var assignments = provider.assignments;
+
+        // Apply search filter
+        if (_searchQuery.isNotEmpty) {
+          assignments = assignments.where((a) {
+            return a.title.toLowerCase().contains(_searchQuery) ||
+                a.description.toLowerCase().contains(_searchQuery);
+          }).toList();
+        }
+
+        if (assignments.isEmpty) {
+          return _buildEmptyState(
+            Icons.assignment_outlined,
+            _searchQuery.isEmpty
+                ? 'No assignments yet'
+                : 'No assignments match your search',
+            _searchQuery.isEmpty
+                ? 'Check back later for new assignments'
+                : 'Try a different search term',
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: _loadData,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: assignments.length,
+            itemBuilder: (context, index) {
+              return _buildAssignmentCard(assignments[index]);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAssignmentCard(Assignment assignment) {
+    // Determine status
+    String status;
+    Color statusColor;
+    IconData statusIcon;
+
+    if (assignment.isPastDue) {
+      status = 'Past Due';
+      statusColor = Colors.red;
+      statusIcon = Icons.warning;
+    } else if (!assignment.isOpen) {
+      status = 'Not Open';
+      statusColor = Colors.orange;
+      statusIcon = Icons.schedule;
+    } else if (assignment.hasSubmitted ?? false) {
+      status = assignment.grade != null ? 'Graded' : 'Submitted';
+      statusColor = Colors.green;
+      statusIcon = Icons.check_circle;
+    } else {
+      status = 'Not Submitted';
+      statusColor = Colors.blue;
+      statusIcon = Icons.pending;
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: InkWell(
+        onTap: () {
+          // TODO: Navigate to assignment detail
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Open assignment: ${assignment.title}'),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title and Status
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      assignment.title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: statusColor, width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(statusIcon, size: 12, color: statusColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          status,
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: statusColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Description preview
+              if (assignment.description.isNotEmpty)
+                Text(
+                  assignment.description,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey[700],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              const SizedBox(height: 8),
+
+              // Assignment Info Chips
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildInfoChip(
+                    Icons.grade,
+                    '${assignment.totalPoints} pts',
+                    Colors.blue,
+                  ),
+                  _buildInfoChip(
+                    Icons.replay,
+                    '${assignment.maxAttempts} attempt${assignment.maxAttempts > 1 ? 's' : ''}',
+                    Colors.purple,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Dates
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Opens: ${DateFormat('MMM dd, HH:mm').format(assignment.startDate)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.event,
+                        size: 14,
+                        color: assignment.isPastDue
+                            ? Colors.red
+                            : Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Due: ${DateFormat('MMM dd, HH:mm').format(assignment.dueDate)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: assignment.isPastDue
+                              ? Colors.red
+                              : Colors.grey[700],
+                          fontWeight: assignment.isPastDue
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                      ),
+                      if (assignment.isPastDue)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: Text(
+                            '(OVERDUE)',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+
+              // Grade Display (if graded)
+              if (assignment.grade != null) ...[
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green, width: 1.5),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.emoji_events,
+                        size: 16,
+                        color: Colors.green[700],
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Grade: ',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                      Text(
+                        '${assignment.grade!.toStringAsFixed(1)}/${assignment.totalPoints}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '(${((assignment.grade! / assignment.totalPoints) * 100).toStringAsFixed(0)}%)',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // QUIZZES TAB (WITH ATTEMPT TRACKING)
+  // ═══════════════════════════════════════════════════════════
+  Widget _buildQuizzesTab() {
+    return Consumer<StudentQuizProvider>(
+      builder: (context, provider, child) {
+        if (provider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (provider.error != null) {
+          return _buildErrorWidget(
+            'Error loading quizzes',
+            provider.error!,
+          );
+        }
+
+        var quizzes = provider.quizzes;
+
+        // Apply search filter
+        if (_searchQuery.isNotEmpty) {
+          quizzes = quizzes.where((q) {
+            return q.title.toLowerCase().contains(_searchQuery) ||
+                q.description.toLowerCase().contains(_searchQuery);
+          }).toList();
+        }
+
+        if (quizzes.isEmpty) {
+          return _buildEmptyState(
+            Icons.quiz_outlined,
+            _searchQuery.isEmpty ? 'No quizzes yet' : 'No quizzes match your search',
+            _searchQuery.isEmpty
+                ? 'Check back later for new quizzes'
+                : 'Try a different search term',
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: _loadData,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: quizzes.length,
+            itemBuilder: (context, index) {
+              final quiz = quizzes[index];
+
+              // ✅ Use StudentQuizCard with attempt tracking
+              return StudentQuizCard(
+                quiz: quiz,
+                student: widget.student,
+                onTap: () => _handleQuizTap(quiz, provider),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  void _handleQuizTap(Quiz quiz, StudentQuizProvider provider) {
+    final attempts = provider.getAttemptsForQuiz(quiz.id);
+    final canAttempt = provider.canAttemptQuiz(quiz.id);
+
+    if (attempts.isNotEmpty) {
+      // Has attempts - show history
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => QuizAttemptHistoryScreen(
+            quiz: quiz,
+            attempts: attempts,
+            student: widget.student,
+          ),
+        ),
+      );
+    } else if (canAttempt) {
+      // Can start quiz - show confirmation dialog
+      _showStartQuizDialog(quiz, provider);
+    } else {
+      // Quiz not available
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            quiz.isPastDue
+                ? 'This quiz is closed'
+                : 'This quiz is not open yet',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  void _showStartQuizDialog(Quiz quiz, StudentQuizProvider provider) {
+    final remainingAttempts = provider.getRemainingAttempts(quiz.id);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Start Quiz?',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              quiz.title,
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildDialogInfo(Icons.quiz, '${quiz.totalQuestions} questions'),
+            _buildDialogInfo(Icons.timer, '${quiz.durationMinutes} minutes'),
+            _buildDialogInfo(Icons.grade, '${quiz.totalPoints} points'),
+            _buildDialogInfo(
+              Icons.replay,
+              '$remainingAttempts attempt${remainingAttempts > 1 ? 's' : ''} remaining',
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Make sure you have a stable internet connection',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.blue[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+
+              // Show loading
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text('Starting quiz...'),
+                    ],
+                  ),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+
+              // Start the attempt
+              final attempt = await provider.startQuizAttempt(
+                quiz.id,
+                widget.student.id,
+              );
+
+              if (attempt != null && mounted) {
+                // TODO: Navigate to quiz taking screen
+                // Navigator.push(
+                //   context,
+                //   MaterialPageRoute(
+                //     builder: (_) => QuizTakingScreen(
+                //       quiz: quiz,
+                //       attempt: attempt,
+                //       student: widget.student,
+                //     ),
+                //   ),
+                // );
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Quiz attempt ${attempt.attemptNumber} started!',
+                    ),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to start quiz. Please try again.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'Start Quiz',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogInfo(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: GoogleFonts.poppins(fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // MATERIALS TAB
+  // ═══════════════════════════════════════════════════════════
+  Widget _buildMaterialsTab() {
+    return Consumer<MaterialProvider>(
+      builder: (context, provider, child) {
+        if (provider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (provider.error != null) {
+          return _buildErrorWidget(
+            'Error loading materials',
+            provider.error!,
+          );
+        }
+
+        var materials = provider.materials;
+
+        // Apply search filter
+        if (_searchQuery.isNotEmpty) {
+          materials = materials.where((m) {
+            return m.title.toLowerCase().contains(_searchQuery) ||
+                m.description.toLowerCase().contains(_searchQuery);
+          }).toList();
+        }
+
+        if (materials.isEmpty) {
+          return _buildEmptyState(
+            Icons.folder_outlined,
+            _searchQuery.isEmpty
+                ? 'No materials yet'
+                : 'No materials match your search',
+            _searchQuery.isEmpty
+                ? 'Check back later for new materials'
+                : 'Try a different search term',
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: _loadData,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: materials.length,
+            itemBuilder: (context, index) {
+              return _buildMaterialCard(materials[index]);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMaterialCard(app_material.Material material) {
+    IconData icon;
+    Color iconColor;
+
+    // Determine icon based on file type
+    final fileType = material.fileType?.toLowerCase() ?? '';
+    if (fileType.contains('pdf')) {
+      icon = Icons.picture_as_pdf;
+      iconColor = Colors.red;
+    } else if (fileType.contains('doc') || fileType.contains('word')) {
+      icon = Icons.description;
+      iconColor = Colors.blue;
+    } else if (fileType.contains('ppt') || fileType.contains('presentation')) {
+      icon = Icons.slideshow;
+      iconColor = Colors.orange;
+    } else if (fileType.contains('video') || fileType.contains('mp4')) {
+      icon = Icons.play_circle;
+      iconColor = Colors.purple;
+    } else if (fileType.contains('image') ||
+        fileType.contains('jpg') ||
+        fileType.contains('png')) {
+      icon = Icons.image;
+      iconColor = Colors.green;
+    } else {
+      icon = Icons.insert_drive_file;
+      iconColor = Colors.grey;
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: InkWell(
+        onTap: () {
+          // TODO: Open material
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Open material: ${material.title}'),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Icon
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: iconColor, size: 28),
+              ),
+              const SizedBox(width: 12),
+
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      material.title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (material.description.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        material.description,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 12,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          DateFormat('MMM dd, yyyy')
+                              .format(material.createdAt),
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        if (material.fileSize != null) ...[
+                          const SizedBox(width: 12),
+                          Icon(
+                            Icons.insert_drive_file,
+                            size: 12,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatFileSize(material.fileSize!),
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Download button
+              IconButton(
+                icon: const Icon(Icons.download),
+                color: Colors.blue,
+                onPressed: () {
+                  // TODO: Download material
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Downloading ${material.title}...'),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // HELPER WIDGETS
+  // ═══════════════════════════════════════════════════════════
+  Widget _buildInfoChip(IconData icon, String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
+          Text(
+            text,
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(IconData icon, String title, String subtitle) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: Colors.grey[400],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(String title, String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 60, color: Colors.red[300]),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: GoogleFonts.poppins(fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              message,
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _loadData,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+}

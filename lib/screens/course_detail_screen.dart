@@ -2,6 +2,7 @@ import 'package:elearning_management_app/providers/announcement_provider.dart';
 import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:elearning_management_app/providers/course_material_provider.dart';
 import 'package:elearning_management_app/providers/quiz_provider.dart';
+import 'package:elearning_management_app/providers/student_quiz_provider.dart'; // ✅ ADDED
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -49,13 +50,18 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   }
 
   Future<void> _loadContent() async {
-    // ✅ FIX: Load ALL content types, not just announcements
-    // Using Future.wait to load them in parallel for better performance
+    final isStudent = widget.user.role == 'student';
+    
     await Future.wait([
       context.read<AnnouncementProvider>().loadAnnouncements(widget.course.id),
       context.read<AssignmentProvider>().loadAssignments(widget.course.id),
       context.read<QuizProvider>().loadQuizzes(widget.course.id),
       context.read<CourseMaterialProvider>().loadCourseMaterials(widget.course.id),
+      if (isStudent)
+        context.read<StudentQuizProvider>().loadQuizzesForStudent(
+          widget.course.id,
+          widget.user.id,
+        ),
     ]);
   }
 
@@ -238,18 +244,13 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.announcement_outlined,
-                  size: 80,
-                  color: Colors.grey[400],
-                ),
+                Icon(Icons.announcement_outlined,
+                    size: 80, color: Colors.grey[400]),
                 const SizedBox(height: 16),
                 Text(
                   'No announcements yet',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    color: Colors.grey[600],
-                  ),
+                  style:
+                      GoogleFonts.poppins(fontSize: 18, color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -262,76 +263,32 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
           itemBuilder: (context, index) {
             final announcement = provider.announcements[index];
             return Card(
-              margin: const EdgeInsets.only(bottom: 16),
+              margin: const EdgeInsets.only(bottom: 12),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        const CircleAvatar(
-                          backgroundColor: Colors.blue,
-                          child: Icon(Icons.person, color: Colors.white),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                announcement.title,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                _formatDate(announcement.createdAt),
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    Text(
+                      announcement.title,
+                      style: GoogleFonts.poppins(
+                          fontSize: 16, fontWeight: FontWeight.w600),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Text(
                       announcement.content,
                       style: GoogleFonts.poppins(fontSize: 14),
                     ),
-                    if (announcement.fileAttachments.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        children: announcement.fileAttachments.map((file) {
-                          return Chip(
-                            avatar: const Icon(Icons.attach_file, size: 16),
-                            label: Text(
-                              'Attachment ${announcement.fileAttachments.indexOf(file) + 1}',
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(
-                          Icons.visibility,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
+                        Icon(Icons.remove_red_eye,
+                            size: 16, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
                           '${announcement.viewCount ?? 0} views',
                           style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
+                              fontSize: 12, color: Colors.grey[600]),
                         ),
                         const SizedBox(width: 16),
                         Icon(Icons.comment, size: 16, color: Colors.grey[600]),
@@ -339,9 +296,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                         Text(
                           '${announcement.commentCount ?? 0} comments',
                           style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
+                              fontSize: 12, color: Colors.grey[600]),
                         ),
                       ],
                     ),
@@ -356,215 +311,358 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   }
 
   Widget _buildClassworkTab() {
-    return Consumer3<AssignmentProvider, QuizProvider, CourseMaterialProvider>(
-      builder: (context, assignmentProvider, quizProvider,
-          courseMaterialProvider, child) {
-        if (assignmentProvider.isLoading ||
-            quizProvider.isLoading ||
-            courseMaterialProvider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    final assignmentProvider = context.watch<AssignmentProvider>();
+    final quizProvider = context.watch<QuizProvider>();
+    final courseMaterialProvider = context.watch<CourseMaterialProvider>();
+    final studentQuizProvider = context.watch<StudentQuizProvider>(); 
 
-        final allContent = [
-          ...assignmentProvider.assignments
-              .map((a) => {'type': 'assignment', 'item': a}),
-          ...quizProvider.quizzes.map((q) => {'type': 'quiz', 'item': q}),
-          ...courseMaterialProvider.materials
-              .map((m) => {'type': 'material', 'item': m}),
-        ];
+    if (assignmentProvider.isLoading ||
+        quizProvider.isLoading ||
+        courseMaterialProvider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        if (allContent.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.assignment_outlined,
-                  size: 80,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No classwork yet',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
+    final isStudent = widget.user.role == 'student';
+    final isInstructor = widget.user.role == 'instructor';
+
+    final allContent = [
+      ...assignmentProvider.assignments
+          .map((a) => {'type': 'assignment', 'item': a}),
+      ...quizProvider.quizzes.map((q) => {'type': 'quiz', 'item': q}),
+      ...courseMaterialProvider.materials
+          .map((m) => {'type': 'material', 'item': m}),
+    ];
+
+    if (allContent.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.assignment_outlined,
+              size: 80,
+              color: Colors.grey[400],
             ),
-          );
-        }
+            const SizedBox(height: 16),
+            Text(
+              'No classwork yet',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-        final isStudent = widget.user.role == 'student';
-        final isInstructor = widget.user.role == 'instructor';
+    return RefreshIndicator(
+      onRefresh: _loadContent,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: allContent.length,
+        itemBuilder: (context, index) {
+          final content = allContent[index];
+          final type = content['type'];
+          final item = content['item'];
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: allContent.length,
-          itemBuilder: (context, index) {
-            final content = allContent[index];
-            final type = content['type'];
-            final item = content['item'];
-
-            if (type == 'assignment') {
-              final assignment = item as Assignment;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.green[100],
-                    child: Icon(Icons.assignment, color: Colors.green[700]),
-                  ),
-                  title: Text(
-                    assignment.title,
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    isInstructor
-                        ? 'Submissions: ${assignment.submissionCount ?? 0}'
-                        : 'Due: ${_formatDate(assignment.dueDate)}',
-                    style: GoogleFonts.poppins(fontSize: 12),
-                  ),
-                  trailing: assignment.isPastDue
-                      ? Chip(
-                          label: const Text('Past Due'),
-                          backgroundColor: Colors.red[100],
-                        )
-                      : Chip(
-                          label: const Text('Open'),
-                          backgroundColor: Colors.green[100],
-                        ),
-                  onTap: () {
-                    if (isStudent) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AssignmentSubmissionScreen(
-                            assignment: assignment,
-                            student: widget.user,
-                          ),
-                        ),
-                      );
-                    }
-                    if (isInstructor) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AssignmentResultsScreen(
-                            assignment: assignment,
-                            instructor: widget.user,
-                          ),
-                        ),
-                      );
-                    }
-                  },
+          if (type == 'assignment') {
+            final assignment = item as Assignment;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.green[100],
+                  child: Icon(Icons.assignment, color: Colors.green[700]),
                 ),
-              );
-            } else if (type == 'quiz') {
-              final quiz = item as Quiz;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.purple[100],
-                    child: Icon(Icons.quiz, color: Colors.purple[700]),
-                  ),
-                  title: Text(
-                    quiz.title,
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    isInstructor
-                        ? 'Submissions: ${quiz.submissionCount ?? 0}'
-                        : 'Closes: ${_formatDate(quiz.closeTime)}',
-                    style: GoogleFonts.poppins(fontSize: 12),
-                  ),
-                  trailing: quiz.isPastDue
-                      ? Chip(
-                          label: const Text('Closed'),
-                          backgroundColor: Colors.red[100],
-                        )
-                      : quiz.isOpen
-                          ? Chip(
-                              label: const Text('Open'),
-                              backgroundColor: Colors.green[100],
-                            )
-                          : Chip(
-                              label: const Text('Scheduled'),
-                              backgroundColor: Colors.orange[100],
-                            ),
-                  onTap: () {
-                    if (isStudent) {
-                      if (quiz.isOpen) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => QuizTakingScreen(
-                              quiz: quiz,
-                              student: widget.user,
-                            ),
-                          ),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              quiz.isPastDue
-                                  ? 'This quiz is closed.'
-                                  : 'This quiz is not open yet.',
-                            ),
-                          ),
-                        );
-                      }
-                    } else {
-                      // Is instructor
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => QuizResultsScreen(quiz: quiz),
-                        ),
-                      );
-                    }
-                  },
+                title: Text(
+                  assignment.title,
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                 ),
-              );
-            } else {
-              final material = item as CourseMaterial;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.blue[100],
-                    child: Icon(Icons.folder, color: Colors.blue[700]),
-                  ),
-                  title: Text(
-                    material.title,
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    material.description ?? 'No description',
-                    style: GoogleFonts.poppins(fontSize: 12),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  onTap: () {
+                subtitle: Text(
+                  isInstructor
+                      ? 'Submissions: ${assignment.submissionCount ?? 0}'
+                      : 'Due: ${_formatDate(assignment.dueDate)}',
+                  style: GoogleFonts.poppins(fontSize: 12),
+                ),
+                trailing: assignment.isPastDue
+                    ? Chip(
+                        label: const Text('Past Due'),
+                        backgroundColor: Colors.red[100],
+                      )
+                    : Chip(
+                        label: const Text('Open'),
+                        backgroundColor: Colors.green[100],
+                      ),
+                onTap: () {
+                  if (isStudent) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => MaterialViewerScreen(
-                          material: material,
+                        builder: (_) => AssignmentSubmissionScreen(
+                          assignment: assignment,
                           student: widget.user,
                         ),
                       ),
                     );
-                  },
-                ),
-              );
+                  }
+                  if (isInstructor) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AssignmentResultsScreen(
+                          assignment: assignment,
+                          instructor: widget.user,
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
+            );
+          } else if (type == 'quiz') {
+            final quiz = item as Quiz;
+            
+            int attemptCount = 0;
+            double? highestScore;
+            int remainingAttempts = quiz.maxAttempts;
+            
+            if (isStudent) {
+              final attempts = studentQuizProvider.getAttemptsForQuiz(quiz.id);
+              attemptCount = attempts.where((a) => a.isCompleted).length;
+              highestScore = studentQuizProvider.getHighestScore(quiz.id);
+              remainingAttempts = studentQuizProvider.getRemainingAttempts(quiz.id);
             }
-          },
-        );
-      },
+            
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: InkWell(
+                onTap: () {
+                  if (isStudent) {
+                    if (quiz.isOpen) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => QuizTakingScreen(
+                            quiz: quiz,
+                            student: widget.user,
+                          ),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            quiz.isPastDue
+                                ? 'This quiz is closed.'
+                                : 'This quiz is not open yet.',
+                          ),
+                        ),
+                      );
+                    }
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => QuizResultsScreen(quiz: quiz),
+                      ),
+                    );
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.purple[100],
+                            child: Icon(Icons.quiz, color: Colors.purple[700]),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  quiz.title,
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  isInstructor
+                                      ? 'Submissions: ${quiz.submissionCount ?? 0}'
+                                      : 'Closes: ${_formatDate(quiz.closeTime)}',
+                                  style: GoogleFonts.poppins(fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          quiz.isPastDue
+                              ? Chip(
+                                  label: const Text('Closed'),
+                                  backgroundColor: Colors.red[100],
+                                )
+                              : quiz.isOpen
+                                  ? Chip(
+                                      label: const Text('Open'),
+                                      backgroundColor: Colors.green[100],
+                                    )
+                                  : Chip(
+                                      label: const Text('Scheduled'),
+                                      backgroundColor: Colors.orange[100],
+                                    ),
+                        ],
+                      ),
+                      
+                      if (isStudent) ...[
+                        const SizedBox(height: 12),
+                        const Divider(height: 1),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: remainingAttempts > 0
+                                      ? Colors.blue[50]
+                                      : Colors.green[50],
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: remainingAttempts > 0
+                                        ? Colors.blue
+                                        : Colors.green,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.replay,
+                                      size: 16,
+                                      color: remainingAttempts > 0
+                                          ? Colors.blue[700]
+                                          : Colors.green[700],
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '$attemptCount/${quiz.maxAttempts} attempts',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: remainingAttempts > 0
+                                            ? Colors.blue[700]
+                                            : Colors.green[700],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: highestScore == null
+                                      ? Colors.grey[100]
+                                      : _getScoreColor(highestScore, quiz.totalPoints.toDouble()) // ✅ FIXED: .toDouble()
+                                          .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: highestScore == null
+                                        ? Colors.grey
+                                        : _getScoreColor(highestScore, quiz.totalPoints.toDouble()), // ✅ FIXED: .toDouble()
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      highestScore == null
+                                          ? Icons.block
+                                          : Icons.emoji_events,
+                                      size: 16,
+                                      color: highestScore == null
+                                          ? Colors.grey[600]
+                                          : _getScoreColor(highestScore, quiz.totalPoints.toDouble()), // ✅ FIXED: .toDouble()
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        highestScore == null
+                                            ? 'Not attempted'
+                                            : '${highestScore.toStringAsFixed(1)}/${quiz.totalPoints} (${((highestScore / quiz.totalPoints) * 100).toStringAsFixed(0)}%)',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: highestScore == null
+                                              ? Colors.grey[600]
+                                              : _getScoreColor(highestScore, quiz.totalPoints.toDouble()), // ✅ FIXED: .toDouble()
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          } else {
+            final material = item as CourseMaterial;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.blue[100],
+                  child: Icon(Icons.folder, color: Colors.blue[700]),
+                ),
+                title: Text(
+                  material.title,
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  material.description ?? 'No description',
+                  style: GoogleFonts.poppins(fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MaterialViewerScreen(
+                        material: material,
+                        student: widget.user,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          }
+        },
+      ),
     );
   }
 
@@ -574,5 +672,13 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Color _getScoreColor(double score, double totalPoints) {
+    final percentage = (score / totalPoints) * 100;
+    if (percentage >= 80) return Colors.green[700]!;
+    if (percentage >= 60) return Colors.blue[700]!;
+    if (percentage >= 40) return Colors.orange[700]!;
+    return Colors.red[700]!;
   }
 }
