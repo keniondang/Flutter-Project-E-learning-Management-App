@@ -15,19 +15,20 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   
-  // Initial Greeting
+  // Chat History
   List<Map<String, String>> messages = [
     {
       "role": "bot", 
-      "text": "Hello! I have studied the Course Guide. You can ask me questions about it directly, or upload your own PDF for specific help!"
+      "text": "Hello! I am ready. Upload a PDF or ask me questions about existing documents."
     }
   ];
   
   bool _isUploading = false;
   bool _isTyping = false;
-  String? _uploadedFileName;
+  String? _activeFile;
 
-  // 1. Pick and Upload PDF (Optional now)
+  // --- ACTIONS ---
+
   Future<void> _pickAndUploadPdf() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -36,46 +37,45 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     if (result != null) {
       File file = File(result.files.single.path!);
-      
       setState(() => _isUploading = true);
       
       try {
         await _ragService.uploadPdf(file);
         
+        // Clear memory when new file is added to avoid context confusion
+        await _ragService.clearMemory();
+        
         setState(() {
-          _uploadedFileName = result.files.single.name;
+          _activeFile = result.files.single.name;
           messages.add({
             "role": "bot", 
-            "text": "I've added $_uploadedFileName to my knowledge! Ask me about it."
+            "text": "✅ Analyzed $_activeFile. I'm ready to answer questions!"
           });
         });
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        _showError("Upload Error: $e");
       } finally {
         setState(() => _isUploading = false);
       }
     }
   }
 
-  // 2. Send Message (Unlocked)
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    // Add user message to UI
+    // 1. Add User Message
     setState(() {
       messages.add({"role": "user", "text": text});
       _isTyping = true;
       _controller.clear();
     });
-    
-    // Scroll to bottom
     _scrollToBottom();
 
-    // Get answer from Python
+    // 2. Get AI Response
     final answer = await _ragService.askQuestion(text);
 
-    // Add bot response to UI
+    // 3. Add Bot Message
     if (mounted) {
       setState(() {
         _isTyping = false;
@@ -83,6 +83,24 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       });
       _scrollToBottom();
     }
+  }
+
+  Future<void> _resetChat() async {
+    await _ragService.clearMemory();
+    setState(() {
+      messages.clear();
+      messages.add({
+        "role": "bot", 
+        "text": "Memory cleared. Starting a fresh conversation."
+      });
+    });
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: Colors.red,
+    ));
   }
 
   void _scrollToBottom() {
@@ -97,49 +115,43 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     });
   }
 
+  // --- UI BUILD ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("AI Study Assistant"),
+        centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _resetChat,
+            tooltip: "Clear Memory",
+          ),
           IconButton(
             icon: const Icon(Icons.upload_file),
             onPressed: _isUploading ? null : _pickAndUploadPdf,
-            tooltip: "Upload Custom PDF",
+            tooltip: "Upload PDF",
           ),
         ],
       ),
       body: Column(
         children: [
-          // Info Banner (Dynamic)
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            width: double.infinity,
-            color: _uploadedFileName != null ? Colors.green.shade100 : Colors.blue.shade50,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  _uploadedFileName != null ? Icons.attach_file : Icons.library_books,
-                  size: 16,
-                  color: _uploadedFileName != null ? Colors.green[800] : Colors.blue[800],
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _uploadedFileName != null 
-                    ? "Focus: $_uploadedFileName + Guide" 
-                    : "Focus: General Course Guide",
-                  style: TextStyle(
-                    color: _uploadedFileName != null ? Colors.green[900] : Colors.blue[900],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+          // File Status Banner
+          if (_activeFile != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              color: Colors.green.shade100,
+              child: Text(
+                "Active Document: $_activeFile",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold),
+              ),
             ),
-          ),
 
-          // Chat Area
+          // Messages List
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -153,21 +165,20 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   child: Container(
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     padding: const EdgeInsets.all(12),
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75,
-                    ),
+                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
                     decoration: BoxDecoration(
                       color: isUser ? Colors.blue : Colors.grey[200],
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(12),
-                        topRight: const Radius.circular(12),
-                        bottomLeft: isUser ? const Radius.circular(12) : Radius.zero,
-                        bottomRight: isUser ? Radius.zero : const Radius.circular(12),
+                      borderRadius: BorderRadius.circular(12).copyWith(
+                        bottomRight: isUser ? Radius.zero : null,
+                        bottomLeft: isUser ? null : Radius.zero,
                       ),
                     ),
                     child: Text(
                       msg['text']!,
-                      style: TextStyle(color: isUser ? Colors.white : Colors.black87),
+                      style: TextStyle(
+                        color: isUser ? Colors.white : Colors.black87,
+                        fontSize: 15,
+                      ),
                     ),
                   ),
                 );
@@ -181,27 +192,26 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     width: 16, height: 16, 
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue),
                   ),
                   const SizedBox(width: 8),
-                  Text(_isUploading ? "Reading PDF..." : "AI is thinking...", style: const TextStyle(color: Colors.grey)),
+                  Text(
+                    _isUploading ? "Reading Document..." : "Thinking...",
+                    style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                  ),
                 ],
               ),
             ),
 
-          // Input Field
+          // Input Area
           Container(
             padding: const EdgeInsets.all(16.0),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  offset: const Offset(0, -2),
-                  blurRadius: 5,
-                )
+                BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))
               ],
             ),
             child: Row(
@@ -209,22 +219,27 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
+                    textCapitalization: TextCapitalization.sentences,
                     onSubmitted: (_) => _isTyping ? null : _sendMessage(),
-                    decoration: const InputDecoration(
-                      hintText: "Ask a question...",
+                    decoration: InputDecoration(
+                      hintText: "Ask about the document...",
+                      filled: true,
+                      fillColor: Colors.grey[100],
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(24)),
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
                       ),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  color: Colors.blue,
-                  // FIX: Button is now enabled unless AI is currently typing
-                  onPressed: _isTyping ? null : _sendMessage, 
+                CircleAvatar(
+                  backgroundColor: _isTyping ? Colors.grey : Colors.blue,
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                    onPressed: _isTyping ? null : _sendMessage, 
+                  ),
                 ),
               ],
             ),
