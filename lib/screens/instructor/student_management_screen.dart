@@ -1,9 +1,12 @@
+import 'dart:convert';
+
+import 'package:csv/csv.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../models/student.dart';
 import '../../providers/student_provider.dart';
-import '../../services/csv_service.dart';
 
 class StudentManagementScreen extends StatefulWidget {
   const StudentManagementScreen({Key? key}) : super(key: key);
@@ -252,90 +255,375 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     );
   }
 
-  Future<void> _handleCSVImport() async {
-    final result = await CSVService.pickAndParseCSV();
+  Future<void> _handleBulkCreateStudents(
+      List<List<dynamic>> fields, Set<String> duplicates) async {
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+              child: CircularProgressIndicator(),
+            ));
 
-    if (result == null || !mounted) return;
+    final insertedData =
+        await context.read<StudentProvider>().bulkCreateStudents(fields
+            .where((row) => !duplicates.contains(row[0]))
+            .map((row) => {
+                  'username': row[0],
+                  'email': row[1],
+                  'full_name': row[2],
+                  'password': row[3],
+                  'role': 'student',
+                })
+            .toList());
 
-    final data = result['data'] as List<Map<String, dynamic>>;
-    final headers = result['headers'] as List<String>;
+    if (mounted) {
+      Navigator.pop(context);
 
-    // Validate headers
-    final requiredHeaders = ['username', 'email', 'full_name', 'password'];
-    for (var header in requiredHeaders) {
-      if (!headers.contains(header)) {
+      if (insertedData == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Missing required column: $header'),
+          const SnackBar(
+            content: Text('Unable to import students into database.'),
             backgroundColor: Colors.red,
           ),
         );
-        return;
+      } else {
+        showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+                  title: Text(
+                    'Successfully imported ${insertedData.length} students.',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // The Data Table
+                      Container(
+                        height: 500, // Fixed height for vertical scrolling
+                        // width: double.maxFinite,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.vertical,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: DataTable(
+                              headingRowColor:
+                                  MaterialStateProperty.all(Colors.grey[100]),
+                              columns: const [
+                                DataColumn(label: Text('Username')),
+                                DataColumn(label: Text('Full Name')),
+                                DataColumn(label: Text('Email')),
+                              ],
+                              rows: insertedData.map((student) {
+                                return DataRow(
+                                  color:
+                                      MaterialStateProperty.all(Colors.white),
+                                  cells: [
+                                    // Username
+                                    DataCell(Text(student.username,
+                                        style: const TextStyle(
+                                            color: Colors.black87))),
+                                    // Name
+                                    DataCell(Text(student.fullName,
+                                        style: const TextStyle(
+                                            color: Colors.black87))),
+                                    // Email
+                                    DataCell(Text(student.email,
+                                        style: const TextStyle(
+                                            color: Colors.black87))),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Ok'),
+                    ),
+                  ],
+                ));
       }
     }
+  }
 
-    // Import students
-    final importResult = await context
-        .read<StudentProvider>()
-        .createMultipleStudents(data);
+  AlertDialog _getImportPreviewDialog(
+    List<List<dynamic>> fields,
+    Set<String> duplicates,
+  ) {
+    final uniqueCount = fields.length - duplicates.length;
+
+    return AlertDialog(
+      title: Text(
+        'Import Preview',
+        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Summary Text
+          RichText(
+            text: TextSpan(
+              style: GoogleFonts.poppins(color: Colors.black87, fontSize: 13),
+              children: [
+                const TextSpan(text: 'Ready to import '),
+                TextSpan(
+                  text: '$uniqueCount students',
+                  style: const TextStyle(
+                      color: Colors.green, fontWeight: FontWeight.bold),
+                ),
+                const TextSpan(text: '. '),
+                if (duplicates.isNotEmpty) ...[
+                  TextSpan(
+                    text: '${duplicates.length} duplicates',
+                    style: const TextStyle(
+                        color: Colors.red, fontWeight: FontWeight.bold),
+                  ),
+                  const TextSpan(text: ' will be skipped.'),
+                ]
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // The Data Table
+          Container(
+            height: 500, // Fixed height for vertical scrolling
+            // width: double.maxFinite,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  headingRowColor: MaterialStateProperty.all(Colors.grey[100]),
+                  columns: const [
+                    DataColumn(label: Text('Row')),
+                    DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('Username')),
+                    DataColumn(label: Text('Full Name')),
+                    DataColumn(label: Text('Email')),
+                  ],
+                  rows: fields.asMap().entries.map((entry) {
+                    final index = entry.key + 1;
+                    final row = entry.value;
+
+                    final username = row[0].toString().trim();
+                    final isDuplicate = duplicates.contains(username);
+
+                    return DataRow(
+                      color: MaterialStateProperty.all(isDuplicate
+                          ? Colors.red.withOpacity(0.05)
+                          : Colors.white),
+                      cells: [
+                        // Username
+                        DataCell(Text(
+                          index.toString(),
+                          style: TextStyle(
+                            color: isDuplicate ? Colors.grey : Colors.black87,
+                          ),
+                        )),
+                        // Status Column
+                        DataCell(
+                          Row(
+                            children: [
+                              Icon(
+                                isDuplicate
+                                    ? Icons.cancel_outlined
+                                    : Icons.check_circle_outline,
+                                color: isDuplicate ? Colors.red : Colors.green,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                isDuplicate ? 'Skip' : 'Add',
+                                style: TextStyle(
+                                    color:
+                                        isDuplicate ? Colors.red : Colors.green,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Username
+                        DataCell(Text(
+                          username,
+                          style: TextStyle(
+                            color: isDuplicate ? Colors.grey : Colors.black87,
+                          ),
+                        )),
+                        // Name
+                        DataCell(Text(
+                          row[2].toString(),
+                          style: TextStyle(
+                              color:
+                                  isDuplicate ? Colors.grey : Colors.black87),
+                        )),
+                        // Email
+                        DataCell(Text(
+                          row[1].toString(),
+                          style: TextStyle(
+                              color:
+                                  isDuplicate ? Colors.grey : Colors.black87),
+                        )),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          onPressed: uniqueCount > 0
+              ? () {
+                  Navigator.pop(context);
+                  _handleBulkCreateStudents(fields, duplicates);
+                }
+              : null, // Disable button if there are no unique rows to add
+          child: Text('Import $uniqueCount Students'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleCSVImport() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+      withData: true,
+    );
+
+    if (result == null || !mounted) return;
+
+    String csv = utf8.decode(result.files.first.bytes as List<int>);
+
+    final fields = const CsvToListConverter(eol: "\n").convert(csv);
+    fields.removeAt(0);
+
+    final usernames = [
+      for (List<dynamic> field in fields) (field.first as String).trim()
+    ];
 
     if (mounted) {
-      _filterStudents();
-
       showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(
-            'Import Results',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildResultRow(
-                'Successfully imported:',
-                importResult['successCount'],
-                Colors.green,
-              ),
-              _buildResultRow(
-                'Duplicates skipped:',
-                importResult['duplicateCount'],
-                Colors.orange,
-              ),
-              _buildResultRow(
-                'Errors:',
-                importResult['errorCount'],
-                Colors.red,
-              ),
-              if (importResult['errors'] != null &&
-                  (importResult['errors'] as List).isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(
-                  'Error details:',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                ...(importResult['errors'] as List)
-                    .take(3)
-                    .map(
-                      (error) => Text(
-                        '• $error',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-              ],
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => FutureBuilder(
+                future: context
+                    .read<StudentProvider>()
+                    .getDuplicateUsernames(usernames),
+                builder: (context, snapshot) {
+                  switch (snapshot.connectionState) {
+                    case ConnectionState.waiting:
+                      return const Center(child: CircularProgressIndicator());
+                    case ConnectionState.done:
+                      return _getImportPreviewDialog(
+                          fields, snapshot.data!.toSet());
+                    case _:
+                      return const Center(child: CircularProgressIndicator());
+                  }
+                },
+              ));
     }
+
+    // final usernames = fields.map()
+
+    // final data = result['data'] as List<Map<String, dynamic>>;
+    // final headers = result['headers'] as List<String>;
+
+    // // Validate headers
+    // final requiredHeaders = ['username', 'email', 'full_name', 'password'];
+    // for (var header in requiredHeaders) {
+    //   if (!headers.contains(header)) {
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       SnackBar(
+    //         content: Text('Missing required column: $header'),
+    //         backgroundColor: Colors.red,
+    //       ),
+    //     );
+    //     return;
+    //   }
+    // }
+
+    // // Import students
+    // final importResult =
+    //     await context.read<StudentProvider>().createMultipleStudents(data);
+
+    // if (mounted) {
+    //   _filterStudents();
+
+    //   showDialog(
+    //     context: context,
+    //     builder: (context) => AlertDialog(
+    //       title: Text(
+    //         'Import Results',
+    //         style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+    //       ),
+    //       content: Column(
+    //         mainAxisSize: MainAxisSize.min,
+    //         crossAxisAlignment: CrossAxisAlignment.start,
+    //         children: [
+    //           _buildResultRow(
+    //             'Successfully imported:',
+    //             importResult['successCount'],
+    //             Colors.green,
+    //           ),
+    //           _buildResultRow(
+    //             'Duplicates skipped:',
+    //             importResult['duplicateCount'],
+    //             Colors.orange,
+    //           ),
+    //           _buildResultRow(
+    //             'Errors:',
+    //             importResult['errorCount'],
+    //             Colors.red,
+    //           ),
+    //           if (importResult['errors'] != null &&
+    //               (importResult['errors'] as List).isNotEmpty) ...[
+    //             const SizedBox(height: 12),
+    //             Text(
+    //               'Error details:',
+    //               style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+    //             ),
+    //             const SizedBox(height: 4),
+    //             ...(importResult['errors'] as List).take(3).map(
+    //                   (error) => Text(
+    //                     '• $error',
+    //                     style: const TextStyle(fontSize: 12),
+    //                   ),
+    //                 ),
+    //           ],
+    //         ],
+    //       ),
+    //       actions: [
+    //         ElevatedButton(
+    //           onPressed: () => Navigator.pop(context),
+    //           child: const Text('OK'),
+    //         ),
+    //       ],
+    //     ),
+    //   );
+    // }
   }
 
   Widget _buildResultRow(String label, int count, Color color) {

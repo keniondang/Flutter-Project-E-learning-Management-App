@@ -67,11 +67,12 @@ class StudentProvider extends ChangeNotifier {
       await box.putAll(Map.fromEntries((response as Iterable).map((json) {
         final userId = json['users']['id'];
         final groupJson = json['groups'];
-        
+
         // Get existing student or create new
         final existingStudent = box.get(userId);
-        final student = existingStudent ?? Student.fromJson(json: json['users']);
-        
+        final student =
+            existingStudent ?? Student.fromJson(json: json['users']);
+
         // Update group mapping and course IDs
         student.groupMap[groupJson['id']] = groupJson['name'];
         student.courseIds.add(groupJson['course_id']);
@@ -156,6 +157,22 @@ class StudentProvider extends ChangeNotifier {
     }
   }
 
+  Future<List<String>> getDuplicateUsernames(List<String> usernames) async {
+    try {
+      final response = await _supabase
+          .from('users')
+          .select('username')
+          .inFilter('username', usernames);
+
+      return response.map((json) => json['username'] as String).toList();
+    } catch (e) {
+      _error = e.toString();
+      print("Error validating students: $e");
+
+      return [];
+    }
+  }
+
   // Create multiple students (for CSV import)
   Future<Map<String, dynamic>> createMultipleStudents(
     List<Map<String, dynamic>> studentsData,
@@ -203,6 +220,26 @@ class StudentProvider extends ChangeNotifier {
       'errorCount': errorCount,
       'errors': errors,
     };
+  }
+
+  Future<List<Student>?> bulkCreateStudents(
+      List<Map<String, dynamic>> data) async {
+    try {
+      final response = await _supabase.from("users").insert(data).select();
+
+      final students = response.map((json) => Student.fromJson(json: json));
+
+      final box = await Hive.openBox<Student>(_boxName);
+
+      await box.putAll(Map.fromEntries(students.map((s) => MapEntry(s.id, s))));
+      _students.addAll(students);
+
+      notifyListeners();
+      return students.toList();
+    } catch (e) {
+      notifyListeners();
+      return null;
+    }
   }
 
   // Enroll student in group
@@ -469,7 +506,8 @@ class StudentProvider extends ChangeNotifier {
 
         // Get existing student or create new
         final existingStudent = box.get(userId);
-        final student = existingStudent ?? Student.fromJson(json: json['users']);
+        final student =
+            existingStudent ?? Student.fromJson(json: json['users']);
 
         // Update group mapping and course IDs
         student.groupMap[groupJson['id']] = groupJson['name'];
@@ -509,7 +547,8 @@ class StudentProvider extends ChangeNotifier {
 
         // Get existing student or create new
         final existingStudent = box.get(userId);
-        final student = existingStudent ?? Student.fromJson(json: json['users']);
+        final student =
+            existingStudent ?? Student.fromJson(json: json['users']);
 
         // Update group mapping and course IDs
         student.groupMap[groupJson['id']] = groupJson['name'];
