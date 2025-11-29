@@ -110,7 +110,7 @@ class CourseMaterialProvider extends ChangeNotifier {
         response.data.where((json) => json['downloads'] as bool).length
       );
     } catch (e) {
-      print('Error loading assignment stats: $e');
+      print('Error loading material stats: $e');
       return (0, 0);
     }
   }

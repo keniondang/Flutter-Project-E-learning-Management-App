@@ -91,7 +91,7 @@ class QuizProvider extends ChangeNotifier {
 
       return response.count;
     } catch (e) {
-      print('Error loading assignment stats: $e');
+      print('Error loading submission stats: $e');
       return 0;
     }
   }
