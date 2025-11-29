@@ -1,15 +1,17 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Notification;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/notification.dart';
 
 class NotificationProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  List<Map<String, dynamic>> _notifications = [];
-  int _unreadCount = 0;
-  bool _isLoading = false;
+  List<Notification> _notifications = [];
+  List<Notification> get notifications => _notifications;
 
-  List<Map<String, dynamic>> get notifications => _notifications;
+  int _unreadCount = 0;
   int get unreadCount => _unreadCount;
+
+  bool _isLoading = false;
   bool get isLoading => _isLoading;
 
   Future<void> loadNotifications(String userId) async {
@@ -19,13 +21,17 @@ class NotificationProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('notifications')
-          .select()
-          .eq('user_id', userId)
+          .select('*, notifications_to!inner(user_id, is_read)')
+          .eq('notifications_to.user_id', userId)
           .order('created_at', ascending: false)
           .limit(50);
 
-      _notifications = List<Map<String, dynamic>>.from(response);
-      _unreadCount = _notifications.where((n) => n['is_read'] == false).length;
+      _notifications = response
+          .map((json) => Notification.fromJson(
+              json: json, isRead: json['notifications_to'].first['is_read']))
+          .toList();
+
+      _unreadCount = _notifications.where((n) => !n.isRead).length;
     } catch (e) {
       print('Error loading notifications: $e');
     } finally {
@@ -34,19 +40,18 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> markAsRead(String notificationId) async {
+  Future<void> markAsRead(String notificationId, String userId) async {
     try {
       await _supabase
-          .from('notifications')
-          .update({'is_read': true}).eq('id', notificationId);
+          .from('notifications_to')
+          .update({'is_read': true})
+          .eq('notification_id', notificationId)
+          .eq('user_id', userId);
 
-      final index = _notifications.indexWhere((n) => n['id'] == notificationId);
-      if (index != -1) {
-        _notifications[index]['is_read'] = true;
-        _unreadCount =
-            _notifications.where((n) => n['is_read'] == false).length;
-        notifyListeners();
-      }
+      _notifications[notifications.indexWhere((x) => x.id == notificationId)]
+          .isRead = true;
+      _unreadCount -= 1;
+      notifyListeners();
     } catch (e) {
       print('Error marking notification as read: $e');
     }
@@ -55,14 +60,13 @@ class NotificationProvider extends ChangeNotifier {
   Future<void> markAllAsRead(String userId) async {
     try {
       await _supabase
-          .from('notifications')
-          .update({'is_read': true})
-          .eq('user_id', userId)
-          .eq('is_read', false);
+          .from('notifications_to')
+          .update({'is_read': true}).eq('user_id', userId);
 
       for (var notification in _notifications) {
-        notification['is_read'] = true;
+        notification.isRead = true;
       }
+
       _unreadCount = 0;
       notifyListeners();
     } catch (e) {

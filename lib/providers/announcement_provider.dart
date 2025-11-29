@@ -16,7 +16,7 @@ class AnnouncementProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  Future<void> loadAnnouncements(String courseId) async {
+  Future<void> loadAllAnnouncements(String courseId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -41,11 +41,59 @@ class AnnouncementProvider extends ChangeNotifier {
         }))));
       } catch (e) {
         _error = e.toString();
-        print('Error loading quizzes: $e');
+        print('Error loading announcement: $e');
       }
     }
 
     _announcements = box.values.where((x) => x.courseId == courseId).toList();
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> loadAnnouncements(String courseId, String? groupId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    final box = await Hive.openBox<Announcement>(_boxName);
+
+    try {
+      late List<Map<String, dynamic>> response;
+
+      if (groupId == null) {
+        response = await _supabase
+            .from('announcements')
+            .select()
+            .eq('course_id', courseId)
+            .eq('scope_type', 'all');
+      } else {
+        response = await _supabase
+            .from('announcements')
+            .select()
+            .eq('course_id', courseId)
+            .or('scope_type.eq.all,target_groups.cs.{$groupId}');
+      }
+
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final announcement = Announcement.fromJson(
+            json: json,
+            viewCount: await _fetchViewCount(json['id']),
+            commentCount: await _fetchCommentCount(json['id']));
+
+        return MapEntry(announcement.id, announcement);
+      }))));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading Announcement: $e');
+    }
+
+    _announcements = box.values
+        .where((x) =>
+            x.courseId == courseId &&
+            (x.scopeType == 'all' || x.targetGroups.contains(groupId)))
+        .toList();
 
     _isLoading = false;
     notifyListeners();
@@ -81,7 +129,7 @@ class AnnouncementProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> createAnnouncement({
+  Future<Announcement?> createAnnouncement({
     required String courseId,
     required String instructorId,
     required String title,
@@ -112,12 +160,12 @@ class AnnouncementProvider extends ChangeNotifier {
       _announcements.add(announcement);
 
       notifyListeners();
-      return true;
+      return announcement;
     } catch (e) {
       _error = e.toString();
 
       notifyListeners();
-      return false;
+      return null;
     }
   }
 }

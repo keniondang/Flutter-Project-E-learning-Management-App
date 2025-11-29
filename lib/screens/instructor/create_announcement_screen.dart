@@ -1,10 +1,10 @@
 import 'package:elearning_management_app/providers/announcement_provider.dart';
+import 'package:elearning_management_app/providers/notification_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../models/course.dart';
 import '../../models/group.dart';
-import '../../providers/content_provider.dart';
 import '../../providers/group_provider.dart';
 
 class CreateAnnouncementScreen extends StatefulWidget {
@@ -12,10 +12,10 @@ class CreateAnnouncementScreen extends StatefulWidget {
   final String instructorId;
 
   const CreateAnnouncementScreen({
-    Key? key,
+    super.key,
     required this.course,
     required this.instructorId,
-  }) : super(key: key);
+  });
 
   @override
   State<CreateAnnouncementScreen> createState() =>
@@ -47,7 +47,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
 
   Future<void> _createAnnouncement() async {
     if (_formKey.currentState!.validate()) {
-      final success =
+      final announcement =
           await context.read<AnnouncementProvider>().createAnnouncement(
                 courseId: widget.course.id,
                 instructorId: widget.instructorId,
@@ -58,7 +58,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                 targetGroups: _selectedGroups,
               );
 
-      if (success && mounted) {
+      if (announcement != null && mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

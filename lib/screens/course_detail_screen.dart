@@ -2,6 +2,7 @@ import 'package:elearning_management_app/providers/announcement_provider.dart';
 import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:elearning_management_app/providers/course_material_provider.dart';
 import 'package:elearning_management_app/providers/quiz_provider.dart';
+import 'package:elearning_management_app/providers/student_provider.dart';
 import 'package:elearning_management_app/providers/student_quiz_provider.dart'; // ✅ ADDED
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -50,19 +51,35 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   }
 
   Future<void> _loadContent() async {
-    final isStudent = widget.user.role == 'student';
-    
-    await Future.wait([
-      context.read<AnnouncementProvider>().loadAnnouncements(widget.course.id),
-      context.read<AssignmentProvider>().loadAssignments(widget.course.id),
-      context.read<QuizProvider>().loadQuizzes(widget.course.id),
-      context.read<CourseMaterialProvider>().loadCourseMaterials(widget.course.id),
-      if (isStudent)
+    if (widget.user.role == 'student' && mounted) {
+      await Future.wait([
+        context.read<AnnouncementProvider>().loadAnnouncements(
+            widget.course.id,
+            await context
+                .read<StudentProvider>()
+                .fetchStudentGroupIdInCourse(widget.user.id, widget.course.id)),
+        context.read<AssignmentProvider>().loadAssignments(widget.course.id),
+        context.read<QuizProvider>().loadQuizzes(widget.course.id),
+        context
+            .read<CourseMaterialProvider>()
+            .loadCourseMaterials(widget.course.id),
         context.read<StudentQuizProvider>().loadQuizzesForStudent(
-          widget.course.id,
-          widget.user.id,
-        ),
-    ]);
+              widget.course.id,
+              widget.user.id,
+            ),
+      ]);
+    } else {
+      await Future.wait([
+        context
+            .read<AnnouncementProvider>()
+            .loadAllAnnouncements(widget.course.id),
+        context.read<AssignmentProvider>().loadAssignments(widget.course.id),
+        context.read<QuizProvider>().loadQuizzes(widget.course.id),
+        context
+            .read<CourseMaterialProvider>()
+            .loadCourseMaterials(widget.course.id),
+      ]);
+    }
   }
 
   @override
@@ -249,8 +266,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                 const SizedBox(height: 16),
                 Text(
                   'No announcements yet',
-                  style:
-                      GoogleFonts.poppins(fontSize: 18, color: Colors.grey[600]),
+                  style: GoogleFonts.poppins(
+                      fontSize: 18, color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -314,7 +331,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     final assignmentProvider = context.watch<AssignmentProvider>();
     final quizProvider = context.watch<QuizProvider>();
     final courseMaterialProvider = context.watch<CourseMaterialProvider>();
-    final studentQuizProvider = context.watch<StudentQuizProvider>(); 
+    final studentQuizProvider = context.watch<StudentQuizProvider>();
 
     if (assignmentProvider.isLoading ||
         quizProvider.isLoading ||
@@ -422,18 +439,19 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
             );
           } else if (type == 'quiz') {
             final quiz = item as Quiz;
-            
+
             int attemptCount = 0;
             double? highestScore;
             int remainingAttempts = quiz.maxAttempts;
-            
+
             if (isStudent) {
               final attempts = studentQuizProvider.getAttemptsForQuiz(quiz.id);
               attemptCount = attempts.where((a) => a.isCompleted).length;
               highestScore = studentQuizProvider.getHighestScore(quiz.id);
-              remainingAttempts = studentQuizProvider.getRemainingAttempts(quiz.id);
+              remainingAttempts =
+                  studentQuizProvider.getRemainingAttempts(quiz.id);
             }
-            
+
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
               child: InkWell(
@@ -518,7 +536,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                     ),
                         ],
                       ),
-                      
                       if (isStudent) ...[
                         const SizedBox(height: 12),
                         const Divider(height: 1),
@@ -578,13 +595,19 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                 decoration: BoxDecoration(
                                   color: highestScore == null
                                       ? Colors.grey[100]
-                                      : _getScoreColor(highestScore, quiz.totalPoints.toDouble()) // ✅ FIXED: .toDouble()
+                                      : _getScoreColor(
+                                              highestScore,
+                                              quiz.totalPoints
+                                                  .toDouble()) // ✅ FIXED: .toDouble()
                                           .withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: highestScore == null
                                         ? Colors.grey
-                                        : _getScoreColor(highestScore, quiz.totalPoints.toDouble()), // ✅ FIXED: .toDouble()
+                                        : _getScoreColor(
+                                            highestScore,
+                                            quiz.totalPoints
+                                                .toDouble()), // ✅ FIXED: .toDouble()
                                     width: 1.5,
                                   ),
                                 ),
@@ -598,7 +621,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                       size: 16,
                                       color: highestScore == null
                                           ? Colors.grey[600]
-                                          : _getScoreColor(highestScore, quiz.totalPoints.toDouble()), // ✅ FIXED: .toDouble()
+                                          : _getScoreColor(
+                                              highestScore,
+                                              quiz.totalPoints
+                                                  .toDouble()), // ✅ FIXED: .toDouble()
                                     ),
                                     const SizedBox(width: 6),
                                     Expanded(
@@ -611,7 +637,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                           fontWeight: FontWeight.w600,
                                           color: highestScore == null
                                               ? Colors.grey[600]
-                                              : _getScoreColor(highestScore, quiz.totalPoints.toDouble()), // ✅ FIXED: .toDouble()
+                                              : _getScoreColor(
+                                                  highestScore,
+                                                  quiz.totalPoints
+                                                      .toDouble()), // ✅ FIXED: .toDouble()
                                         ),
                                         overflow: TextOverflow.ellipsis,
                                       ),

@@ -91,6 +91,24 @@ class StudentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<String?> fetchStudentGroupIdInCourse(
+      String studentId, String courseId) async {
+    try {
+      final response = await _supabase
+          .from('enrollments')
+          .select('group_id, groups(course_id)')
+          .eq('student_id', studentId)
+          .eq('groups.course_id', courseId)
+          .limit(1);
+
+      return response.map((json) => json['group_id']).first;
+    } catch (e) {
+      _error = e.toString();
+      print('Error fetching student\'s group: $e');
+      return null;
+    }
+  }
+
   Future<int> countTotalStudents() async {
     final box = await Hive.openBox<Student>(_boxName);
 

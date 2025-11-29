@@ -1,3 +1,4 @@
+import 'package:elearning_management_app/models/notification.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -23,45 +24,61 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   Future<void> _loadNotifications() async {
     await context.read<NotificationProvider>().loadNotifications(
-      widget.user.id,
-    );
+          widget.user.id,
+        );
   }
 
-  IconData _getNotificationIcon(String type) {
+  IconData _getNotificationIcon(NotificationType type) {
     switch (type) {
-      case 'announcement':
+      // case 'announcement':
+      //   return Icons.announcement;
+      // case 'assignment':
+      //   return Icons.assignment;
+      // case 'quiz':
+      //   return Icons.quiz;
+      // case 'grade':
+      //   return Icons.grade;
+      // case 'message':
+      //   return Icons.message;
+      // case 'deadline':
+      //   return Icons.event;
+      // default:
+      //   return Icons.notifications;
+      case NotificationType.announcement:
         return Icons.announcement;
-      case 'assignment':
-        return Icons.assignment;
-      case 'quiz':
-        return Icons.quiz;
-      case 'grade':
-        return Icons.grade;
-      case 'message':
-        return Icons.message;
-      case 'deadline':
+      case NotificationType.deadline:
         return Icons.event;
-      default:
-        return Icons.notifications;
+      case NotificationType.feedback:
+        return Icons.event_note;
+      case NotificationType.submission:
+        return Icons.event_available;
     }
   }
 
-  Color _getNotificationColor(String type) {
+  Color _getNotificationColor(NotificationType type) {
     switch (type) {
-      case 'announcement':
+      // case 'announcement':
+      //   return Colors.blue;
+      // case 'assignment':
+      //   return Colors.green;
+      // case 'quiz':
+      //   return Colors.purple;
+      // case 'grade':
+      //   return Colors.orange;
+      // case 'message':
+      //   return Colors.teal;
+      // case 'deadline':
+      //   return Colors.red;
+      // default:
+      //   return Colors.grey;
+      case NotificationType.announcement:
         return Colors.blue;
-      case 'assignment':
-        return Colors.green;
-      case 'quiz':
-        return Colors.purple;
-      case 'grade':
-        return Colors.orange;
-      case 'message':
-        return Colors.teal;
-      case 'deadline':
+      case NotificationType.deadline:
         return Colors.red;
-      default:
-        return Colors.grey;
+      case NotificationType.feedback:
+        return Colors.teal;
+      case NotificationType.submission:
+        return Colors.green;
     }
   }
 
@@ -74,8 +91,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
           TextButton(
             onPressed: () async {
               await context.read<NotificationProvider>().markAllAsRead(
-                widget.user.id,
-              );
+                    widget.user.id,
+                  );
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('All notifications marked as read'),
@@ -131,8 +148,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
             itemCount: provider.notifications.length,
             itemBuilder: (context, index) {
               final notification = provider.notifications[index];
-              final isRead = notification['is_read'] ?? false;
-              final createdAt = DateTime.parse(notification['created_at']);
+              final isRead = notification.isRead;
+              final createdAt = notification.createdAt;
 
               return Card(
                 color: isRead ? null : Colors.blue[50],
@@ -140,16 +157,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: _getNotificationColor(
-                      notification['type'],
+                      notification.type,
                     ).withOpacity(0.2),
                     child: Icon(
-                      _getNotificationIcon(notification['type']),
-                      color: _getNotificationColor(notification['type']),
+                      _getNotificationIcon(notification.type),
+                      color: _getNotificationColor(notification.type),
                       size: 20,
                     ),
                   ),
                   title: Text(
-                    notification['title'],
+                    notification.title,
                     style: GoogleFonts.poppins(
                       fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
                     ),
@@ -158,7 +175,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        notification['message'],
+                        notification.message,
                         style: GoogleFonts.poppins(fontSize: 12),
                       ),
                       const SizedBox(height: 4),
@@ -173,13 +190,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   ),
                   onTap: () async {
                     if (!isRead) {
-                      await provider.markAsRead(notification['id']);
+                      await provider.markAsRead(
+                          notification.id, widget.user.id);
                     }
 
-                    // Navigate to related content if applicable
-                    if (notification['related_id'] != null) {
-                      // TODO: Navigate based on related_type
-                    }
+                    // // Navigate to related content if applicable
+                    // if (notification['related_id'] != null) {
+                    //   // TODO: Navigate based on related_type
+                    // }
                   },
                 ),
               );
