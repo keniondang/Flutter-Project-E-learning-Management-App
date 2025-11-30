@@ -9,6 +9,7 @@ extension HiveRegistrar on HiveInterface {
   void registerAdapters() {
     registerAdapter(AnnouncementAdapter());
     registerAdapter(AssignmentAdapter());
+    registerAdapter(AssignmentSubmissionAdapter());
     registerAdapter(CourseAdapter());
     registerAdapter(CourseMaterialAdapter());
     registerAdapter(GroupAdapter());
@@ -26,6 +27,7 @@ extension IsolatedHiveRegistrar on IsolatedHiveInterface {
   void registerAdapters() {
     registerAdapter(AnnouncementAdapter());
     registerAdapter(AssignmentAdapter());
+    registerAdapter(AssignmentSubmissionAdapter());
     registerAdapter(CourseAdapter());
     registerAdapter(CourseMaterialAdapter());
     registerAdapter(GroupAdapter());

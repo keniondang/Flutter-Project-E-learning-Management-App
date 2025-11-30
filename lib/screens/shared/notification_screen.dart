@@ -9,7 +9,7 @@ import '../../providers/notification_provider.dart';
 class NotificationScreen extends StatefulWidget {
   final UserModel user;
 
-  const NotificationScreen({Key? key, required this.user}) : super(key: key);
+  const NotificationScreen({super.key, required this.user});
 
   @override
   State<NotificationScreen> createState() => _NotificationScreenState();

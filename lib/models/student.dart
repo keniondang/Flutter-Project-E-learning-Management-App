@@ -1,10 +1,6 @@
 import 'user_model.dart';
 
 class Student extends UserModel {
-  // final String? groupId;
-  // final String? groupName;
-  // final String? courseId;
-  // final String? courseName;
   Map<String, String> groupMap;
   Set<String> courseIds;
 
@@ -14,10 +10,6 @@ class Student extends UserModel {
     required super.username,
     required super.fullName,
     super.avatarUrl,
-    // this.groupId,
-    // this.groupName,
-    // this.courseId,
-    // this.courseName,
     Map<String, String>? groupMap,
     Set<String>? courseIds,
   })  : groupMap = groupMap ?? {},
@@ -36,11 +28,6 @@ class Student extends UserModel {
       username: json['username'],
       fullName: json['full_name'],
       avatarUrl: json['avatar_url'],
-      // groupId: json['group_id'],
-      // groupName: json['group_name'],
-      // courseId: json['course_id'],
-      // courseName: json['course_name'],
-
       groupMap: groupMap ?? {},
       courseIds: courseIds ?? {},
     );

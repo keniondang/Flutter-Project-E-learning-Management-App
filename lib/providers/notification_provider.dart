@@ -20,16 +20,19 @@ class NotificationProvider extends ChangeNotifier {
 
     try {
       final response = await _supabase
-          .from('notifications')
-          .select('*, notifications_to!inner(user_id, is_read)')
-          .eq('notifications_to.user_id', userId)
-          .order('created_at', ascending: false)
+          .from('notifications_to')
+          .select(
+              '*, notifications!notifications_to_notification_id_fkey!inner(*)')
+          .eq('user_id', userId)
+          // .order('notifications.created_at', ascending: false)
           .limit(50);
 
-      _notifications = response
-          .map((json) => Notification.fromJson(
-              json: json, isRead: json['notifications_to'].first['is_read']))
-          .toList();
+      _notifications = response.map((json) {
+        final notificationJson = json['notifications'];
+
+        return Notification.fromJson(
+            json: notificationJson, isRead: json['is_read']);
+      }).toList();
 
       _unreadCount = _notifications.where((n) => !n.isRead).length;
     } catch (e) {
@@ -70,7 +73,7 @@ class NotificationProvider extends ChangeNotifier {
       _unreadCount = 0;
       notifyListeners();
     } catch (e) {
-      print('Error marking all as read: $e');
+      print('Error marking all notification as read: $e');
     }
   }
 

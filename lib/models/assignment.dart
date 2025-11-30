@@ -122,9 +122,9 @@ class AssignmentSubmission {
   final int attemptNumber;
   final DateTime submittedAt;
   final bool isLate;
-  final double? grade;
-  final String? feedback;
-  final DateTime? gradedAt;
+  double? grade;
+  String? feedback;
+  DateTime? gradedAt;
 
   AssignmentSubmission({
     required this.id,

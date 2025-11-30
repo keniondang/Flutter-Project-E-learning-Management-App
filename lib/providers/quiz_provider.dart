@@ -59,7 +59,7 @@ class QuizProvider extends ChangeNotifier {
         final response = await _supabase
             .from('quizzes')
             // FIX: Use !inner
-            .select('*, courses!inner(semester_id)') 
+            .select('*, courses!inner(semester_id)')
             .eq('courses.semester_id', semesterId);
 
         await box.putAll(

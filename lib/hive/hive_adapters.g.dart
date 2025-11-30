@@ -731,3 +731,70 @@ class QuizAttemptAdapter extends TypeAdapter<QuizAttempt> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
+
+class AssignmentSubmissionAdapter extends TypeAdapter<AssignmentSubmission> {
+  @override
+  final typeId = 12;
+
+  @override
+  AssignmentSubmission read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return AssignmentSubmission(
+      id: fields[0] as String,
+      assignmentId: fields[1] as String,
+      studentId: fields[2] as String,
+      studentName: fields[3] as String,
+      submissionFiles: (fields[4] as List).cast<String>(),
+      submissionText: fields[5] as String?,
+      attemptNumber: (fields[6] as num).toInt(),
+      submittedAt: fields[7] as DateTime,
+      isLate: fields[8] as bool,
+      grade: (fields[9] as num?)?.toDouble(),
+      feedback: fields[10] as String?,
+      gradedAt: fields[11] as DateTime?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, AssignmentSubmission obj) {
+    writer
+      ..writeByte(12)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.assignmentId)
+      ..writeByte(2)
+      ..write(obj.studentId)
+      ..writeByte(3)
+      ..write(obj.studentName)
+      ..writeByte(4)
+      ..write(obj.submissionFiles)
+      ..writeByte(5)
+      ..write(obj.submissionText)
+      ..writeByte(6)
+      ..write(obj.attemptNumber)
+      ..writeByte(7)
+      ..write(obj.submittedAt)
+      ..writeByte(8)
+      ..write(obj.isLate)
+      ..writeByte(9)
+      ..write(obj.grade)
+      ..writeByte(10)
+      ..write(obj.feedback)
+      ..writeByte(11)
+      ..write(obj.gradedAt);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AssignmentSubmissionAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}

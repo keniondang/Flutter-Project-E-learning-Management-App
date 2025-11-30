@@ -23,5 +23,6 @@ import '../models/user_model.dart';
   AdapterSpec<Question>(),
   AdapterSpec<QuestionOption>(),
   AdapterSpec<QuizAttempt>(),
+  AdapterSpec<AssignmentSubmission>(),
 ])
 part 'hive_adapters.g.dart';

@@ -24,24 +24,21 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<AssignmentSubmission>(_boxName);
 
-    if (!box.values.any((x) => x.assignmentId == assignmentId)) {
-      try {
-        final response = await _supabase
-            .from('assignment_submissions')
-            .select(
-                '*, users!assignment_submissions_student_id_fkey(full_name)')
-            .eq('assignment_id', assignmentId);
+    try {
+      final response = await _supabase
+          .from('assignment_submissions')
+          .select('*, users!assignment_submissions_student_id_fkey(full_name)')
+          .eq('assignment_id', assignmentId);
 
-        await box.putAll(Map.fromEntries(response.map((json) {
-          final submission = AssignmentSubmission.fromJson(
-              json: json, studentName: json['users']['full_name']);
+      await box.putAll(Map.fromEntries(response.map((json) {
+        final submission = AssignmentSubmission.fromJson(
+            json: json, studentName: json['users']['full_name']);
 
-          return MapEntry(submission.id, submission);
-        })));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading submissions: $e');
-      }
+        return MapEntry(submission.id, submission);
+      })));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading submissions: $e');
     }
 
     _submissions =
@@ -68,44 +65,40 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
     required String instructorId,
   }) async {
     try {
-      final response = await _supabase
-          .from('assignment_submissions')
-          .update({
-            'grade': grade,
-            'feedback': feedback,
-            'graded_at': DateTime.now().toIso8601String(),
-            'graded_by': instructorId,
-          })
-          .eq('id', submissionId)
-          .select('*, users(name)');
+      // final response = await _supabase
+      //     .from('assignment_submissions')
+      //     .update({
+      //       'grade': grade,
+      //       'feedback': feedback,
+      //       'graded_at': DateTime.now().toIso8601String(),
+      //       'graded_by': instructorId,
+      //     })
+      //     .eq('id', submissionId)
+      //     .select(
+      //         '*, users!assignment_submissions_student_id_fkey!inner(full_name)');
 
-      // Update local list
-      // final index = _submissions.indexWhere((s) => s.id == submissionId);
-      // if (index != -1) {
-      //   final oldSub = _submissions[index];
-      //   _submissions[index] = AssignmentSubmission(
-      //     id: oldSub.id,
-      //     assignmentId: oldSub.assignmentId,
-      //     studentId: oldSub.studentId,
-      //     studentName: oldSub.studentName,
-      //     submissionFiles: oldSub.submissionFiles,
-      //     submissionText: oldSub.submissionText,
-      //     attemptNumber: oldSub.attemptNumber,
-      //     submittedAt: oldSub.submittedAt,
-      //     isLate: oldSub.isLate,
-      //     grade: grade, // Updated
-      //     feedback: feedback, // Updated
-      //     gradedAt: DateTime.now(), // Updated
-      //   );
-      //   notifyListeners();
-      // }
+      final gradedAt = DateTime.now();
 
-      final submission = response
-          .map((json) => AssignmentSubmission.fromJson(
-              json: json, studentName: json['users']['name']))
-          .first;
+      await _supabase.rpc('grade_assignment_submission', params: {
+        'submission_id': submissionId,
+        'grade': grade,
+        'feedback': feedback,
+        'instructor_id': instructorId,
+        'graded_at': gradedAt.toIso8601String(),
+      });
+
+      // final submission = response
+      //     .map((json) => AssignmentSubmission.fromJson(
+      //         json: json, studentName: json['users']['full_name']))
+      //     .first;
 
       final box = await Hive.openBox<AssignmentSubmission>(_boxName);
+      final submission = box.get(submissionId)!;
+
+      submission.grade = grade;
+      submission.feedback = feedback;
+      submission.gradedAt = gradedAt;
+
       await box.put(submission.id, submission);
       _submissions[_submissions.indexWhere((x) => x.id == submission.id)] =
           submission;
@@ -114,6 +107,7 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _error = e.toString();
+      print('Error grading submission: $e');
 
       notifyListeners();
       return false;

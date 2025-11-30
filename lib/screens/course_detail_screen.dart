@@ -9,7 +9,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../models/course.dart';
 import '../models/user_model.dart';
-import '../providers/content_provider.dart';
 import 'instructor/create_announcement_screen.dart';
 import 'instructor/create_assignment_screen.dart';
 import 'instructor/create_quiz_screen.dart';
