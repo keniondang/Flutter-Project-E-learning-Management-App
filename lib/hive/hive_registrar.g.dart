@@ -12,6 +12,8 @@ extension HiveRegistrar on HiveInterface {
     registerAdapter(AssignmentSubmissionAdapter());
     registerAdapter(CourseAdapter());
     registerAdapter(CourseMaterialAdapter());
+    registerAdapter(ForumAdapter());
+    registerAdapter(ForumReplyAdapter());
     registerAdapter(GroupAdapter());
     registerAdapter(QuestionAdapter());
     registerAdapter(QuestionOptionAdapter());
@@ -30,6 +32,8 @@ extension IsolatedHiveRegistrar on IsolatedHiveInterface {
     registerAdapter(AssignmentSubmissionAdapter());
     registerAdapter(CourseAdapter());
     registerAdapter(CourseMaterialAdapter());
+    registerAdapter(ForumAdapter());
+    registerAdapter(ForumReplyAdapter());
     registerAdapter(GroupAdapter());
     registerAdapter(QuestionAdapter());
     registerAdapter(QuestionOptionAdapter());
