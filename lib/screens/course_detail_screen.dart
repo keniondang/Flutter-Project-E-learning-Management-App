@@ -51,14 +51,20 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
 
   Future<void> _loadContent() async {
     if (widget.user.role == 'student' && mounted) {
+      final groupId = context
+          .read<StudentProvider>()
+          .fetchStudentGroupIdInCourse(widget.user.id, widget.course.id);
+
       await Future.wait([
-        context.read<AnnouncementProvider>().loadAnnouncements(
-            widget.course.id,
-            await context
-                .read<StudentProvider>()
-                .fetchStudentGroupIdInCourse(widget.user.id, widget.course.id)),
-        context.read<AssignmentProvider>().loadAssignments(widget.course.id),
-        context.read<QuizProvider>().loadQuizzes(widget.course.id),
+        context
+            .read<AnnouncementProvider>()
+            .loadAnnouncements(widget.course.id, await groupId),
+        context
+            .read<AssignmentProvider>()
+            .loadAssignments(widget.course.id, await groupId),
+        context
+            .read<QuizProvider>()
+            .loadQuizzes(widget.course.id, await groupId),
         context
             .read<CourseMaterialProvider>()
             .loadCourseMaterials(widget.course.id),
@@ -72,7 +78,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
         context
             .read<AnnouncementProvider>()
             .loadAllAnnouncements(widget.course.id),
-        context.read<AssignmentProvider>().loadAssignments(widget.course.id),
+        context.read<AssignmentProvider>().loadAllAssignments(widget.course.id),
         context.read<QuizProvider>().loadQuizzes(widget.course.id),
         context
             .read<CourseMaterialProvider>()
