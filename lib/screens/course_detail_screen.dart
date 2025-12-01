@@ -79,7 +79,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
             .read<AnnouncementProvider>()
             .loadAllAnnouncements(widget.course.id),
         context.read<AssignmentProvider>().loadAllAssignments(widget.course.id),
-        context.read<QuizProvider>().loadQuizzes(widget.course.id),
+        context.read<QuizProvider>().loadAllQuizzes(widget.course.id),
         context
             .read<CourseMaterialProvider>()
             .loadCourseMaterials(widget.course.id),
