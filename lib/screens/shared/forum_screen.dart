@@ -1,6 +1,5 @@
 import 'package:elearning_management_app/providers/forum_provider.dart';
 import 'package:elearning_management_app/screens/shared/forum_detail_screen.dart';
-import 'package:elearning_management_app/screens/shared/forum_topic_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -29,7 +28,7 @@ class _ForumScreenState extends State<ForumScreen> {
   }
 
   Future<void> _loadForums() async {
-    context.read<ForumProvider>().loadForums(widget.course.id);
+    await context.read<ForumProvider>().loadForums(widget.course.id);
     // _forums = context.read<ForumProvider>().forums;
   }
   // Future<void> _loadTopics() async {
@@ -297,8 +296,8 @@ class _ForumScreenState extends State<ForumScreen> {
                     ),
                   ],
                 ),
-                onTap: () {
-                  Navigator.push(
+                onTap: () async {
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => ForumDetailScreen(
@@ -307,6 +306,8 @@ class _ForumScreenState extends State<ForumScreen> {
                       ),
                     ),
                   );
+
+                  _loadForums();
                 },
               ),
             );

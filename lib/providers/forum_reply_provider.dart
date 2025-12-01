@@ -31,8 +31,6 @@ class ForumReplyProvider extends ChangeNotifier {
           .select('*, users(full_name)')
           .eq('forum_id', forumId);
 
-      print(response);
-
       await box.putAll(Map.fromEntries(response.map((json) {
         final String fullName = json['users']['full_name'];
         final forumReply =

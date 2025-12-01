@@ -30,8 +30,6 @@ class ForumProvider with ChangeNotifier {
           .select('*, users(full_name), forum_replies(id.count())')
           .eq('course_id', courseId);
 
-      print(response);
-
       await box.putAll(Map.fromEntries(response.map((json) {
         final String fullName = json['users']['full_name'];
         final forum = Forum.fromJson(

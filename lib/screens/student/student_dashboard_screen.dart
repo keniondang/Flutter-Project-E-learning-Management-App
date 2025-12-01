@@ -9,7 +9,7 @@ class StudentDashboardScreen extends StatefulWidget {
   final UserModel student;
 
   const StudentDashboardScreen({Key? key, required this.student})
-    : super(key: key);
+      : super(key: key);
 
   @override
   State<StudentDashboardScreen> createState() => _StudentDashboardScreenState();
@@ -66,7 +66,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text('My Dashboard', style: GoogleFonts.poppins())),
-      
+
       // 2. ADD THIS FLOATING ACTION BUTTON --------------------------
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
@@ -145,7 +145,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                     else
                       ..._upcomingDeadlines.map((deadline) {
                         final dueDate = DateTime.parse(deadline['due_date']);
-                        final daysLeft = dueDate.difference(DateTime.now()).inDays;
+                        final daysLeft =
+                            dueDate.difference(DateTime.now()).inDays;
 
                         return ListTile(
                           leading: CircleAvatar(
