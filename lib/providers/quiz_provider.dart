@@ -16,7 +16,7 @@ class QuizProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  Future<void> loadQuizzes(String courseId) async {
+  Future<void> loadAllQuizzes(String courseId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -43,6 +43,55 @@ class QuizProvider extends ChangeNotifier {
         _error = e.toString();
         print('Error loading quizzes: $e');
       }
+    }
+
+    _quizzes = box.values.where((x) => x.courseId == courseId).toList();
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> loadQuizzes(String courseId, String? groupId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    final box = await Hive.openBox<Quiz>(_boxName);
+
+    try {
+      // final response = await _supabase
+      //     .from('quizzes')
+      //     .select('*, courses(semester_id)')
+      //     .eq('course_id', courseId);
+
+      late List<Map<String, dynamic>> response;
+
+      if (groupId == null) {
+        response = await _supabase
+            .from('quizzes')
+            .select('*, courses(semester_id)')
+            .eq('course_id', courseId)
+            .eq('scope_type', 'all');
+      } else {
+        response = await _supabase
+            .from('quizzes')
+            .select('*, courses(semester_id)')
+            .eq('course_id', courseId)
+            .or('scope_type.eq.all,target_groups.cs.{$groupId}');
+      }
+
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final quiz = Quiz.fromJson(
+            json: json,
+            semesterId: json['courses']['semester_id'],
+            submissionCount: await _fetchSubmissionCount(json['id']));
+
+        return MapEntry(quiz.id, quiz);
+      }))));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading quizzes: $e');
     }
 
     _quizzes = box.values.where((x) => x.courseId == courseId).toList();
