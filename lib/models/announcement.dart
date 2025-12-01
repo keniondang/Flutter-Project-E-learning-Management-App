@@ -28,7 +28,7 @@ class Announcement {
   });
 
   factory Announcement.fromJson(
-      {required Map<String, dynamic> json, int? viewCount, int? commentCount}) {
+      {required Map<String, dynamic> json, int? viewCount, int? commentCount, required bool hasViewed}) {
     return Announcement(
       id: json['id'],
       courseId: json['course_id'],

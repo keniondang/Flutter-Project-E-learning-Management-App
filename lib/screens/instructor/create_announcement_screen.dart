@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:elearning_management_app/providers/announcement_provider.dart';
 import 'package:elearning_management_app/providers/notification_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/course.dart';
 import '../../models/group.dart';
 import '../../providers/group_provider.dart';
@@ -29,7 +32,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
 
   String _scopeType = 'all';
   List<String> _selectedGroups = [];
-  List<String> _fileAttachments = [];
+  
+  List<PlatformFile> _pickedFiles = [];
+  bool _isUploading = false;
+  bool _showMarkdownHelp = false;
+  
   List<Group> _availableGroups = [];
 
   @override
@@ -38,35 +45,115 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     _loadGroups();
   }
 
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadGroups() async {
     await context.read<GroupProvider>().loadGroups(widget.course.id);
+    if (mounted) {
+      setState(() {
+        _availableGroups = context.read<GroupProvider>().groups;
+      });
+    }
+  }
+
+  Future<void> _pickFiles() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.any,
+      );
+
+      if (result != null) {
+        setState(() {
+          _pickedFiles.addAll(result.files);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking files: $e')),
+        );
+      }
+    }
+  }
+
+  void _removeFile(int index) {
     setState(() {
-      _availableGroups = context.read<GroupProvider>().groups;
+      _pickedFiles.removeAt(index);
     });
   }
 
-  Future<void> _createAnnouncement() async {
-    if (_formKey.currentState!.validate()) {
-      final announcement =
-          await context.read<AnnouncementProvider>().createAnnouncement(
-                courseId: widget.course.id,
-                instructorId: widget.instructorId,
-                title: _titleController.text,
-                content: _contentController.text,
-                fileAttachments: _fileAttachments,
-                scopeType: _scopeType,
-                targetGroups: _selectedGroups,
-              );
+  Future<List<String>> _uploadFiles() async {
+    List<String> urls = [];
+    final supabase = Supabase.instance.client;
 
-      if (announcement != null && mounted) {
+    for (var file in _pickedFiles) {
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.name}';
+      final path = 'announcements/$fileName';
+      
+      try {
+        if (file.bytes != null) {
+          await supabase.storage.from('course_files').uploadBinary(path, file.bytes!);
+        } else if (file.path != null) {
+          await supabase.storage.from('course_files').upload(path, File(file.path!));
+        }
+
+        final url = supabase.storage.from('course_files').getPublicUrl(path);
+        urls.add(url);
+      } catch (e) {
+        print('Upload failed for ${file.name}: $e');
+      }
+    }
+    return urls;
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_scopeType == 'specific' && _selectedGroups.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one group')),
+      );
+      return;
+    }
+
+    setState(() => _isUploading = true);
+
+    try {
+      final fileUrls = await _uploadFiles();
+
+      await context.read<AnnouncementProvider>().createAnnouncement(
+            courseId: widget.course.id,
+            instructorId: widget.instructorId,
+            title: _titleController.text.trim(),
+            content: _contentController.text.trim(),
+            fileAttachments: fileUrls,
+            scopeType: _scopeType,
+            targetGroups: _selectedGroups,
+          );
+
+      await context.read<NotificationProvider>().createNotification(
+            userId: 'all_students',
+            type: 'announcement',
+            title: 'New Announcement: ${_titleController.text}',
+            message: 'Check the course stream for details.',
+          );
+
+      if (mounted) {
         Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Announcement created successfully'),
-            backgroundColor: Colors.green,
-          ),
+          SnackBar(content: Text('Error: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -74,148 +161,267 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Create Announcement', style: GoogleFonts.poppins()),
+        title: Text('New Announcement', style: GoogleFonts.poppins()),
         actions: [
-          TextButton(
-            onPressed: _createAnnouncement,
-            child: const Text('Post', style: TextStyle(color: Colors.white)),
-          ),
+          IconButton(
+            icon: _isUploading 
+              ? const SizedBox(
+                  width: 20, 
+                  height: 20, 
+                  child: CircularProgressIndicator(
+                    color: Colors.white, 
+                    strokeWidth: 2
+                  )
+                )
+              : const Icon(Icons.check),
+            onPressed: _isUploading ? null : _submit,
+          )
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Title field
+              // Title Field
               TextFormField(
                 controller: _titleController,
                 decoration: InputDecoration(
                   labelText: 'Title',
-                  hintText: 'Enter announcement title',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.title),
+                  labelStyle: GoogleFonts.poppins(),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  return null;
-                },
+                style: GoogleFonts.poppins(),
+                validator: (val) => val!.isEmpty ? 'Title is required' : null,
               ),
               const SizedBox(height: 16),
-
-              // Content field
-              TextFormField(
-                controller: _contentController,
-                decoration: InputDecoration(
-                  labelText: 'Content',
-                  hintText: 'Enter announcement content',
-                  alignLabelWithHint: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+              
+              // Content Field with Markdown Support
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Content',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      TextButton.icon(
+                        icon: Icon(
+                          _showMarkdownHelp ? Icons.help : Icons.help_outline,
+                          size: 16,
+                        ),
+                        label: Text(
+                          'Markdown Guide',
+                          style: GoogleFonts.poppins(fontSize: 12),
+                        ),
+                        onPressed: () {
+                          setState(() => _showMarkdownHelp = !_showMarkdownHelp);
+                        },
+                      ),
+                    ],
                   ),
-                ),
-                maxLines: 6,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter content';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Scope selection
-              Text(
-                'Target Audience',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              RadioListTile<String>(
-                title: const Text('All students in course'),
-                value: 'all',
-                groupValue: _scopeType,
-                onChanged: (value) {
-                  setState(() {
-                    _scopeType = value!;
-                    _selectedGroups = [];
-                  });
-                },
-              ),
-              RadioListTile<String>(
-                title: const Text('Specific groups'),
-                value: 'specific',
-                groupValue: _scopeType,
-                onChanged: (value) {
-                  setState(() {
-                    _scopeType = value!;
-                  });
-                },
-              ),
-
-              // Group selection (if specific)
-              if (_scopeType == 'specific') ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
+                  const SizedBox(height: 8),
+                  
+                  if (_showMarkdownHelp)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue[200]!),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Formatting Tips:',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildMarkdownTip('**bold text**', 'Bold'),
+                          _buildMarkdownTip('*italic text*', 'Italic'),
+                          _buildMarkdownTip('# Heading 1', 'Large Heading'),
+                          _buildMarkdownTip('## Heading 2', 'Medium Heading'),
+                          _buildMarkdownTip('- Item', 'Bullet list'),
+                          _buildMarkdownTip('1. Item', 'Numbered list'),
+                          _buildMarkdownTip('[Link](url)', 'Hyperlink'),
+                        ],
+                      ),
+                    ),
+                  
+                  TextFormField(
+                    controller: _contentController,
+                    decoration: InputDecoration(
+                      hintText: 'Write your announcement content here...\n\nYou can use Markdown for formatting!',
+                      hintStyle: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[400]),
+                      border: const OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                    style: GoogleFonts.poppins(),
+                    maxLines: 8,
+                    validator: (val) => val!.isEmpty ? 'Content is required' : null,
                   ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Scope Selection
+              Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Select Groups:',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          'Send To',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      ..._availableGroups.map((group) {
-                        return CheckboxListTile(
-                          title: Text(group.name),
-                          subtitle: Text('${group.studentCount ?? 0} students'),
-                          value: _selectedGroups.contains(group.id),
-                          onChanged: (checked) {
-                            setState(() {
-                              if (checked ?? false) {
-                                _selectedGroups.add(group.id);
-                              } else {
-                                _selectedGroups.remove(group.id);
-                              }
-                            });
-                          },
-                        );
-                      }),
+                      RadioListTile<String>(
+                        title: Text('All Students', style: GoogleFonts.poppins()),
+                        value: 'all',
+                        groupValue: _scopeType,
+                        onChanged: (val) => setState(() => _scopeType = val!),
+                      ),
+                      RadioListTile<String>(
+                        title: Text('Specific Groups', style: GoogleFonts.poppins()),
+                        value: 'specific',
+                        groupValue: _scopeType,
+                        onChanged: (val) => setState(() => _scopeType = val!),
+                      ),
+                      if (_scopeType == 'specific')
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16, top: 8),
+                          child: Column(
+                            children: _availableGroups.map((g) => CheckboxListTile(
+                              title: Text(g.name, style: GoogleFonts.poppins()),
+                              value: _selectedGroups.contains(g.id),
+                              onChanged: (selected) {
+                                setState(() {
+                                  selected! 
+                                    ? _selectedGroups.add(g.id) 
+                                    : _selectedGroups.remove(g.id);
+                                });
+                              },
+                            )).toList(),
+                          ),
+                        ),
                     ],
                   ),
                 ),
-              ],
-
+              ),
               const SizedBox(height: 16),
 
-              // File attachments
-              ElevatedButton.icon(
-                onPressed: () {
-                  // TODO: Implement file picker
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('File upload will be implemented later'),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.attach_file),
-                label: const Text('Attach Files'),
+              // File Attachments
+              Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Attachments',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          TextButton.icon(
+                            icon: const Icon(Icons.attach_file),
+                            label: Text('Add Files', style: GoogleFonts.poppins()),
+                            onPressed: _pickFiles,
+                          ),
+                        ],
+                      ),
+                      if (_pickedFiles.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: _pickedFiles.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final file = entry.value;
+                              return ListTile(
+                                dense: true,
+                                leading: const Icon(Icons.insert_drive_file, color: Colors.blue),
+                                title: Text(
+                                  file.name,
+                                  style: GoogleFonts.poppins(fontSize: 13),
+                                ),
+                                subtitle: Text(
+                                  '${(file.size / 1024).toStringAsFixed(1)} KB',
+                                  style: GoogleFonts.poppins(fontSize: 11),
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.red),
+                                  onPressed: () => _removeFile(index),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMarkdownTip(String syntax, String description) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.blue[300]!),
+            ),
+            child: Text(
+              syntax,
+              style: GoogleFonts.sourceCodePro(fontSize: 11),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            description,
+            style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[700]),
+          ),
+        ],
       ),
     );
   }
