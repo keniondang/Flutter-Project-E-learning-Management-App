@@ -44,7 +44,8 @@ class ForumProvider with ChangeNotifier {
       print('Error loading forums: $e');
     }
 
-    _forums = box.values.where((x) => x.courseId == courseId).toList();
+    _forums = box.values.where((x) => x.courseId == courseId).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     _isLoading = false;
     notifyListeners();
