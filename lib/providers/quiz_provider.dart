@@ -98,30 +98,21 @@ class QuizProvider extends ChangeNotifier {
   }
 
   Future<int> countInSemester(String semesterId) async {
-    final box = await Hive.openBox<Quiz>(_boxName);
-
     try {
       final response = await _supabase
           .from('quizzes')
-          // FIX: Use !inner
           .select('*, courses!inner(semester_id)')
-          .eq('courses.semester_id', semesterId);
+          .eq('courses.semester_id', semesterId)
+          .count();
 
-      await box
-          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
-        final quiz = Quiz.fromJson(
-            json: json,
-            semesterId: json['courses']['semester_id'],
-            submissionCount: await _fetchSubmissionCount(json['id']));
-
-        return MapEntry(quiz.id, quiz);
-      }))));
+      return response.count;
     } catch (e) {
       _error = e.toString();
       print('Error loading quizzes count: $e');
-    }
 
-    return box.values.where((x) => x.semesterId == semesterId).length;
+      final box = await Hive.openBox<Quiz>(_boxName);
+      return box.values.where((x) => x.semesterId == semesterId).length;
+    }
   }
 
   Future<int> _fetchSubmissionCount(String quizId) async {

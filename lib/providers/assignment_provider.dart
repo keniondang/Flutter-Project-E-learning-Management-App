@@ -23,27 +23,25 @@ class AssignmentProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Assignment>(_boxName);
 
-    if (!box.values.any((x) => x.courseId == courseId)) {
-      try {
-        final response = await _supabase
-            .from('assignments')
-            .select('*, courses(semester_id)')
-            .eq('course_id', courseId);
+    try {
+      final response = await _supabase
+          .from('assignments')
+          .select('*, courses(semester_id)')
+          .eq('course_id', courseId);
 
-        await box.putAll(
-            Map.fromEntries(await Future.wait(response.map((json) async {
-          final assignment = Assignment.fromJson(
-            json: json,
-            semesterId: json['courses']['semester_id'],
-            submissionCount: await _fetchSubmissionCount(json['id']),
-          );
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final assignment = Assignment.fromJson(
+          json: json,
+          semesterId: json['courses']['semester_id'],
+          submissionCount: await _fetchSubmissionCount(json['id']),
+        );
 
-          return MapEntry(assignment.id, assignment);
-        }))));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading asignments: $e');
-      }
+        return MapEntry(assignment.id, assignment);
+      }))));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading asignments: $e');
     }
 
     _assignments = box.values.where((x) => x.courseId == courseId).toList();
@@ -98,32 +96,21 @@ class AssignmentProvider extends ChangeNotifier {
   }
 
   Future<int> countInSemester(String semesterId) async {
-    final box = await Hive.openBox<Assignment>(_boxName);
+    try {
+      final response = await _supabase
+          .from('assignments')
+          .select('*, courses!inner(semester_id)')
+          .eq('courses.semester_id', semesterId)
+          .count();
 
-    if (!box.values.any((x) => x.semesterId == semesterId)) {
-      try {
-        final response = await _supabase
-            .from('assignments')
-            // FIX: Use !inner here too
-            .select('*, courses!inner(semester_id)')
-            .eq('courses.semester_id', semesterId);
+      return response.count;
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading assignments count: $e');
 
-        await box.putAll(
-            Map.fromEntries(await Future.wait(response.map((json) async {
-          final assignment = Assignment.fromJson(
-              json: json,
-              semesterId: json['courses']['semester_id'],
-              submissionCount: await _fetchSubmissionCount(json['id']));
-
-          return MapEntry(assignment.id, assignment);
-        }))));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading assignments count: $e');
-      }
+      final box = await Hive.openBox<Assignment>(_boxName);
+      return box.values.where((x) => x.semesterId == semesterId).length;
     }
-
-    return box.values.where((x) => x.semesterId == semesterId).length;
   }
 
   Future<int> _fetchSubmissionCount(String assignmentId) async {

@@ -25,19 +25,17 @@ class StudentProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Student>(_boxName);
 
-    if (box.isEmpty) {
-      try {
-        final response =
-            await _supabase.from('users').select().eq('role', 'student');
+    try {
+      final response =
+          await _supabase.from('users').select().eq('role', 'student');
 
-        await box.putAll(Map.fromEntries((response as Iterable).map((json) {
-          final student = Student.fromJson(json: json);
-          return MapEntry(student.id, student);
-        })));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading students: $e');
-      }
+      await box.putAll(Map.fromEntries((response as Iterable).map((json) {
+        final student = Student.fromJson(json: json);
+        return MapEntry(student.id, student);
+      })));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading students: $e');
     }
 
     _students = box.values.toList();
@@ -110,24 +108,18 @@ class StudentProvider extends ChangeNotifier {
   }
 
   Future<int> countTotalStudents() async {
-    final box = await Hive.openBox<Student>(_boxName);
+    try {
+      final response =
+          await _supabase.from('users').select().eq('role', 'student').count();
 
-    if (box.isEmpty) {
-      try {
-        final response =
-            await _supabase.from('users').select().eq('role', 'student');
+      return response.count;
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading students in group: $e');
 
-        await box.putAll(Map.fromEntries((response as Iterable).map((json) {
-          final student = Student.fromJson(json: json);
-          return MapEntry(student.id, student);
-        })));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading students in group: $e');
-      }
+      final box = await Hive.openBox<Student>(_boxName);
+      return box.length;
     }
-
-    return box.length;
   }
 
   // Create new student

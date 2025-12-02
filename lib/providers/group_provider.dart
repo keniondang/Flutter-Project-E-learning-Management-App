@@ -24,36 +24,34 @@ class GroupProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Group>(_boxName);
 
-    if (!box.values.any((x) => x.courseId == courseId)) {
-      try {
-        final response = await _supabase
-            .from('groups')
-            .select('*, courses(name, semester_id)')
-            .eq('course_id', courseId);
+    try {
+      final response = await _supabase
+          .from('groups')
+          .select('*, courses(name, semester_id)')
+          .eq('course_id', courseId);
 
-        await box.putAll(Map.fromEntries(
-            await Future.wait((response as Iterable).map((json) async {
-          String? courseName;
-          String? semesterId;
+      await box.putAll(Map.fromEntries(
+          await Future.wait((response as Iterable).map((json) async {
+        String? courseName;
+        String? semesterId;
 
-          if (json['courses'] != null) {
-            courseName = json['courses']['name'];
-            semesterId = json['courses']['semester_id'];
-          }
+        if (json['courses'] != null) {
+          courseName = json['courses']['name'];
+          semesterId = json['courses']['semester_id'];
+        }
 
-          final group = Group.fromJson(
-            json: json,
-            courseName: courseName,
-            studentCount: await _fetchStudentCount(json['id']),
-            semesterId: semesterId,
-          );
+        final group = Group.fromJson(
+          json: json,
+          courseName: courseName,
+          studentCount: await _fetchStudentCount(json['id']),
+          semesterId: semesterId,
+        );
 
-          return MapEntry(group.id, group);
-        }))));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading groups: $e');
-      }
+        return MapEntry(group.id, group);
+      }))));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading groups: $e');
     }
 
     _groups = box.values.where((x) => x.courseId == courseId).toList();
@@ -91,41 +89,21 @@ class GroupProvider extends ChangeNotifier {
   }
 
   Future<int> countInSemester(String semesterId) async {
-    final box = await Hive.openBox<Group>(_boxName);
+    try {
+      final response = await _supabase
+          .from('groups')
+          .select('*, courses!inner(name, semester_id)')
+          .eq('courses.semester_id', semesterId)
+          .count();
 
-    if (!box.values.any((x) => x.semesterId == semesterId)) {
-      try {
-        final response = await _supabase
-            .from('groups')
-            .select('*, courses!inner(name, semester_id)')
-            .eq('courses.semester_id', semesterId);
+      return response.count;
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading groups: $e');
 
-        await box.putAll(Map.fromEntries(
-            await Future.wait((response as Iterable).map((json) async {
-          String? courseName;
-          String? semesterId;
-
-          if (json['courses'] != null) {
-            courseName = json['courses']['name'];
-            semesterId = json['courses']['semester_id'];
-          }
-
-          final group = Group.fromJson(
-            json: json,
-            courseName: courseName,
-            studentCount: await _fetchStudentCount(json['id']),
-            semesterId: semesterId,
-          );
-
-          return MapEntry(group.id, group);
-        }))));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading groups: $e');
-      }
+      final box = await Hive.openBox<Group>(_boxName);
+      return box.values.where((x) => x.semesterId == semesterId).length;
     }
-
-    return box.values.where((x) => x.semesterId == semesterId).length;
   }
 
   Future<int> _fetchStudentCount(String groupId) async {
@@ -164,7 +142,7 @@ class GroupProvider extends ChangeNotifier {
       final response = await _supabase.from('groups').insert({
         'course_id': courseId,
         'name': name.trim(),
-      }).select('*, courses(name, semester_id)'); 
+      }).select('*, courses(name, semester_id)');
 
       final newGroup = (response as Iterable).map((json) {
         String? courseName;
@@ -178,10 +156,7 @@ class GroupProvider extends ChangeNotifier {
 
         // ✅ FIX 3: Pass semesterId to the model
         return Group.fromJson(
-          json: json, 
-          courseName: courseName,
-          semesterId: semesterId
-        );
+            json: json, courseName: courseName, semesterId: semesterId);
       }).first;
 
       await box.put(newGroup.id, newGroup);
@@ -225,7 +200,7 @@ class GroupProvider extends ChangeNotifier {
       if (currentGroup != null) {
         final nameExists = box.values.any((g) =>
             g.courseId == currentGroup.courseId &&
-            g.id != id && 
+            g.id != id &&
             g.name.trim().toLowerCase() == name.trim().toLowerCase());
 
         if (nameExists) {
@@ -258,7 +233,7 @@ class GroupProvider extends ChangeNotifier {
             courseName: courseName,
             studentCount: old!.studentCount,
             semesterId: semesterId // ✅ Pass it here too
-        );
+            );
       }).first;
 
       await box.put(group.id, group);
