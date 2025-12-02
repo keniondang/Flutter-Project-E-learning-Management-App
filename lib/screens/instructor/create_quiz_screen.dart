@@ -14,10 +14,10 @@ class CreateQuizScreen extends StatefulWidget {
   final String instructorId;
 
   const CreateQuizScreen({
-    Key? key,
+    super.key,
     required this.course,
     required this.instructorId,
-  }) : super(key: key);
+  });
 
   @override
   State<CreateQuizScreen> createState() => _CreateQuizScreenState();
@@ -166,6 +166,13 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
           const SnackBar(
             content: Text('Quiz created successfully'),
             backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error creating quiz!'),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -449,7 +456,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                             child: Text('All Students'),
                           ),
                           DropdownMenuItem(
-                            value: 'groups',
+                            value: 'specific',
                             child: Text('Specific Groups'),
                           ),
                         ],
@@ -462,7 +469,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                           border: OutlineInputBorder(),
                         ),
                       ),
-                      if (_scopeType == 'groups') ...[
+                      if (_scopeType == 'specific') ...[
                         const SizedBox(height: 12),
                         Wrap(
                           spacing: 8,

@@ -5,7 +5,7 @@ import '../models/quiz.dart';
 
 class QuizProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-  final _boxName = 'box-name';
+  final _boxName = 'quiz-box';
 
   List<Quiz> _quizzes = [];
   List<Quiz> get quizzes => _quizzes;
@@ -23,26 +23,24 @@ class QuizProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Quiz>(_boxName);
 
-    if (!box.values.any((x) => x.courseId == courseId)) {
-      try {
-        final response = await _supabase
-            .from('quizzes')
-            .select('*, courses(semester_id)')
-            .eq('course_id', courseId);
+    try {
+      final response = await _supabase
+          .from('quizzes')
+          .select('*, courses(semester_id)')
+          .eq('course_id', courseId);
 
-        await box.putAll(
-            Map.fromEntries(await Future.wait(response.map((json) async {
-          final quiz = Quiz.fromJson(
-              json: json,
-              semesterId: json['courses']['semester_id'],
-              submissionCount: await _fetchSubmissionCount(json['id']));
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final quiz = Quiz.fromJson(
+            json: json,
+            semesterId: json['courses']['semester_id'],
+            submissionCount: await _fetchSubmissionCount(json['id']));
 
-          return MapEntry(quiz.id, quiz);
-        }))));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading quizzes: $e');
-      }
+        return MapEntry(quiz.id, quiz);
+      }))));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading quizzes: $e');
     }
 
     _quizzes = box.values.where((x) => x.courseId == courseId).toList();
@@ -59,11 +57,6 @@ class QuizProvider extends ChangeNotifier {
     final box = await Hive.openBox<Quiz>(_boxName);
 
     try {
-      // final response = await _supabase
-      //     .from('quizzes')
-      //     .select('*, courses(semester_id)')
-      //     .eq('course_id', courseId);
-
       late List<Map<String, dynamic>> response;
 
       if (groupId == null) {
@@ -94,7 +87,11 @@ class QuizProvider extends ChangeNotifier {
       print('Error loading quizzes: $e');
     }
 
-    _quizzes = box.values.where((x) => x.courseId == courseId).toList();
+    _quizzes = box.values
+        .where((x) =>
+            x.courseId == courseId &&
+            (x.scopeType == 'all' || x.targetGroups.contains(groupId)))
+        .toList();
 
     _isLoading = false;
     notifyListeners();
@@ -103,27 +100,25 @@ class QuizProvider extends ChangeNotifier {
   Future<int> countInSemester(String semesterId) async {
     final box = await Hive.openBox<Quiz>(_boxName);
 
-    if (!box.values.any((x) => x.semesterId == semesterId)) {
-      try {
-        final response = await _supabase
-            .from('quizzes')
-            // FIX: Use !inner
-            .select('*, courses!inner(semester_id)')
-            .eq('courses.semester_id', semesterId);
+    try {
+      final response = await _supabase
+          .from('quizzes')
+          // FIX: Use !inner
+          .select('*, courses!inner(semester_id)')
+          .eq('courses.semester_id', semesterId);
 
-        await box.putAll(
-            Map.fromEntries(await Future.wait(response.map((json) async {
-          final quiz = Quiz.fromJson(
-              json: json,
-              semesterId: json['courses']['semester_id'],
-              submissionCount: await _fetchSubmissionCount(json['id']));
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final quiz = Quiz.fromJson(
+            json: json,
+            semesterId: json['courses']['semester_id'],
+            submissionCount: await _fetchSubmissionCount(json['id']));
 
-          return MapEntry(quiz.id, quiz);
-        }))));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading quizzes count: $e');
-      }
+        return MapEntry(quiz.id, quiz);
+      }))));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading quizzes count: $e');
     }
 
     return box.values.where((x) => x.semesterId == semesterId).length;
@@ -230,6 +225,7 @@ class QuizProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _error = e.toString();
+      print('Error creating quiz: $e');
 
       notifyListeners();
       return false;
