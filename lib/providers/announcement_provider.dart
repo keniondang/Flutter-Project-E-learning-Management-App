@@ -19,36 +19,25 @@ class AnnouncementProvider extends ChangeNotifier {
   // --- CORE METHODS ---
 
   // ✅ UPDATED: Now requires currentUserId to check "hasViewed" correctly
-  Future<void> loadAllAnnouncements(String courseId, String currentUserId) async {
+  Future<void> loadAllAnnouncements(
+      String courseId, String currentUserId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
-    final Box<Announcement> box = await Hive.openBox<Announcement>(_boxName);
-    final cachedAnnouncements = box.values.cast<Announcement>();
-
-    // 1. Load Local Cache
-    if (cachedAnnouncements.any((x) => x.courseId == courseId)) {
-      _announcements = cachedAnnouncements
-          .where((x) => x.courseId == courseId)
-          .toList();
-      _announcements.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      _isLoading = false;
-      notifyListeners();
-    }
+    final box = await Hive.openBox<Announcement>(_boxName);
 
     try {
       final response = await _supabase
           .from('announcements')
           .select()
-          .eq('course_id', courseId)
-          .order('created_at', ascending: false);
+          .eq('course_id', courseId);
 
       // 2. Enrich Data
       final announcementsList =
           await Future.wait((response as List).map((json) async {
         final id = json['id'];
-        
+
         final results = await Future.wait([
           _fetchViewCount(id),
           _fetchCommentCount(id),
@@ -65,15 +54,73 @@ class AnnouncementProvider extends ChangeNotifier {
 
       await box.putAll(
           Map.fromEntries(announcementsList.map((a) => MapEntry(a.id, a))));
-
-      _announcements = announcementsList;
     } catch (e) {
       _error = e.toString();
       print('Error loading announcements: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
+
+    _announcements = box.values.where((x) => x.courseId == courseId).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> loadAnnouncements(
+      String courseId, String currentUserId, String? groupId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    final box = await Hive.openBox<Announcement>(_boxName);
+
+    try {
+      late List<Map<String, dynamic>> response;
+
+      if (groupId == null) {
+        response = await _supabase
+            .from('announcements')
+            .select()
+            .eq('course_id', courseId)
+            .eq('scope_type', 'all');
+      } else {
+        response = await _supabase
+            .from('announcements')
+            .select()
+            .eq('course_id', courseId)
+            .or('scope_type.eq.all,target_groups.cs.{$groupId}');
+      }
+
+      final announcementsList =
+          await Future.wait((response as List).map((json) async {
+        final id = json['id'];
+
+        final results = await Future.wait([
+          _fetchViewCount(id),
+          _fetchCommentCount(id),
+          _checkIfViewed(id, currentUserId),
+        ]);
+
+        return Announcement.fromJson(
+          json: json,
+          viewCount: results[0] as int,
+          commentCount: results[1] as int,
+          hasViewed: results[2] as bool,
+        );
+      }));
+
+      await box.putAll(
+          Map.fromEntries(announcementsList.map((a) => MapEntry(a.id, a))));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading announcements: $e');
+    }
+
+    _announcements = box.values.where((x) => x.courseId == courseId).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<Announcement?> createAnnouncement({
@@ -97,13 +144,13 @@ class AnnouncementProvider extends ChangeNotifier {
       }).select();
 
       final announcement = response
-          .map((json) =>
-              Announcement.fromJson(json: json, viewCount: 0, commentCount: 0, hasViewed: true))
+          .map((json) => Announcement.fromJson(
+              json: json, viewCount: 0, commentCount: 0, hasViewed: true))
           .first;
 
       final box = await Hive.openBox<Announcement>(_boxName);
       await box.put(announcement.id, announcement);
-      
+
       _announcements.insert(0, announcement);
       notifyListeners();
       return announcement;
@@ -118,22 +165,43 @@ class AnnouncementProvider extends ChangeNotifier {
 
   Future<int> _fetchViewCount(String id) async {
     try {
-      return (await _supabase.from('announcement_views').select('id').eq('announcement_id', id).count()).count;
-    } catch (_) { return 0; }
+      return (await _supabase
+              .from('announcement_views')
+              .select('id')
+              .eq('announcement_id', id)
+              .count())
+          .count;
+    } catch (_) {
+      return 0;
+    }
   }
 
   Future<int> _fetchCommentCount(String id) async {
     try {
-      return (await _supabase.from('announcement_comments').select('id').eq('announcement_id', id).count()).count;
-    } catch (_) { return 0; }
+      return (await _supabase
+              .from('announcement_comments')
+              .select('id')
+              .eq('announcement_id', id)
+              .count())
+          .count;
+    } catch (_) {
+      return 0;
+    }
   }
 
   // ✅ UPDATED: Now requires userId explicitly
   Future<bool> _checkIfViewed(String id, String userId) async {
     try {
-      final res = await _supabase.from('announcement_views').select('id').eq('announcement_id', id).eq('user_id', userId).maybeSingle();
+      final res = await _supabase
+          .from('announcement_views')
+          .select('id')
+          .eq('announcement_id', id)
+          .eq('user_id', userId)
+          .maybeSingle();
       return res != null;
-    } catch (_) { return false; }
+    } catch (_) {
+      return false;
+    }
   }
 
   // --- SOCIAL METHODS ---
@@ -142,7 +210,7 @@ class AnnouncementProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('announcement_comments')
-          .select('*, users(full_name, avatar_url)') 
+          .select('*, users(full_name, avatar_url)')
           .eq('announcement_id', announcementId)
           .order('created_at', ascending: true);
 
@@ -159,33 +227,38 @@ class AnnouncementProvider extends ChangeNotifier {
       // Fallback
       try {
         final fallbackResponse = await _supabase
-          .from('announcement_comments')
-          .select()
-          .eq('announcement_id', announcementId)
-          .order('created_at', ascending: true);
-         return (fallbackResponse as List).map((json) {
-            final Map<String, dynamic> adaptedJson = Map.from(json);
-            adaptedJson['user_name'] = 'User'; 
-            return AnnouncementComment.fromJson(adaptedJson);
-         }).toList();
+            .from('announcement_comments')
+            .select()
+            .eq('announcement_id', announcementId)
+            .order('created_at', ascending: true);
+        return (fallbackResponse as List).map((json) {
+          final Map<String, dynamic> adaptedJson = Map.from(json);
+          adaptedJson['user_name'] = 'User';
+          return AnnouncementComment.fromJson(adaptedJson);
+        }).toList();
       } catch (e2) {
-         return [];
+        return [];
       }
     }
   }
 
   // ✅ UPDATED: Now requires userId explicitly
-  Future<AnnouncementComment?> addComment(String announcementId, String text, String userId) async {
+  Future<AnnouncementComment?> addComment(
+      String announcementId, String text, String userId) async {
     try {
-      final response = await _supabase.from('announcement_comments').insert({
-        'announcement_id': announcementId,
-        'user_id': userId,
-        'comment': text,
-      }).select().single();
+      final response = await _supabase
+          .from('announcement_comments')
+          .insert({
+            'announcement_id': announcementId,
+            'user_id': userId,
+            'comment': text,
+          })
+          .select()
+          .single();
 
       final Map<String, dynamic> adaptedJson = Map.from(response);
-      adaptedJson['user_name'] = 'Me'; 
-      
+      adaptedJson['user_name'] = 'Me';
+
       final newComment = AnnouncementComment.fromJson(adaptedJson);
       notifyListeners();
       return newComment;
@@ -213,7 +286,7 @@ class AnnouncementProvider extends ChangeNotifier {
         'announcement_id': id,
         'user_id': userId,
         'file_name': fileName,
-        'downloaded_at': DateTime.now().toIso8601String(), 
+        'downloaded_at': DateTime.now().toIso8601String(),
       });
     } catch (_) {}
   }
@@ -226,6 +299,8 @@ class AnnouncementProvider extends ChangeNotifier {
           .eq('announcement_id', id)
           .order('viewed_at', ascending: false);
       return List<Map<String, dynamic>>.from(res);
-    } catch (_) { return []; }
+    } catch (_) {
+      return [];
+    }
   }
 }

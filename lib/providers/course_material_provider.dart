@@ -23,27 +23,23 @@ class CourseMaterialProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<CourseMaterial>(_boxName);
 
-    if (!box.values.any((x) => x.courseId == courseId)) {
-      try {
-        final response = await _supabase
-            .from('materials')
-            .select()
-            .eq('course_id', courseId);
-        // .order('created_at, ascending: false);
+    try {
+      final response =
+          await _supabase.from('materials').select().eq('course_id', courseId);
+      // .order('created_at, ascending: false);
 
-        await box.putAll(
-            Map.fromEntries(await Future.wait(response.map((json) async {
-          final (viewCount, downloadCount) = await _fetchStats(json['id']);
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final (viewCount, downloadCount) = await _fetchStats(json['id']);
 
-          final material = CourseMaterial.fromJson(
-              json: json, viewCount: viewCount, downloadCount: downloadCount);
+        final material = CourseMaterial.fromJson(
+            json: json, viewCount: viewCount, downloadCount: downloadCount);
 
-          return MapEntry(material.id, material);
-        }))));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading quizzes: $e');
-      }
+        return MapEntry(material.id, material);
+      }))));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading quizzes: $e');
     }
 
     _materials = box.values.where((x) => x.courseId == courseId).toList();
