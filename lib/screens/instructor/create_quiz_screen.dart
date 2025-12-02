@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../models/course.dart';
 import '../../models/group.dart';
-import '../../providers/content_provider.dart';
 import '../../providers/group_provider.dart';
 import '../../providers/question_bank_provider.dart';
 import 'question_bank_screen.dart';

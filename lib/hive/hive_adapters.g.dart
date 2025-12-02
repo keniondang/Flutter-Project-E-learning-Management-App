@@ -798,3 +798,107 @@ class AssignmentSubmissionAdapter extends TypeAdapter<AssignmentSubmission> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
+
+class ForumAdapter extends TypeAdapter<Forum> {
+  @override
+  final typeId = 13;
+
+  @override
+  Forum read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return Forum(
+      id: fields[0] as String,
+      courseId: fields[1] as String,
+      title: fields[2] as String,
+      content: fields[3] as String,
+      createdBy: fields[7] as String,
+      createdByFullName: fields[8] as String,
+      replyCount: fields[5] == null ? 0 : (fields[5] as num).toInt(),
+      createdAt: fields[6] as DateTime,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Forum obj) {
+    writer
+      ..writeByte(8)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.courseId)
+      ..writeByte(2)
+      ..write(obj.title)
+      ..writeByte(3)
+      ..write(obj.content)
+      ..writeByte(5)
+      ..write(obj.replyCount)
+      ..writeByte(6)
+      ..write(obj.createdAt)
+      ..writeByte(7)
+      ..write(obj.createdBy)
+      ..writeByte(8)
+      ..write(obj.createdByFullName);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ForumAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class ForumReplyAdapter extends TypeAdapter<ForumReply> {
+  @override
+  final typeId = 14;
+
+  @override
+  ForumReply read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return ForumReply(
+      id: fields[0] as String,
+      forumId: fields[1] as String,
+      content: fields[2] as String,
+      userId: fields[3] as String,
+      userFullName: fields[4] as String,
+      createdAt: fields[5] as DateTime,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, ForumReply obj) {
+    writer
+      ..writeByte(6)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.forumId)
+      ..writeByte(2)
+      ..write(obj.content)
+      ..writeByte(3)
+      ..write(obj.userId)
+      ..writeByte(4)
+      ..write(obj.userFullName)
+      ..writeByte(5)
+      ..write(obj.createdAt);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ForumReplyAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}

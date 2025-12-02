@@ -16,7 +16,7 @@ class AssignmentProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  Future<void> loadAssignments(String courseId) async {
+  Future<void> loadAllAssignments(String courseId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -52,6 +52,51 @@ class AssignmentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadAssignments(String courseId, String? groupId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    final box = await Hive.openBox<Assignment>(_boxName);
+
+    try {
+      late List<Map<String, dynamic>> response;
+
+      if (groupId == null) {
+        response = await _supabase
+            .from('assignments')
+            .select('*, courses(semester_id)')
+            .eq('course_id', courseId)
+            .eq('scope_type', 'all');
+      } else {
+        response = await _supabase
+            .from('assignments')
+            .select('*, courses(semester_id)')
+            .eq('course_id', courseId)
+            .or('scope_type.eq.all,target_groups.cs.{$groupId}');
+      }
+
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final assignment = Assignment.fromJson(
+          json: json,
+          semesterId: json['courses']['semester_id'],
+          submissionCount: await _fetchSubmissionCount(json['id']),
+        );
+
+        return MapEntry(assignment.id, assignment);
+      }))));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading asignments: $e');
+    }
+
+    _assignments = box.values.where((x) => x.courseId == courseId).toList();
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
   Future<int> countInSemester(String semesterId) async {
     final box = await Hive.openBox<Assignment>(_boxName);
 
@@ -60,7 +105,7 @@ class AssignmentProvider extends ChangeNotifier {
         final response = await _supabase
             .from('assignments')
             // FIX: Use !inner here too
-            .select('*, courses!inner(semester_id)') 
+            .select('*, courses!inner(semester_id)')
             .eq('courses.semester_id', semesterId);
 
         await box.putAll(

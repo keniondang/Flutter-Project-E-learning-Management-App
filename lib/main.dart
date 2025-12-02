@@ -2,6 +2,8 @@ import 'package:elearning_management_app/hive/hive_registrar.g.dart';
 import 'package:elearning_management_app/providers/announcement_provider.dart';
 import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:elearning_management_app/providers/course_material_provider.dart';
+import 'package:elearning_management_app/providers/forum_provider.dart';
+import 'package:elearning_management_app/providers/forum_reply_provider.dart';
 import 'package:elearning_management_app/providers/instructor_course_provider.dart';
 import 'package:elearning_management_app/providers/quiz_attempt_provider.dart';
 import 'package:elearning_management_app/providers/quiz_provider.dart';
@@ -60,6 +62,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => AssignmentSubmissionProvider(),
         ),
+        ChangeNotifierProvider(create: (_) => ForumProvider()),
+        ChangeNotifierProvider(create: (_) => ForumReplyProvider()),
       ],
       child: MaterialApp(
         title: 'E-Learning Management',
