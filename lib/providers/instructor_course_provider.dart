@@ -101,6 +101,7 @@ class InstructorCourseProvider extends ChangeNotifier {
         'name': name,
         'sessions': sessions,
         'cover_image': coverImage,
+        'instructor_id': Supabase.instance.client.auth.currentUser!.id,
       }).select('*');
 
       final newCourse = (response as Iterable).map((json) {

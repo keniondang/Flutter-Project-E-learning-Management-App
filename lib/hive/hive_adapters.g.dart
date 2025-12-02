@@ -24,6 +24,7 @@ class CourseAdapter extends TypeAdapter<Course> {
       sessions: (fields[4] as num).toInt(),
       coverImage: fields[5] as String?,
       createdAt: fields[6] as DateTime,
+      instructorId: fields[13] as String,
       semesterName: fields[7] as String?,
       groupIds: (fields[10] as Set?)?.cast<String>(),
       studentCount: (fields[12] as num?)?.toInt(),
@@ -33,7 +34,7 @@ class CourseAdapter extends TypeAdapter<Course> {
   @override
   void write(BinaryWriter writer, Course obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +54,9 @@ class CourseAdapter extends TypeAdapter<Course> {
       ..writeByte(10)
       ..write(obj.groupIds)
       ..writeByte(12)
-      ..write(obj.studentCount);
+      ..write(obj.studentCount)
+      ..writeByte(13)
+      ..write(obj.instructorId);
   }
 
   @override

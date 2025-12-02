@@ -6,7 +6,7 @@ class Course {
   int sessions;
   String? coverImage;
   final DateTime createdAt;
-
+  final String? instructorId;
   late Set<String> groupIds;
   // late Set<String> studentIds;
 
@@ -24,6 +24,7 @@ class Course {
     required this.sessions,
     this.coverImage,
     required this.createdAt,
+    required this.instructorId,
     this.semesterName,
     Set<String>? groupIds,
     // this.groupCount,
@@ -51,7 +52,7 @@ class Course {
       groupIds: groupIds,
       studentCount: studentCount,
       // studentIds: studentIds,
-
+      instructorId: json['instructor_id'] ?? '',  // Add this
       // groupCount: groupCount ?? 0,
       // studentCount: studentCount ?? 0,
     );
