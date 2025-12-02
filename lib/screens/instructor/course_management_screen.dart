@@ -590,13 +590,13 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
           ),
         ],
       ),
-      floatingActionButton: _selectedSemester != null
-          ? FloatingActionButton(
-              onPressed: () => _showAddEditDialog(),
-              tooltip: 'Add Course',
-              child: const Icon(Icons.add),
-            )
-          : null,
+      //floatingActionButton: _selectedSemester != null
+      //    ? FloatingActionButton(
+      //        onPressed: () => _showAddEditDialog(),
+      //        tooltip: 'Add Course',
+      //        child: const Icon(Icons.add),
+      //      )
+      //    : null,
     );
   }
 }
