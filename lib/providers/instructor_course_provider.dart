@@ -29,38 +29,36 @@ class InstructorCourseProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Course>(_boxName);
 
-    if (!box.values.any((x) => x.semesterId == semesterId)) {
-      try {
-        final response = await _supabase
-            .from('courses')
-            .select('*, semesters(name)')
-            .eq('semester_id', semesterId);
-        // .order('created_at', ascending: false);
+    try {
+      final response = await _supabase
+          .from('courses')
+          .select('*, semesters(name)')
+          .eq('semester_id', semesterId);
+      // .order('created_at', ascending: false);
 
-        await box.putAll(Map.fromEntries(
-            await Future.wait((response as List).map((json) async {
-          String? semesterName;
+      await box.putAll(Map.fromEntries(
+          await Future.wait((response as List).map((json) async {
+        String? semesterName;
 
-          if (json['semesters'] != null) {
-            semesterName = json['semesters']['name'];
-          }
+        if (json['semesters'] != null) {
+          semesterName = json['semesters']['name'];
+        }
 
-          final groupResponse = _fetchGroup(json['id']);
-          final studentResponse = _fetchStudent(json['id']);
+        final groupResponse = _fetchGroup(json['id']);
+        final studentResponse = _fetchStudent(json['id']);
 
-          final course = Course.fromJson(
-              json: json,
-              semesterName: semesterName,
-              groupIds:
-                  (await groupResponse).map((x) => x['id'] as String).toSet(),
-              studentCount: await studentResponse);
+        final course = Course.fromJson(
+            json: json,
+            semesterName: semesterName,
+            groupIds:
+                (await groupResponse).map((x) => x['id'] as String).toSet(),
+            studentCount: await studentResponse);
 
-          return MapEntry(course.id, course);
-        }))));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading courses: $e');
-      }
+        return MapEntry(course.id, course);
+      }))));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading courses: $e');
     }
 
     _courses = box.values.where((x) => x.semesterId == semesterId).toList();

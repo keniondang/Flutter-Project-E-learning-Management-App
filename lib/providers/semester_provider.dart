@@ -26,22 +26,20 @@ class SemesterProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Semester>(_boxName);
 
-    if (box.isEmpty) {
-      try {
-        final response = await _supabase
-            .from('semesters')
-            .select()
-            .order('created_at', ascending: false);
+    try {
+      final response = await _supabase
+          .from('semesters')
+          .select()
+          .order('created_at', ascending: false);
 
-        // _semesters =
-        //     (response as List).map((json) => Semester.fromJson(json)).toList();
+      // _semesters =
+      //     (response as List).map((json) => Semester.fromJson(json)).toList();
 
-        await box.putAll(Map.fromEntries(response
-            .map((json) => MapEntry(json['id'], Semester.fromJson(json)))));
-      } catch (e) {
-        _error = e.toString();
-        debugPrint('Error loading semesters: $e');
-      }
+      await box.putAll(Map.fromEntries(response
+          .map((json) => MapEntry(json['id'], Semester.fromJson(json)))));
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Error loading semesters: $e');
     }
 
     _semesters = box.values.toList();

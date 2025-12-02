@@ -24,20 +24,18 @@ class QuestionBankProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Question>(_boxName);
 
-    if (!box.values.any((x) => x.courseId == courseId)) {
-      try {
-        final response = await _supabase
-            .from('question_bank')
-            .select()
-            .eq('course_id', courseId)
-            .order('created_at', ascending: false);
+    try {
+      final response = await _supabase
+          .from('question_bank')
+          .select()
+          .eq('course_id', courseId)
+          .order('created_at', ascending: false);
 
-        await box.putAll(Map.fromEntries(response
-            .map((json) => MapEntry(json['id'], Question.fromJson(json)))));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading questions: $e');
-      }
+      await box.putAll(Map.fromEntries(response
+          .map((json) => MapEntry(json['id'], Question.fromJson(json)))));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading questions: $e');
     }
 
     _questions = box.values.where((x) => x.courseId == courseId).toList();

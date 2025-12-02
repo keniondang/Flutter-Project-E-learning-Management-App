@@ -29,7 +29,8 @@ class ForumReplyProvider extends ChangeNotifier {
       final response = await _supabase
           .from('forum_replies')
           .select('*, users(full_name)')
-          .eq('forum_id', forumId);
+          .eq('forum_id', forumId)
+          .order('created_at');
 
       await box.putAll(Map.fromEntries(response.map((json) {
         final String fullName = json['users']['full_name'];
@@ -43,7 +44,8 @@ class ForumReplyProvider extends ChangeNotifier {
       print('Error loading forums: $e');
     }
 
-    _forumReplies = box.values.where((x) => x.forumId == forumId).toList();
+    _forumReplies = box.values.where((x) => x.forumId == forumId).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     _isLoading = false;
     notifyListeners();

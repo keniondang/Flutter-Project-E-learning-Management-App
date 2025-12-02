@@ -32,22 +32,20 @@ class StudentCourseProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Course>(_boxName);
 
-    if (!box.values.any((x) => x.semesterId == semesterId)) {
-      try {
-        final response = await _supabase
-            .from('enrollments')
-            .select('groups!inner(course_id, courses!inner(*))')
-            .eq('student_id', studentId)
-            .eq('groups.courses.semester_id', semesterId);
+    try {
+      final response = await _supabase
+          .from('enrollments')
+          .select('groups!inner(course_id, courses!inner(*))')
+          .eq('student_id', studentId)
+          .eq('groups.courses.semester_id', semesterId);
 
-        await box.putAll(Map.fromEntries((response as List).map((json) {
-          final course = Course.fromJson(json: json["groups"]["courses"]);
-          return MapEntry(course.id, course);
-        })));
-      } catch (e) {
-        _error = e.toString();
-        print('Error loading courses: $e');
-      }
+      await box.putAll(Map.fromEntries((response as List).map((json) {
+        final course = Course.fromJson(json: json["groups"]["courses"]);
+        return MapEntry(course.id, course);
+      })));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading courses: $e');
     }
 
     _courses = box.values.where((x) => x.semesterId == semesterId).toList();
