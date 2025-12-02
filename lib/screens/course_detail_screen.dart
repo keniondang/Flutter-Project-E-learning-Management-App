@@ -76,7 +76,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
       await Future.wait([
         context
             .read<AnnouncementProvider>()
-            .loadAllAnnouncements(widget.course.id, widget.user.id),
+            .loadAnnouncements(widget.course.id, widget.user.id, groupId),
         context
             .read<AssignmentProvider>()
             .loadAssignments(widget.course.id, groupId),
