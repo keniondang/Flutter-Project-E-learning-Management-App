@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:elearning_management_app/models/course.dart';
 import 'package:elearning_management_app/providers/student_course_provider.dart';
 import 'package:flutter/material.dart';
@@ -34,23 +36,23 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   CourseSortOption _currentSortOption = CourseSortOption.nameAsc;
   String _searchQuery = '';
 
+  late StreamSubscription<void> _notificationSubscription;
+
   @override
   void initState() {
     super.initState();
     _loadSemesters();
-    _loadNotifications();
+    _notificationSubscription =
+        context.read<NotificationProvider>().streamNotification(
+              widget.user.id,
+            );
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _notificationSubscription.cancel();
     super.dispose();
-  }
-
-  Future<void> _loadNotifications() async {
-    await context.read<NotificationProvider>().loadNotifications(
-          widget.user.id,
-        );
   }
 
   Future<void> _loadSemesters() async {

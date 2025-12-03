@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide Notification;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification.dart';
@@ -41,6 +43,19 @@ class NotificationProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  StreamSubscription<void> streamNotification(String userId) {
+    return _supabase
+        .from('notifications_to')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .listen((jsons) async {
+          print('aa');
+          _notifications = await _fetchNotifications(jsons);
+          _unreadCount = _notifications.where((n) => !n.isRead).length;
+          notifyListeners();
+        });
   }
 
   Future<void> markAsRead(String notificationId, String userId) async {
@@ -96,6 +111,28 @@ class NotificationProvider extends ChangeNotifier {
       });
     } catch (e) {
       print('Error creating notification: $e');
+    }
+  }
+
+  Future<List<Notification>> _fetchNotifications(
+      List<Map<String, dynamic>> request) async {
+    try {
+      final idMap = Map.fromEntries(request.map((json) => MapEntry(
+          json['notification_id'] as String, json['is_read'] as bool)));
+
+      final response = await _supabase
+          .from('notifications')
+          .select()
+          .inFilter('id', idMap.keys.toList());
+
+      return response
+          .map((json) =>
+              Notification.fromJson(json: json, isRead: idMap[json['id']]))
+          .toList();
+    } catch (e) {
+      print('Error fetching notification: $e');
+
+      return [];
     }
   }
 }
