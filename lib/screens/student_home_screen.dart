@@ -1,3 +1,4 @@
+import 'package:elearning_management_app/models/course.dart';
 import 'package:elearning_management_app/providers/student_course_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -61,6 +62,162 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         _selectedSemester = semesterProvider.currentSemester;
       });
     }
+  }
+
+  Future<Widget> _buildCourses(StudentCourseProvider provider) async {
+    if (provider.currentSemester != _selectedSemester!.id) {
+      await provider.loadEnrolledCourses(widget.user.id, _selectedSemester!.id);
+    }
+
+    List<Course> courses = provider.courses;
+
+    courses = courses.where((course) {
+      final matchesName = course.name.toLowerCase().contains(_searchQuery);
+      final matchesCode = course.code.toLowerCase().contains(_searchQuery);
+      return matchesName || matchesCode;
+    }).toList();
+
+    courses.sort((a, b) {
+      switch (_currentSortOption) {
+        case CourseSortOption.nameAsc:
+          return a.name.compareTo(b.name);
+        case CourseSortOption.nameDesc:
+          return b.name.compareTo(a.name);
+        case CourseSortOption.codeAsc:
+          return a.code.compareTo(b.code);
+        case CourseSortOption.sessionsDesc:
+          return b.sessions.compareTo(a.sessions); // Assuming 'sessions' is int
+      }
+    });
+
+    if (courses.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 80,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _searchQuery.isEmpty
+                  ? 'No enrolled courses'
+                  : 'No courses match your search',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+        childAspectRatio: 1.2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: courses.length,
+      itemBuilder: (context, index) {
+        final course = courses[index];
+        return Card(
+          elevation: 3,
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CourseDetailScreen(
+                    course: course,
+                    user: widget.user,
+                  ),
+                ),
+              );
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Course header with gradient
+                Container(
+                  height: 80,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.primaries[index % Colors.primaries.length],
+                        Colors.primaries[index % Colors.primaries.length]
+                            .withOpacity(0.7),
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(4),
+                      topRight: Radius.circular(4),
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.book,
+                      size: 40,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ),
+                // Course info
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          course.code,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        Text(
+                          course.name,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.schedule,
+                              size: 14,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${course.sessions} sessions',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -270,177 +427,37 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
 
           // Courses List
-          Expanded(child: Consumer<StudentCourseProvider>(
-            builder: (context, provider, child) {
-              if (provider.isLoading || _selectedSemester == null) {
+          Expanded(child: Consumer2<SemesterProvider, StudentCourseProvider>(
+            builder: (context, semesterProvider, studentProvider, child) {
+              if (studentProvider.isLoading ||
+                  semesterProvider.currentSemester == null ||
+                  _selectedSemester == null) {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              // Load data if needed
-              if (provider.currentSemester != _selectedSemester!.id) {
-                // Use addPostFrameCallback to avoid state errors during build
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  provider.loadEnrolledCourses(
-                      widget.user.id, _selectedSemester!.id);
-                });
-              }
-
-              // 1. Filter Logic
-              final filteredCourses = provider.courses.where((course) {
-                final matchesName =
-                    course.name.toLowerCase().contains(_searchQuery);
-                final matchesCode =
-                    course.code.toLowerCase().contains(_searchQuery);
-                return matchesName || matchesCode;
-              }).toList();
-
-              // 2. Sort Logic
-              filteredCourses.sort((a, b) {
-                switch (_currentSortOption) {
-                  case CourseSortOption.nameAsc:
-                    return a.name.compareTo(b.name);
-                  case CourseSortOption.nameDesc:
-                    return b.name.compareTo(a.name);
-                  case CourseSortOption.codeAsc:
-                    return a.code.compareTo(b.code);
-                  case CourseSortOption.sessionsDesc:
-                    return b.sessions
-                        .compareTo(a.sessions); // Assuming 'sessions' is int
-                }
-              });
-
-              if (filteredCourses.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.search_off,
-                        size: 80,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _searchQuery.isEmpty
-                            ? 'No enrolled courses'
-                            : 'No courses match your search',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return GridView.builder(
-                padding: const EdgeInsets.all(16),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount:
-                      MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                  childAspectRatio: 1.2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                ),
-                itemCount: filteredCourses.length,
-                itemBuilder: (context, index) {
-                  final course = filteredCourses[index];
-                  return Card(
-                    elevation: 3,
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CourseDetailScreen(
-                              course: course,
-                              user: widget.user,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Course header with gradient
-                          Container(
-                            height: 80,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.primaries[
-                                      index % Colors.primaries.length],
-                                  Colors.primaries[
-                                          index % Colors.primaries.length]
-                                      .withOpacity(0.7),
-                                ],
-                              ),
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(4),
-                                topRight: Radius.circular(4),
-                              ),
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.book,
-                                size: 40,
-                                color: Colors.white.withOpacity(0.9),
-                              ),
-                            ),
-                          ),
-                          // Course info
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    course.code,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                  Text(
-                                    course.name,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.schedule,
-                                        size: 14,
-                                        color: Colors.grey[600],
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '${course.sessions} sessions',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 11,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
+              return FutureBuilder(
+                future: _buildCourses(studentProvider),
+                builder: (context, snapshot) {
+                  switch (snapshot.connectionState) {
+                    case ConnectionState.waiting:
+                      return const Center(child: CircularProgressIndicator());
+                    case ConnectionState.done:
+                      return snapshot.data!;
+                    default:
+                      return const Center(child: CircularProgressIndicator());
+                  }
                 },
               );
+
+              // Load data if needed
+              // if (studentProvider.currentSemester != _selectedSemester!.id) {
+              //   // Use addPostFrameCallback to avoid state errors during build
+              //   studentProvider.loadEnrolledCourses(
+              //       widget.user.id, _selectedSemester!.id);
+              //   return const Center(child: CircularProgressIndicator());
+              // }
+
+              // 1. Filter Logic
             },
           )),
         ],

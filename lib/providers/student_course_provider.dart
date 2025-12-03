@@ -20,10 +20,6 @@ class StudentCourseProvider extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> loadEnrolledCourses(String studentId, String semesterId) async {
-    if (semesterId == _currentSemester) {
-      return;
-    }
-
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -35,14 +31,20 @@ class StudentCourseProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('enrollments')
-          .select('groups!inner(course_id, courses!inner(*))')
+          .select('groups!inner(id, course_id, courses!inner(*))')
           .eq('student_id', studentId)
           .eq('groups.courses.semester_id', semesterId);
 
-      await box.putAll(Map.fromEntries((response as List).map((json) {
-        final course = Course.fromJson(json: json["groups"]["courses"]);
+      await box
+          .putAll((Map.fromEntries(await Future.wait(response.map((json) async {
+        final courseJson = json["groups"]["courses"];
+        final groupResponse = await _fetchGroupInCourse(courseJson['id']);
+        final course = Course.fromJson(
+            json: courseJson,
+            groupIds: groupResponse.map((x) => x['id'] as String).toSet());
+
         return MapEntry(course.id, course);
-      })));
+      })))));
     } catch (e) {
       _error = e.toString();
       print('Error loading courses: $e');
@@ -52,5 +54,13 @@ class StudentCourseProvider extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<Iterable<Map<String, dynamic>>> _fetchGroupInCourse(
+      String courseId) async {
+    final response =
+        await _supabase.from('groups').select('id').eq('course_id', courseId);
+
+    return response;
   }
 }

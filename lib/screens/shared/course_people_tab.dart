@@ -12,8 +12,7 @@ class CoursePeopleTab extends StatefulWidget {
   final Course course;
   final UserModel user;
 
-  const CoursePeopleTab({Key? key, required this.course, required this.user})
-      : super(key: key);
+  const CoursePeopleTab({super.key, required this.course, required this.user});
 
   @override
   State<CoursePeopleTab> createState() => _CoursePeopleTabState();
@@ -66,39 +65,46 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
           if (widget.user.isStudent) ...[
             Text(
               'Instructor',
-              style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
+              style: GoogleFonts.poppins(
+                  fontSize: 20, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Card(
               elevation: 2,
               color: Colors.blue[50],
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                leading: CircleAvatar(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                leading: const CircleAvatar(
                   backgroundColor: Colors.blue,
-                  child: const Icon(Icons.person, color: Colors.white),
+                  child: Icon(Icons.person, color: Colors.white),
                 ),
                 title: Text(
-                  'Course Instructor', 
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.blue[900]),
+                  'Course Instructor',
+                  style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600, color: Colors.blue[900]),
                 ),
                 subtitle: Text(
                   'Tap to send a private message',
-                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.blue[700]),
+                  style: GoogleFonts.poppins(
+                      fontSize: 12, color: Colors.blue[700]),
                 ),
                 trailing: IconButton(
                   icon: const Icon(Icons.message, color: Colors.blue),
                   onPressed: () {
                     if (widget.course.instructorId == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Instructor not assigned to this course.")),
+                        const SnackBar(
+                            content: Text(
+                                "Instructor not assigned to this course.")),
                       );
                       return;
                     }
 
                     final instructor = UserModel(
-                      id: widget.course.instructorId!, 
+                      id: widget.course.instructorId!,
                       email: '',
                       username: 'Instructor',
                       fullName: 'Instructor',
@@ -120,7 +126,8 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
             children: [
               Text(
                 'Students',
-                style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
+                style: GoogleFonts.poppins(
+                    fontSize: 20, fontWeight: FontWeight.w600),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -130,20 +137,22 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
                 ),
                 child: Text(
                   '${studentProvider.students.length}',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey[700]),
+                  style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold, color: Colors.grey[700]),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          
+
           if (studentProvider.students.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(32),
                 child: Column(
                   children: [
-                    Icon(Icons.people_outline, size: 48, color: Colors.grey[300]),
+                    Icon(Icons.people_outline,
+                        size: 48, color: Colors.grey[300]),
                     const SizedBox(height: 8),
                     Text(
                       'No students enrolled yet.',
@@ -163,25 +172,28 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
               // Find group name safely
               String groupName = 'No Group';
               if (widget.course.groupIds.isNotEmpty) {
-                 final entry = student.groupMap.entries.firstWhere(
-                   (e) => widget.course.groupIds.contains(e.key), 
-                   orElse: () => const MapEntry('', ''),
-                 );
-                 if (entry.value.isNotEmpty) groupName = entry.value;
+                final entry = student.groupMap.entries.firstWhere(
+                  (e) => widget.course.groupIds.contains(e.key),
+                  orElse: () => const MapEntry('', ''),
+                );
+                if (entry.value.isNotEmpty) groupName = entry.value;
               }
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: isMe ? Colors.blue[100] : Colors.green[100],
+                    backgroundColor:
+                        isMe ? Colors.blue[100] : Colors.green[100],
                     child: Text(
-                      student.fullName.isNotEmpty ? student.fullName[0].toUpperCase() : '?',
+                      student.fullName.isNotEmpty
+                          ? student.fullName[0].toUpperCase()
+                          : '?',
                       style: TextStyle(
-                        color: isMe ? Colors.blue[700] : Colors.green[700], 
-                        fontWeight: FontWeight.bold
-                      ),
+                          color: isMe ? Colors.blue[700] : Colors.green[700],
+                          fontWeight: FontWeight.bold),
                     ),
                   ),
                   title: Text(
@@ -190,21 +202,23 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
                   ),
                   subtitle: Text(
                     groupName,
-                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: Colors.grey[600]),
                   ),
                   trailing: showMessageButton && !isMe
                       ? IconButton(
-                          icon: const Icon(Icons.message_outlined, color: Colors.blue),
+                          icon: const Icon(Icons.message_outlined,
+                              color: Colors.blue),
                           tooltip: 'Message Student',
                           onPressed: () => _openChat(student),
                         )
-                      : null, 
+                      : null,
                 ),
               );
             }),
-            
-            // Add some bottom padding for floating action buttons
-            const SizedBox(height: 80),
+
+          // Add some bottom padding for floating action buttons
+          const SizedBox(height: 80),
         ],
       ),
     );
