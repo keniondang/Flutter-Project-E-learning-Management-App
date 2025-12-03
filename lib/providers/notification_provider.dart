@@ -51,7 +51,6 @@ class NotificationProvider extends ChangeNotifier {
         .stream(primaryKey: ['id'])
         .eq('user_id', userId)
         .listen((jsons) async {
-          print('aa');
           _notifications = await _fetchNotifications(jsons);
           _unreadCount = _notifications.where((n) => !n.isRead).length;
           notifyListeners();
