@@ -66,10 +66,10 @@ class NotificationProvider extends ChangeNotifier {
           .eq('notification_id', notificationId)
           .eq('user_id', userId);
 
-      _notifications[notifications.indexWhere((x) => x.id == notificationId)]
-          .isRead = true;
-      _unreadCount -= 1;
-      notifyListeners();
+      // _notifications[notifications.indexWhere((x) => x.id == notificationId)]
+      //     .isRead = true;
+      // _unreadCount -= 1;
+      // notifyListeners();
     } catch (e) {
       print('Error marking notification as read: $e');
     }
@@ -81,12 +81,12 @@ class NotificationProvider extends ChangeNotifier {
           .from('notifications_to')
           .update({'is_read': true}).eq('user_id', userId);
 
-      for (var notification in _notifications) {
-        notification.isRead = true;
-      }
+      // for (var notification in _notifications) {
+      //   notification.isRead = true;
+      // }
 
-      _unreadCount = 0;
-      notifyListeners();
+      // _unreadCount = 0;
+      // notifyListeners();
     } catch (e) {
       print('Error marking all notification as read: $e');
     }
