@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:elearning_management_app/models/notification.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -23,26 +21,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
   bool _showUnreadOnly = false;
   String _searchQuery = '';
 
-  // late StreamSubscription<void> _notificationSubscription;
-
   @override
   void initState() {
     super.initState();
-    // _notificationSubscription =
-    //     context.read<NotificationProvider>().streamNotification(
-    //           widget.user.id,
-    //         );
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    // _notificationSubscription.cancel();
     super.dispose();
   }
-
-  // Future<void> _loadNotifications() async {
-  // }
 
   IconData _getNotificationIcon(NotificationType type) {
     switch (type) {

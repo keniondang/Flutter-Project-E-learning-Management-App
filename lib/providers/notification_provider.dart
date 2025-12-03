@@ -26,7 +26,7 @@ class NotificationProvider extends ChangeNotifier {
           .select(
               '*, notifications!notifications_to_notification_id_fkey!inner(*)')
           .eq('user_id', userId)
-          // .order('notifications.created_at', ascending: false)
+          .order('created_at', referencedTable: 'notifications')
           .limit(50);
 
       _notifications = response.map((json) {
@@ -45,16 +45,31 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
-  StreamSubscription<void> streamNotification(String userId) {
+  RealtimeChannel subscribeNotification(String userId) {
     return _supabase
-        .from('notifications_to')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', userId)
-        .listen((jsons) async {
-          _notifications = await _fetchNotifications(jsons);
-          _unreadCount = _notifications.where((n) => !n.isRead).length;
-          notifyListeners();
-        });
+        .channel('notifications')
+        .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'notifications_to',
+            filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'user_id',
+                value: userId),
+            callback: (payload) async {
+              final notification = await _fetchNotification(payload.newRecord);
+
+              if (notification != null) {
+                _notifications.insert(0, notification);
+
+                if (!notification.isRead) {
+                  _unreadCount += 1;
+                }
+
+                notifyListeners();
+              }
+            })
+        .subscribe();
   }
 
   Future<void> markAsRead(String notificationId, String userId) async {
@@ -65,10 +80,10 @@ class NotificationProvider extends ChangeNotifier {
           .eq('notification_id', notificationId)
           .eq('user_id', userId);
 
-      // _notifications[notifications.indexWhere((x) => x.id == notificationId)]
-      //     .isRead = true;
-      // _unreadCount -= 1;
-      // notifyListeners();
+      _notifications[notifications.indexWhere((x) => x.id == notificationId)]
+          .isRead = true;
+      _unreadCount -= 1;
+      notifyListeners();
     } catch (e) {
       print('Error marking notification as read: $e');
     }
@@ -80,12 +95,12 @@ class NotificationProvider extends ChangeNotifier {
           .from('notifications_to')
           .update({'is_read': true}).eq('user_id', userId);
 
-      // for (var notification in _notifications) {
-      //   notification.isRead = true;
-      // }
+      for (var notification in _notifications) {
+        notification.isRead = true;
+      }
 
-      // _unreadCount = 0;
-      // notifyListeners();
+      _unreadCount = 0;
+      notifyListeners();
     } catch (e) {
       print('Error marking all notification as read: $e');
     }
@@ -113,25 +128,24 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
-  Future<List<Notification>> _fetchNotifications(
-      List<Map<String, dynamic>> request) async {
+  Future<Notification?> _fetchNotification(Map<String, dynamic> request) async {
     try {
-      final idMap = Map.fromEntries(request.map((json) => MapEntry(
-          json['notification_id'] as String, json['is_read'] as bool)));
-
       final response = await _supabase
           .from('notifications')
           .select()
-          .inFilter('id', idMap.keys.toList());
+          .eq('id', request['notification_id'])
+          .maybeSingle();
 
-      return response
-          .map((json) =>
-              Notification.fromJson(json: json, isRead: idMap[json['id']]))
-          .toList();
+      if (response == null) {
+        return null;
+      } else {
+        return Notification.fromJson(
+            json: response, isRead: request['is_read'] as bool);
+      }
     } catch (e) {
       print('Error fetching notification: $e');
 
-      return [];
+      return null;
     }
   }
 }
