@@ -13,6 +13,9 @@ import 'package:badges/badges.dart' as badges;
 import 'shared/notification_screen.dart';
 import '../../providers/notification_provider.dart';
 
+// Enum to define sort options
+enum CourseSortOption { nameAsc, nameDesc, codeAsc, sessionsDesc }
+
 class StudentHomeScreen extends StatefulWidget {
   final UserModel user;
 
@@ -24,14 +27,23 @@ class StudentHomeScreen extends StatefulWidget {
 
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   final AuthService _authService = AuthService();
+  final TextEditingController _searchController = TextEditingController();
 
   Semester? _selectedSemester;
+  CourseSortOption _currentSortOption = CourseSortOption.nameAsc;
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _loadSemesters();
-    // _selectedSemester = context.read<SemesterProvider>().currentSemester;
+    _loadNotifications();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadNotifications() async {
@@ -89,18 +101,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       MaterialPageRoute(
                         builder: (_) => NotificationScreen(user: widget.user),
                       ),
-                    ).then((_) => _loadNotifications());
+                    );
                   },
                 ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              // TODO: Navigate to profile
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Profile coming soon')),
               );
             },
           ),
@@ -121,7 +124,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Welcome and semester selector
+          // Welcome and Controls Section
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.blue[50],
@@ -136,6 +139,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+
+                // Semester Dropdown
                 Row(
                   children: [
                     Text(
@@ -147,87 +152,181 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     ),
                     const SizedBox(width: 8),
                     if (semesterProvider.semesters.isNotEmpty)
-                      DropdownButton<Semester>(
-                        value: _selectedSemester,
-                        items: semesterProvider.semesters.map((semester) {
-                          return DropdownMenuItem(
-                            value: semester,
-                            child: Row(
-                              children: [
-                                Text(semester.name),
-                                if (semester.isCurrent)
-                                  Container(
-                                    margin: const EdgeInsets.only(left: 8),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      'Current',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 10,
-                                        color: Colors.white,
+                      Expanded(
+                        child: DropdownButton<Semester>(
+                          isExpanded: true, // Prevent overflow
+                          value: _selectedSemester,
+                          items: semesterProvider.semesters.map((semester) {
+                            return DropdownMenuItem(
+                              value: semester,
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                      child: Text(semester.name,
+                                          overflow: TextOverflow.ellipsis)),
+                                  if (semester.isCurrent)
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        'Current',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 10,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (semester) {
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (semester) {
+                            setState(() {
+                              semesterProvider.setCurrentSemester(semester!);
+                              _selectedSemester =
+                                  semesterProvider.currentSemester;
+                            });
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Search and Sort Row
+                Row(
+                  children: [
+                    // Search Bar
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search courses...',
+                          prefixIcon: const Icon(Icons.search),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 0),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onChanged: (value) {
                           setState(() {
-                            semesterProvider.setCurrentSemester(semester!);
-                            _selectedSemester =
-                                semesterProvider.currentSemester;
+                            _searchQuery = value.toLowerCase();
                           });
                         },
                       ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Sort Button
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: PopupMenuButton<CourseSortOption>(
+                        icon: const Icon(Icons.sort),
+                        tooltip: "Sort Courses",
+                        onSelected: (CourseSortOption result) {
+                          setState(() {
+                            _currentSortOption = result;
+                          });
+                        },
+                        itemBuilder: (BuildContext context) =>
+                            <PopupMenuEntry<CourseSortOption>>[
+                          const PopupMenuItem<CourseSortOption>(
+                            value: CourseSortOption.nameAsc,
+                            child: Text('Name (A-Z)'),
+                          ),
+                          const PopupMenuItem<CourseSortOption>(
+                            value: CourseSortOption.nameDesc,
+                            child: Text('Name (Z-A)'),
+                          ),
+                          const PopupMenuItem<CourseSortOption>(
+                            value: CourseSortOption.codeAsc,
+                            child: Text('Course Code'),
+                          ),
+                          const PopupMenuItem<CourseSortOption>(
+                            value: CourseSortOption.sessionsDesc,
+                            child: Text('Sessions (High-Low)'),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ],
             ),
           ),
 
-          // Courses section
+          // Courses List
           Expanded(child: Consumer<StudentCourseProvider>(
             builder: (context, provider, child) {
               if (provider.isLoading || _selectedSemester == null) {
                 return const Center(child: CircularProgressIndicator());
               }
 
+              // Load data if needed
               if (provider.currentSemester != _selectedSemester!.id) {
-                provider.loadEnrolledCourses(
-                    widget.user.id, _selectedSemester!.id);
+                // Use addPostFrameCallback to avoid state errors during build
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  provider.loadEnrolledCourses(
+                      widget.user.id, _selectedSemester!.id);
+                });
               }
 
-              if (provider.courses.isEmpty) {
+              // 1. Filter Logic
+              final filteredCourses = provider.courses.where((course) {
+                final matchesName =
+                    course.name.toLowerCase().contains(_searchQuery);
+                final matchesCode =
+                    course.code.toLowerCase().contains(_searchQuery);
+                return matchesName || matchesCode;
+              }).toList();
+
+              // 2. Sort Logic
+              filteredCourses.sort((a, b) {
+                switch (_currentSortOption) {
+                  case CourseSortOption.nameAsc:
+                    return a.name.compareTo(b.name);
+                  case CourseSortOption.nameDesc:
+                    return b.name.compareTo(a.name);
+                  case CourseSortOption.codeAsc:
+                    return a.code.compareTo(b.code);
+                  case CourseSortOption.sessionsDesc:
+                    return b.sessions
+                        .compareTo(a.sessions); // Assuming 'sessions' is int
+                }
+              });
+
+              if (filteredCourses.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.school_outlined,
+                        Icons.search_off,
                         size: 80,
                         color: Colors.grey[400],
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No enrolled courses',
+                        _searchQuery.isEmpty
+                            ? 'No enrolled courses'
+                            : 'No courses match your search',
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'You are not enrolled in any courses this semester',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey[400],
                         ),
                       ),
                     ],
@@ -244,9 +343,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                 ),
-                itemCount: provider.courses.length,
+                itemCount: filteredCourses.length,
                 itemBuilder: (context, index) {
-                  final course = provider.courses[index];
+                  final course = filteredCourses[index];
                   return Card(
                     elevation: 3,
                     child: InkWell(
@@ -264,7 +363,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Course header
+                          // Course header with gradient
                           Container(
                             height: 80,
                             decoration: BoxDecoration(
