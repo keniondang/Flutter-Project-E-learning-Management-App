@@ -12,7 +12,8 @@ class MessageProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   // Load conversation between Current User and Target User
-  Future<void> loadConversation(String currentUserId, String otherUserId) async {
+  Future<void> loadConversation(
+      String currentUserId, String otherUserId) async {
     _isLoading = true;
     _messages = []; // Clear previous chat
     notifyListeners();
@@ -28,10 +29,9 @@ class MessageProvider extends ChangeNotifier {
       _messages = (response as List)
           .map((json) => PrivateMessage.fromJson(json))
           .toList();
-      
+
       // Mark received messages as read
       _markAsRead(currentUserId, otherUserId);
-
     } catch (e) {
       print('Error loading messages: $e');
     } finally {
@@ -40,21 +40,64 @@ class MessageProvider extends ChangeNotifier {
     }
   }
 
+  RealtimeChannel subscribeMessages(String currentUserId, String otherUserId) {
+    return _supabase
+        .channel('messages')
+        .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'private_messages',
+            filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'receiver_id',
+                value: currentUserId),
+            callback: (payload) {
+              final message = PrivateMessage.fromJson(payload.newRecord);
+
+              if (message.senderId == otherUserId) {
+                _messages.add(message);
+                notifyListeners();
+              }
+            })
+        .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'private_messages',
+            filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'receiver_id',
+                value: currentUserId),
+            callback: (payload) {
+              final message = PrivateMessage.fromJson(payload.newRecord);
+
+              if (message.senderId == otherUserId) {
+                _messages[_messages.indexWhere((x) => x.id == message.id)] =
+                    message;
+                notifyListeners();
+              }
+            })
+        .subscribe();
+  }
+
   // Send a message
-  Future<void> sendMessage(String senderId, String receiverId, String content) async {
+  Future<void> sendMessage(
+      String senderId, String receiverId, String content) async {
     try {
-      final response = await _supabase.from('private_messages').insert({
-        'sender_id': senderId,
-        'receiver_id': receiverId,
-        'content': content,
-      }).select().single();
+      final response = await _supabase
+          .from('private_messages')
+          .insert({
+            'sender_id': senderId,
+            'receiver_id': receiverId,
+            'content': content,
+          })
+          .select()
+          .single();
 
       final newMessage = PrivateMessage.fromJson(response);
       _messages.add(newMessage);
       notifyListeners();
     } catch (e) {
       print('Error sending message: $e');
-      throw e; // Rethrow to show error in UI
     }
   }
 

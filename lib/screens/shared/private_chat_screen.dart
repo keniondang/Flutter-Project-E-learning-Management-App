@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/user_model.dart';
 import '../../providers/message_provider.dart';
 
@@ -24,14 +25,32 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isSending = false;
 
+  late RealtimeChannel _messagesSubscription;
+
   @override
   void initState() {
     super.initState();
     // Load messages immediately
-    Future.microtask(() => context.read<MessageProvider>().loadConversation(
+    Future.microtask(_loadMessages).then((_) => _scrollToBottom());
+  }
+
+  @override
+  void dispose() {
+    _messagesSubscription.unsubscribe();
+    super.dispose();
+  }
+
+  Future<void> _loadMessages() async {
+    await context.read<MessageProvider>().loadConversation(
           widget.currentUser.id,
           widget.targetUser.id,
-        )).then((_) => _scrollToBottom());
+        );
+
+    if (mounted) {
+      _messagesSubscription = context
+          .read<MessageProvider>()
+          .subscribeMessages(widget.currentUser.id, widget.targetUser.id);
+    }
   }
 
   void _scrollToBottom() {
@@ -92,7 +111,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 ),
                 Text(
                   widget.targetUser.isInstructor ? 'Instructor' : 'Student',
-                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.white70),
+                  style:
+                      GoogleFonts.poppins(fontSize: 12, color: Colors.white70),
                 ),
               ],
             ),
