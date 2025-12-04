@@ -1,5 +1,7 @@
+import 'dart:io'; // Required for File object on Mobile/Desktop
 import 'package:elearning_management_app/providers/announcement_provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart'; // Required for kIsWeb check
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -63,11 +65,13 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
         type: FileType.any,
+        withData: true, // Important: loads bytes for Web compatibility
       );
 
       if (result != null) {
         setState(() {
-          _pickedFiles.addAll(result.files);
+          // Creating a new list ensures the UI updates correctly
+          _pickedFiles = [..._pickedFiles, ...result.files];
         });
       }
     } catch (e) {
@@ -84,6 +88,86 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       _pickedFiles.removeAt(index);
     });
   }
+
+  // --- Helper Methods for File Previews ---
+
+  bool _isImage(String? extension) {
+    if (extension == null) return false;
+    final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'];
+    return imageExtensions.contains(extension.toLowerCase());
+  }
+
+  Widget _getImageWidget(PlatformFile file) {
+    // 1. Try displaying from bytes (Web or when bytes are available)
+    if (file.bytes != null) {
+      return Image.memory(
+        file.bytes!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            const Icon(Icons.broken_image, size: 20),
+      );
+    }
+    // 2. Try displaying from path (Mobile/Desktop) - Only if NOT on web
+    else if (file.path != null && !kIsWeb) {
+      return Image.file(
+        File(file.path!),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            const Icon(Icons.broken_image, size: 20),
+      );
+    }
+    // 3. Fallback
+    return const Icon(Icons.image_not_supported);
+  }
+
+  Widget _buildFilePreview(PlatformFile file) {
+    // If it's an image, show thumbnail
+    if (_isImage(file.extension)) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: _getImageWidget(file),
+        ),
+      );
+    }
+
+    // If it's not an image, show a relevant icon
+    IconData icon;
+    switch (file.extension?.toLowerCase()) {
+      case 'pdf':
+        icon = Icons.picture_as_pdf;
+        break;
+      case 'doc':
+      case 'docx':
+        icon = Icons.description;
+        break;
+      case 'zip':
+      case 'rar':
+        icon = Icons.folder_zip;
+        break;
+      case 'xls':
+      case 'xlsx':
+      case 'csv':
+        icon = Icons.table_chart;
+        break;
+      default:
+        icon = Icons.insert_drive_file;
+    }
+
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Icon(icon, color: Colors.blue[700], size: 24),
+    );
+  }
+
+  // -----------------------------------------
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -329,30 +413,42 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.grey[100],
+                            color: Colors.grey[50],
                             borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey[300]!),
                           ),
                           child: Column(
                             children: _pickedFiles.asMap().entries.map((entry) {
                               final index = entry.key;
                               final file = entry.value;
-                              return ListTile(
-                                dense: true,
-                                leading: const Icon(Icons.insert_drive_file,
-                                    color: Colors.blue),
-                                title: Text(
-                                  file.name,
-                                  style: GoogleFonts.poppins(fontSize: 13),
-                                ),
-                                subtitle: Text(
-                                  '${(file.size / 1024).toStringAsFixed(1)} KB',
-                                  style: GoogleFonts.poppins(fontSize: 11),
-                                ),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.close,
-                                      color: Colors.red),
-                                  onPressed: () => _removeFile(index),
-                                ),
+                              return Column(
+                                children: [
+                                  ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    dense: true,
+                                    // UPDATED: Using our custom preview method
+                                    leading: _buildFilePreview(file),
+                                    title: Text(
+                                      file.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500),
+                                    ),
+                                    subtitle: Text(
+                                      '${(file.size / 1024).toStringAsFixed(1)} KB',
+                                      style: GoogleFonts.poppins(fontSize: 11),
+                                    ),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.close,
+                                          color: Colors.red),
+                                      onPressed: () => _removeFile(index),
+                                    ),
+                                  ),
+                                  if (index != _pickedFiles.length - 1)
+                                    const Divider(height: 1),
+                                ],
                               );
                             }).toList(),
                           ),
