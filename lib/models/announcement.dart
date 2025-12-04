@@ -11,6 +11,7 @@ class Announcement {
   final int? viewCount;
   final int? commentCount;
   final bool? hasViewed;
+  final bool hasAttachments;
 
   Announcement({
     required this.id,
@@ -22,13 +23,17 @@ class Announcement {
     required this.scopeType,
     required this.targetGroups,
     required this.createdAt,
+    this.hasAttachments = false,
     this.viewCount,
     this.commentCount,
     this.hasViewed,
   });
 
   factory Announcement.fromJson(
-      {required Map<String, dynamic> json, int? viewCount, int? commentCount, required bool hasViewed}) {
+      {required Map<String, dynamic> json,
+      int? viewCount,
+      int? commentCount,
+      required bool hasViewed}) {
     return Announcement(
       id: json['id'],
       courseId: json['course_id'],
@@ -36,6 +41,7 @@ class Announcement {
       title: json['title'],
       content: json['content'],
       fileAttachments: List<String>.from(json['file_attachments'] ?? []),
+      hasAttachments: json['has_attachments'],
       scopeType: json['scope_type'],
       targetGroups: List<String>.from(json['target_groups'] ?? []),
       createdAt: DateTime.parse(json['created_at']),

@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:elearning_management_app/models/announcement.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -123,41 +126,60 @@ class AnnouncementProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Announcement?> createAnnouncement({
+  Future<bool> createAnnouncement({
     required String courseId,
     required String instructorId,
     required String title,
     required String content,
-    required List<String> fileAttachments,
+    required List<PlatformFile> fileAttachments,
     required String scopeType,
     required List<String> targetGroups,
   }) async {
     try {
-      final response = await _supabase.from('announcements').insert({
-        'course_id': courseId,
-        'instructor_id': instructorId,
-        'title': title,
-        'content': content,
-        'file_attachments': fileAttachments,
-        'scope_type': scopeType,
-        'target_groups': targetGroups,
-      }).select();
+      final response = await _supabase
+          .from('announcements')
+          .insert({
+            'course_id': courseId,
+            'instructor_id': instructorId,
+            'title': title,
+            'content': content,
+            'file_attachments': [],
+            'has_attachments': fileAttachments.isNotEmpty,
+            'scope_type': scopeType,
+            'target_groups': targetGroups,
+          })
+          .select()
+          .single();
 
-      final announcement = response
-          .map((json) => Announcement.fromJson(
-              json: json, viewCount: 0, commentCount: 0, hasViewed: true))
-          .first;
+      final announcement = Announcement.fromJson(
+          json: response, viewCount: 0, commentCount: 0, hasViewed: true);
+
+      if (announcement.hasAttachments) {
+        await Future.wait(fileAttachments.map((file) async {
+          if (file.bytes != null) {
+            await _supabase.storage
+                .from('announcements_attachment')
+                .uploadBinary('${announcement.id}/${file.name}', file.bytes!);
+          } else if (file.path != null) {
+            await _supabase.storage
+                .from('announcements_attachment')
+                .upload('${announcement.id}/${file.name}', File(file.path!));
+          }
+        }));
+      }
 
       final box = await Hive.openBox<Announcement>(_boxName);
       await box.put(announcement.id, announcement);
 
       _announcements.insert(0, announcement);
+
       notifyListeners();
-      return announcement;
+      return true;
     } catch (e) {
       _error = e.toString();
+
       notifyListeners();
-      return null;
+      return false;
     }
   }
 
