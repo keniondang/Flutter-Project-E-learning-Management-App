@@ -8,6 +8,14 @@ import '../../models/user_model.dart';
 import '../../providers/semester_provider.dart';
 import '../course_detail_screen.dart';
 
+// 1. Define Sort Options
+enum CourseSortOption {
+  codeAsc,
+  nameAsc,
+  sessionsDesc,
+  studentsDesc,
+}
+
 class CourseManagementScreen extends StatefulWidget {
   final UserModel user;
 
@@ -20,28 +28,21 @@ class CourseManagementScreen extends StatefulWidget {
 class _CourseManagementScreenState extends State<CourseManagementScreen> {
   Semester? _selectedSemester;
 
+  // 2. Add State for Search and Sort
+  final TextEditingController _searchController = TextEditingController();
+  CourseSortOption _sortOption = CourseSortOption.codeAsc;
+
   @override
   void initState() {
     super.initState();
     _selectedSemester = context.read<SemesterProvider>().currentSemester;
-    // _loadInitialData();
   }
 
-  // Future<void> _loadInitialData() async {
-  //   final semesterProvider = context.read<SemesterProvider>();
-  //   await semesterProvider.loadSemesters();
-
-  //   if (semesterProvider.semesters.isNotEmpty) {
-  //     setState(() {
-  //       _selectedSemester = semesterProvider.currentSemester ??
-  //           semesterProvider.semesters.first;
-  //     });
-
-  //     if (_selectedSemester != null) {
-  //       context.read<CourseProvider>().loadCourses(_selectedSemester!.id);
-  //     }
-  //   }
-  // }
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _showAddEditDialog([Course? course]) {
     if (_selectedSemester == null) {
@@ -212,6 +213,20 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
     );
   }
 
+  // Helper method to get sort label
+  String _getSortLabel(CourseSortOption option) {
+    switch (option) {
+      case CourseSortOption.codeAsc:
+        return 'Code (A-Z)';
+      case CourseSortOption.nameAsc:
+        return 'Name (A-Z)';
+      case CourseSortOption.sessionsDesc:
+        return 'Sessions (High-Low)';
+      case CourseSortOption.studentsDesc:
+        return 'Students (High-Low)';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final semesterProvider = context.watch<SemesterProvider>();
@@ -291,13 +306,76 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                         semesterProvider.setCurrentSemester(semester!);
                         _selectedSemester = semesterProvider.currentSemester;
                       });
-                      // context.read<CourseProvider>().loadCourses(semester.id);
                     },
                   ),
                 ),
               ],
             ),
           ),
+
+          // 3. Search and Sort Controls
+          if (_selectedSemester != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search by code or name...',
+                        prefixIcon: const Icon(Icons.search),
+                        contentPadding: EdgeInsets.zero,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      onChanged: (value) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  PopupMenuButton<CourseSortOption>(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[400]!),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.sort),
+                    ),
+                    tooltip: 'Sort Courses',
+                    onSelected: (CourseSortOption result) {
+                      setState(() {
+                        _sortOption = result;
+                      });
+                    },
+                    itemBuilder: (BuildContext context) =>
+                        CourseSortOption.values.map((option) {
+                      return PopupMenuItem<CourseSortOption>(
+                        value: option,
+                        child: Row(
+                          children: [
+                            Icon(
+                              option == _sortOption
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_unchecked,
+                              color: option == _sortOption
+                                  ? Theme.of(context).primaryColor
+                                  : Colors.grey,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(_getSortLabel(option)),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
 
           // Course list
           Expanded(
@@ -321,14 +399,6 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                             color: Colors.grey[600],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Please create a semester first',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[500],
-                          ),
-                        ),
                       ],
                     ),
                   );
@@ -343,16 +413,8 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          'Error loading courses',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            color: Colors.red,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(provider.error!),
-                        const SizedBox(height: 16),
+                        Text('Error loading courses',
+                            style: GoogleFonts.poppins(color: Colors.red)),
                         ElevatedButton(
                           onPressed: () =>
                               provider.loadCourses(_selectedSemester!.id),
@@ -365,40 +427,49 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
 
                 if (provider.courses.isEmpty) {
                   return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.book_outlined,
-                          size: 80,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No courses yet',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'for ${_selectedSemester!.name}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () => _showAddEditDialog(),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add First Course'),
-                        ),
-                      ],
+                    child: Text(
+                      'No courses yet for ${_selectedSemester!.name}',
+                      style: GoogleFonts.poppins(color: Colors.grey[600]),
                     ),
                   );
                 }
+
+                // 4. Filtering and Sorting Logic
+                // Create a copy of the list to avoid modifying the provider's source
+                List<Course> filteredCourses = provider.courses;
+
+                // Apply Search Filter
+                if (_searchController.text.isNotEmpty) {
+                  final query = _searchController.text.toLowerCase();
+                  filteredCourses = filteredCourses.where((course) {
+                    return course.name.toLowerCase().contains(query) ||
+                        course.code.toLowerCase().contains(query);
+                  }).toList();
+                }
+
+                if (filteredCourses.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No courses match your search',
+                      style: GoogleFonts.poppins(color: Colors.grey[500]),
+                    ),
+                  );
+                }
+
+                // Apply Sort
+                filteredCourses.sort((a, b) {
+                  switch (_sortOption) {
+                    case CourseSortOption.codeAsc:
+                      return a.code.compareTo(b.code);
+                    case CourseSortOption.nameAsc:
+                      return a.name.compareTo(b.name);
+                    case CourseSortOption.sessionsDesc:
+                      return b.sessions.compareTo(a.sessions);
+                    case CourseSortOption.studentsDesc:
+                      return (b.studentCount ?? 0)
+                          .compareTo(a.studentCount ?? 0);
+                  }
+                });
 
                 return GridView.builder(
                   padding: const EdgeInsets.all(16),
@@ -409,9 +480,9 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
                   ),
-                  itemCount: provider.courses.length,
+                  itemCount: filteredCourses.length, // Use filtered list
                   itemBuilder: (context, index) {
-                    final course = provider.courses[index];
+                    final course = filteredCourses[index]; // Use filtered list
                     return Card(
                       elevation: 3,
                       child: InkWell(
@@ -421,7 +492,7 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                             MaterialPageRoute(
                               builder: (_) => CourseDetailScreen(
                                 course: course,
-                                user: widget.user, // ✅ use passed-in user
+                                user: widget.user,
                               ),
                             ),
                           );
@@ -590,13 +661,6 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
           ),
         ],
       ),
-      //floatingActionButton: _selectedSemester != null
-      //    ? FloatingActionButton(
-      //        onPressed: () => _showAddEditDialog(),
-      //        tooltip: 'Add Course',
-      //        child: const Icon(Icons.add),
-      //      )
-      //    : null,
     );
   }
 }

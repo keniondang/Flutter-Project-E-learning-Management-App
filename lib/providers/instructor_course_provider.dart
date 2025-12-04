@@ -45,7 +45,7 @@ class InstructorCourseProvider extends ChangeNotifier {
         }
 
         final groupResponse = _fetchGroup(json['id']);
-        final studentResponse = _fetchStudent(json['id']);
+        final studentResponse = _fetchStudentCount(json['id']);
 
         final course = Course.fromJson(
             json: json,
@@ -74,7 +74,7 @@ class InstructorCourseProvider extends ChangeNotifier {
     return response;
   }
 
-  Future<int> _fetchStudent(String courseId) async {
+  Future<int> _fetchStudentCount(String courseId) async {
     final response = await _supabase
         .from('enrollments')
         .select('student_id, groups!inner(course_id)')

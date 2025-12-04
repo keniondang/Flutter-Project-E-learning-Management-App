@@ -49,6 +49,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  // --- STREAM FILTERING & SORTING STATE ---
+  final TextEditingController _streamSearchController = TextEditingController();
+  bool _streamSortNewestFirst = true;
+  bool _streamShowUnreadOnly = false;
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +65,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _streamSearchController.dispose(); // Don't forget to dispose
     super.dispose();
   }
 
@@ -106,7 +112,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   Widget build(BuildContext context) {
     final isInstructor = widget.user.isInstructor;
 
-    // ✅ UI: Uses Standard Scaffold & AppBar (File 2 Style)
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -149,7 +154,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
           ),
-          // ✅ INSTRUCTOR ACTIONS: Popup Menu (File 2 Style)
+          // ✅ INSTRUCTOR ACTIONS: Popup Menu
           if (isInstructor)
             PopupMenuButton<String>(
               onSelected: (value) {
@@ -251,134 +256,244 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     );
   }
 
-  // --- STREAM TAB (Announcements) ---
-  // Logic: File 1 (Clickable), UI: Clean List
+  // --- STREAM TAB (Announcements) with Filtering ---
   Widget _buildStreamTab() {
-    return Consumer<AnnouncementProvider>(
-      builder: (context, provider, child) {
-        if (provider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (provider.announcements.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.campaign_outlined,
-                    size: 60, color: Colors.grey[300]),
-                const SizedBox(height: 16),
-                Text('No announcements yet',
-                    style: GoogleFonts.poppins(color: Colors.grey[500])),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: provider.announcements.length,
-          itemBuilder: (context, index) {
-            final announcement = provider.announcements[index];
-            final hasViewed = announcement.hasViewed ?? false;
-
-            return Card(
-              elevation: 2,
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AnnouncementDetailScreen(
-                        announcement: announcement,
-                        currentUser: widget.user,
-                      ),
+    return Column(
+      children: [
+        // 1. Control Bar (Search, Filter, Sort)
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          color: Colors.white,
+          child: Column(
+            children: [
+              // Search Bar
+              TextField(
+                controller: _streamSearchController,
+                decoration: InputDecoration(
+                  hintText: 'Search announcements...',
+                  prefixIcon: const Icon(Icons.search),
+                  contentPadding: EdgeInsets.zero,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                ),
+                onChanged: (val) => setState(() {}),
+              ),
+              const SizedBox(height: 12),
+              // Filter & Sort Row
+              Row(
+                children: [
+                  // Show Unread Filter (Only valid for students mostly, but available for all)
+                  FilterChip(
+                    label: const Text('Unread Only'),
+                    selected: _streamShowUnreadOnly,
+                    onSelected: (bool value) {
+                      setState(() {
+                        _streamShowUnreadOnly = value;
+                      });
+                    },
+                    backgroundColor: Colors.grey[100],
+                    selectedColor: Colors.blue[100],
+                    labelStyle: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: _streamShowUnreadOnly
+                          ? Colors.blue[800]
+                          : Colors.black87,
                     ),
-                  ).then((_) => _loadData());
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  ),
+                  const Spacer(),
+                  // Sort Toggle
+                  Text(
+                    _streamSortNewestFirst ? 'Newest First' : 'Oldest First',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: Colors.grey[600]),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      _streamSortNewestFirst
+                          ? Icons.arrow_downward
+                          : Icons.arrow_upward,
+                      size: 20,
+                      color: Colors.blue,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _streamSortNewestFirst = !_streamSortNewestFirst;
+                      });
+                    },
+                    tooltip: 'Sort by Date',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+
+        // 2. The List
+        Expanded(
+          child: Consumer<AnnouncementProvider>(
+            builder: (context, provider, child) {
+              if (provider.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              // --- LOGIC: Filter and Sort ---
+              var filteredList = provider.announcements.where((a) {
+                // Search Text Filter
+                final query = _streamSearchController.text.toLowerCase();
+                final matchesSearch = a.title.toLowerCase().contains(query) ||
+                    a.content.toLowerCase().contains(query);
+
+                // Unread Filter
+                final matchesUnread =
+                    !_streamShowUnreadOnly || (a.hasViewed == false);
+
+                return matchesSearch && matchesUnread;
+              }).toList();
+
+              // Sorting
+              filteredList.sort((a, b) {
+                return _streamSortNewestFirst
+                    ? b.createdAt.compareTo(a.createdAt)
+                    : a.createdAt.compareTo(b.createdAt);
+              });
+
+              // --- UI: Render List ---
+              if (filteredList.isEmpty) {
+                return Center(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: Colors.blue[100],
-                            radius: 16,
-                            child: Icon(Icons.person,
-                                size: 20, color: Colors.blue[700]),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  announcement.title,
-                                  style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16),
-                                ),
-                                Text(
-                                  'Posted on ${_formatDate(announcement.createdAt)}',
-                                  style: GoogleFonts.poppins(
-                                      fontSize: 12, color: Colors.grey[600]),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (!hasViewed && widget.user.isStudent)
-                            Container(
-                                width: 10,
-                                height: 10,
-                                decoration: const BoxDecoration(
-                                    color: Colors.red, shape: BoxShape.circle)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
+                      Icon(Icons.filter_list_off,
+                          size: 60, color: Colors.grey[300]),
+                      const SizedBox(height: 16),
                       Text(
-                        announcement.content,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(fontSize: 14),
+                        _streamSearchController.text.isNotEmpty
+                            ? 'No results found'
+                            : 'No announcements',
+                        style: GoogleFonts.poppins(color: Colors.grey[500]),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Icon(Icons.comment_outlined,
-                              size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Text('${announcement.commentCount ?? 0} comments',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 12, color: Colors.grey[600])),
-                          const Spacer(),
-                          if (announcement.fileAttachments.isNotEmpty) ...[
-                            Icon(Icons.attach_file,
-                                size: 16, color: Colors.grey[600]),
-                            Text(' ${announcement.fileAttachments.length}',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 12, color: Colors.grey[600]))
-                          ]
-                        ],
-                      )
                     ],
                   ),
-                ),
-              ),
-            );
-          },
-        );
-      },
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: filteredList.length,
+                itemBuilder: (context, index) {
+                  final announcement = filteredList[index];
+                  final hasViewed = announcement.hasViewed ?? false;
+
+                  return Card(
+                    elevation: 2,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AnnouncementDetailScreen(
+                              announcement: announcement,
+                              currentUser: widget.user,
+                            ),
+                          ),
+                        ).then((_) => _loadData());
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: Colors.blue[100],
+                                  radius: 16,
+                                  child: Icon(Icons.person,
+                                      size: 20, color: Colors.blue[700]),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        announcement.title,
+                                        style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 16),
+                                      ),
+                                      Text(
+                                        'Posted on ${_formatDate(announcement.createdAt)}',
+                                        style: GoogleFonts.poppins(
+                                            fontSize: 12,
+                                            color: Colors.grey[600]),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (!hasViewed && widget.user.isStudent)
+                                  Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle)),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              announcement.content,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(fontSize: 14),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Icon(Icons.comment_outlined,
+                                    size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Text(
+                                    '${announcement.commentCount ?? 0} comments',
+                                    style: GoogleFonts.poppins(
+                                        fontSize: 12, color: Colors.grey[600])),
+                                const Spacer(),
+                                if (announcement
+                                    .fileAttachments.isNotEmpty) ...[
+                                  Icon(Icons.attach_file,
+                                      size: 16, color: Colors.grey[600]),
+                                  Text(
+                                      ' ${announcement.fileAttachments.length}',
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: Colors.grey[600]))
+                                ]
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
   // --- CLASSWORK TAB ---
-  // Logic: File 2 (Detailed)
   Widget _buildClassworkTab() {
     final assignmentProvider = context.watch<AssignmentProvider>();
     final quizProvider = context.watch<QuizProvider>();
