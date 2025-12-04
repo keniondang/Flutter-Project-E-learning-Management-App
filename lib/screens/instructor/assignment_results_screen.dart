@@ -34,8 +34,8 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
     super.initState();
     // Assign future synchronously to prevent late init error
     _studentsFuture = context.read<StudentProvider>().loadStudentsInCourse(
-      widget.assignment.courseId,
-    );
+          widget.assignment.courseId,
+        );
 
     _loadData();
     _searchController.addListener(_filterStudents);
@@ -44,7 +44,7 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
   Future<void> _loadData() async {
     // Load submissions into the provider
     final submissionProvider = context.read<AssignmentSubmissionProvider>();
-    await submissionProvider.loadSubmissions(widget.assignment.id);
+    await submissionProvider.loadAllSubmissions(widget.assignment.id);
 
     // Await the future
     _allStudents = await _studentsFuture;

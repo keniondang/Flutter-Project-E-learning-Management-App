@@ -1,4 +1,8 @@
+import 'dart:io'; // Required for File object
+import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:elearning_management_app/providers/assignment_submission_provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart'; // Required for kIsWeb
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -25,7 +29,8 @@ class _AssignmentSubmissionScreenState
     extends State<AssignmentSubmissionScreen> {
   final _submissionTextController = TextEditingController();
 
-  List<String> _submissionFiles = [];
+  List<PlatformFile> _submissionFiles = [];
+
   AssignmentSubmission? _existingSubmission;
   int _currentAttempt = 1;
 
@@ -45,9 +50,109 @@ class _AssignmentSubmissionScreenState
         _currentAttempt = (_existingSubmission!.attemptNumber) + 1;
         _submissionTextController.text =
             _existingSubmission!.submissionText ?? '';
+        // Note: We don't load previous files into _submissionFiles
+        // because that list represents NEW uploads for the new attempt.
       });
     }
   }
+
+  // --- File Picking & Preview Logic ---
+
+  Future<void> _pickFiles() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: widget.assignment.allowedFileTypes
+            .map((x) => x.substring(1))
+            .toList(),
+        withData: true, // Important for Web
+      );
+
+      if (result != null) {
+        final files =
+            result.files.where((x) => x.size < widget.assignment.maxFileSize);
+
+        if (files.isNotEmpty) {
+          setState(() {
+            _submissionFiles.addAll(files);
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking files: $e')),
+        );
+      }
+    }
+  }
+
+  void _removeFile(int index) {
+    setState(() {
+      _submissionFiles.removeAt(index);
+    });
+  }
+
+  bool _isImage(String? extension) {
+    if (extension == null) return false;
+    final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'];
+    return imageExtensions.contains(extension.toLowerCase());
+  }
+
+  Widget _getImageWidget(PlatformFile file) {
+    if (file.bytes != null) {
+      return Image.memory(file.bytes!, fit: BoxFit.cover);
+    } else if (file.path != null && !kIsWeb) {
+      return Image.file(File(file.path!), fit: BoxFit.cover);
+    }
+    return const Icon(Icons.image_not_supported);
+  }
+
+  Widget _buildFilePreview(PlatformFile file) {
+    if (_isImage(file.extension)) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: _getImageWidget(file),
+        ),
+      );
+    }
+
+    IconData icon;
+    switch (file.extension?.toLowerCase()) {
+      case 'pdf':
+        icon = Icons.picture_as_pdf;
+        break;
+      case 'doc':
+      case 'docx':
+        icon = Icons.description;
+        break;
+      case 'zip':
+      case 'rar':
+        icon = Icons.folder_zip;
+        break;
+      case 'xls':
+      case 'xlsx':
+        icon = Icons.table_chart;
+        break;
+      default:
+        icon = Icons.insert_drive_file;
+    }
+
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Icon(icon, color: Colors.blue[700], size: 24),
+    );
+  }
+  // ------------------------------------
 
   Future<void> _submitAssignment() async {
     if (_submissionTextController.text.isEmpty && _submissionFiles.isEmpty) {
@@ -83,6 +188,13 @@ class _AssignmentSubmissionScreenState
       return;
     }
 
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+              child: CircularProgressIndicator(),
+            ));
+
     final success = await context
         .read<AssignmentSubmissionProvider>()
         .createSubmission(
@@ -95,6 +207,8 @@ class _AssignmentSubmissionScreenState
             submittedAt: now);
 
     if (mounted) {
+      Navigator.pop(context);
+
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -113,6 +227,67 @@ class _AssignmentSubmissionScreenState
         );
       }
     }
+  }
+
+  Future<void> _handleFileDownload(String url) async {
+    final fileName = url.split('/').last;
+
+    final bytes =
+        await context.read<AssignmentProvider>().fetchFileAttachment(url);
+
+    if (bytes != null) {
+      // Note: saveFile might behave differently on Web/Mobile,
+      // but keeping it as requested in previous snippets.
+      await FilePicker.platform.saveFile(fileName: fileName, bytes: bytes);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error downloading $fileName'),
+            backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Widget _buildAttachments() {
+    if (widget.assignment.fileAttachments.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Course Attachments',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: widget.assignment.fileAttachments.map((url) {
+            String fileName = url.split('/').last;
+
+            if (fileName.length > 20) {
+              fileName = '${fileName.substring(0, 15)}...';
+            }
+
+            return ActionChip(
+              avatar: const Icon(Icons.download, size: 16, color: Colors.white),
+              label: Text(
+                fileName,
+                style: GoogleFonts.poppins(color: Colors.white),
+              ),
+              backgroundColor: Colors.blueAccent,
+              onPressed: () => _handleFileDownload(url),
+            );
+          }).toList(),
+        ),
+      ],
+    );
   }
 
   Widget _buildBody() {
@@ -147,6 +322,13 @@ class _AssignmentSubmissionScreenState
                     style: GoogleFonts.poppins(fontSize: 14),
                   ),
                   const SizedBox(height: 16),
+
+                  // --- Integrated Attachments Display (Course Materials) ---
+                  _buildAttachments(),
+                  if (widget.assignment.fileAttachments.isNotEmpty)
+                    const SizedBox(height: 16),
+                  // --------------------------------------------------------
+
                   const Divider(),
                   const SizedBox(height: 12),
                   Row(
@@ -299,7 +481,7 @@ class _AssignmentSubmissionScreenState
           ),
           const SizedBox(height: 16),
 
-          // File upload section
+          // --- Student File Upload Section ---
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -310,23 +492,14 @@ class _AssignmentSubmissionScreenState
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Attachments',
+                        'Your Attachments',
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       ElevatedButton.icon(
-                        onPressed: () {
-                          // TODO: Implement file picker
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'File upload will be implemented later',
-                              ),
-                            ),
-                          );
-                        },
+                        onPressed: _pickFiles, // Now calls the pick logic
                         icon: const Icon(Icons.attach_file, size: 18),
                         label: const Text('Add File'),
                       ),
@@ -347,7 +520,51 @@ class _AssignmentSubmissionScreenState
                       color: Colors.grey[600],
                     ),
                   ),
-                  if (_submissionFiles.isEmpty)
+
+                  // Display Student's Selected Files
+                  if (_submissionFiles.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: _submissionFiles.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final file = entry.value;
+                          return Column(
+                            children: [
+                              ListTile(
+                                dense: true,
+                                leading: _buildFilePreview(file),
+                                title: Text(
+                                  file.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 13),
+                                ),
+                                subtitle: Text(
+                                  '${(file.size / 1024).toStringAsFixed(1)} KB',
+                                  style: GoogleFonts.poppins(fontSize: 11),
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.red),
+                                  onPressed: () => _removeFile(index),
+                                ),
+                              ),
+                              if (index != _submissionFiles.length - 1)
+                                const Divider(height: 1),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ] else ...[
+                    // Empty State
                     Container(
                       margin: const EdgeInsets.only(top: 16),
                       padding: const EdgeInsets.all(24),
@@ -374,10 +591,13 @@ class _AssignmentSubmissionScreenState
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
           ),
+          // -----------------------------------
+
           const SizedBox(height: 24),
 
           // Submit button

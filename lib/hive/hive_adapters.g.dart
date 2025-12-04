@@ -239,7 +239,8 @@ class AssignmentAdapter extends TypeAdapter<Assignment> {
       instructorId: fields[2] as String,
       title: fields[3] as String,
       description: fields[4] as String,
-      fileAttachments: (fields[5] as List).cast<String>(),
+      hasAttachments: fields[21] as bool,
+      fileAttachments: (fields[5] as List?)?.cast<String>(),
       startDate: fields[6] as DateTime,
       dueDate: fields[7] as DateTime,
       lateSubmissionAllowed: fields[8] as bool,
@@ -261,7 +262,7 @@ class AssignmentAdapter extends TypeAdapter<Assignment> {
   @override
   void write(BinaryWriter writer, Assignment obj) {
     writer
-      ..writeByte(21)
+      ..writeByte(22)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -303,7 +304,9 @@ class AssignmentAdapter extends TypeAdapter<Assignment> {
       ..writeByte(19)
       ..write(obj.hasSubmitted)
       ..writeByte(20)
-      ..write(obj.grade);
+      ..write(obj.grade)
+      ..writeByte(21)
+      ..write(obj.hasAttachments);
   }
 
   @override
@@ -427,10 +430,10 @@ class AnnouncementAdapter extends TypeAdapter<Announcement> {
       instructorId: fields[2] as String,
       title: fields[3] as String,
       content: fields[4] as String,
-      fileAttachments: (fields[5] as List).cast<String>(),
       scopeType: fields[6] as String,
       targetGroups: (fields[7] as List).cast<String>(),
       createdAt: fields[8] as DateTime,
+      fileAttachments: (fields[5] as List?)?.cast<String>(),
       hasAttachments: fields[12] == null ? false : fields[12] as bool,
       viewCount: (fields[9] as num?)?.toInt(),
       commentCount: (fields[10] as num?)?.toInt(),
@@ -754,6 +757,7 @@ class AssignmentSubmissionAdapter extends TypeAdapter<AssignmentSubmission> {
       studentId: fields[2] as String,
       studentName: fields[3] as String,
       submissionFiles: (fields[4] as List).cast<String>(),
+      hasAttachments: fields[12] as bool,
       submissionText: fields[5] as String?,
       attemptNumber: (fields[6] as num).toInt(),
       submittedAt: fields[7] as DateTime,
@@ -767,7 +771,7 @@ class AssignmentSubmissionAdapter extends TypeAdapter<AssignmentSubmission> {
   @override
   void write(BinaryWriter writer, AssignmentSubmission obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -791,7 +795,9 @@ class AssignmentSubmissionAdapter extends TypeAdapter<AssignmentSubmission> {
       ..writeByte(10)
       ..write(obj.feedback)
       ..writeByte(11)
-      ..write(obj.gradedAt);
+      ..write(obj.gradedAt)
+      ..writeByte(12)
+      ..write(obj.hasAttachments);
   }
 
   @override

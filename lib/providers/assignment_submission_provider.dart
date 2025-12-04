@@ -1,5 +1,8 @@
-import 'package:elearning_management_app/models/student.dart';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:elearning_management_app/models/user_model.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -33,12 +36,19 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
           .select('*, users!assignment_submissions_student_id_fkey(full_name)')
           .eq('assignment_id', assignmentId);
 
-      await box.putAll(Map.fromEntries(response.map((json) {
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final id = json['id'] as String;
+        final hasAttachments = json['has_attachments'] as bool;
+
         final submission = AssignmentSubmission.fromJson(
-            json: json, studentName: json['users']['full_name']);
+            json: json,
+            studentName: json['users']['full_name'],
+            submissionFiles:
+                hasAttachments ? await _fetchFileAttachmentPaths(id) : null);
 
         return MapEntry(submission.id, submission);
-      })));
+      }))));
     } catch (e) {
       _error = e.toString();
       print('Error loading submissions: $e');
@@ -138,21 +148,47 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
     required String assignmentId,
     required String studentId,
     String? submissionText,
-    required List<String> submissionFiles,
+    required List<PlatformFile> submissionFiles,
     required int attemptNumber,
     required bool isLate,
     required DateTime submittedAt,
   }) async {
     try {
-      await _supabase.from('assignment_submissions').insert({
-        'assignment_id': assignmentId,
-        'student_id': studentId,
-        'submission_text': submissionText,
-        'submission_files': [],
-        'attempt_number': attemptNumber,
-        'is_late': isLate,
-        'submitted_at': submittedAt.toIso8601String()
-      });
+      final response = await _supabase
+          .from('assignment_submissions')
+          .insert({
+            'assignment_id': assignmentId,
+            'student_id': studentId,
+            'submission_text': submissionText,
+            'has_attachments': submissionFiles.isNotEmpty,
+            'submission_files': [],
+            'attempt_number': attemptNumber,
+            'is_late': isLate,
+            'submitted_at': submittedAt.toIso8601String()
+          })
+          .select()
+          .single();
+
+      List<String> paths = [];
+
+      if (submissionFiles.isNotEmpty) {
+        paths.addAll((await Future.wait(submissionFiles.map((file) async {
+          final id = response['id'] as String;
+
+          if (file.bytes != null) {
+            return await _supabase.storage
+                .from('submissions_attachment')
+                .uploadBinary('$id/${file.name}', file.bytes!);
+          } else if (file.path != null) {
+            return await _supabase.storage
+                .from('submissions_attachment')
+                .upload('$id/${file.name}', File(file.path!));
+          }
+
+          return '';
+        })))
+          ..removeWhere((x) => x.isEmpty));
+      }
 
       notifyListeners();
       return true;
@@ -162,6 +198,30 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
 
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<Uint8List?> fetchFileAttachment(String url) async {
+    try {
+      return await _supabase.storage
+          .from('submissions_attachment')
+          .download(url);
+    } catch (e) {
+      print('Error fetching file attachment: $e');
+      return null;
+    }
+  }
+
+  Future<List<String>> _fetchFileAttachmentPaths(String id) async {
+    try {
+      return (await _supabase.storage
+              .from('submissions_attachment')
+              .list(path: id))
+          .map((x) => '$id/${x.name}')
+          .toList();
+    } catch (e) {
+      print('Error fetching assignment attachments: $e');
+      return [];
     }
   }
 }

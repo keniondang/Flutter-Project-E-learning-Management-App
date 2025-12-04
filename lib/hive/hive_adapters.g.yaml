@@ -83,7 +83,7 @@ types:
         index: 6
   Assignment:
     typeId: 4
-    nextIndex: 21
+    nextIndex: 22
     fields:
       id:
         index: 0
@@ -127,6 +127,8 @@ types:
         index: 19
       grade:
         index: 20
+      hasAttachments:
+        index: 21
   Quiz:
     typeId: 5
     nextIndex: 21
@@ -293,7 +295,7 @@ types:
         index: 8
   AssignmentSubmission:
     typeId: 12
-    nextIndex: 12
+    nextIndex: 13
     fields:
       id:
         index: 0
@@ -319,6 +321,8 @@ types:
         index: 10
       gradedAt:
         index: 11
+      hasAttachments:
+        index: 12
   Forum:
     typeId: 13
     nextIndex: 9

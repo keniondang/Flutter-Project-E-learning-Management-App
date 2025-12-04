@@ -1,3 +1,5 @@
+import 'package:elearning_management_app/providers/assignment_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -14,12 +16,12 @@ class GradingScreen extends StatefulWidget {
   final String instructorId;
 
   const GradingScreen({
-    Key? key,
+    super.key,
     required this.submission,
     required this.assignment,
     required this.student,
     required this.instructorId,
-  }) : super(key: key);
+  });
 
   @override
   State<GradingScreen> createState() => _GradingScreenState();
@@ -42,14 +44,23 @@ class _GradingScreenState extends State<GradingScreen> {
     );
   }
 
-  Future<void> _openLink(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not open $url')));
+  Future<void> _handleFileDownload(String url) async {
+    final fileName = url.split('/').last;
+
+    final bytes = await context
+        .read<AssignmentSubmissionProvider>()
+        .fetchFileAttachment(url);
+
+    if (bytes != null) {
+      // Note: saveFile might behave differently on Web/Mobile,
+      // but keeping it as requested in previous snippets.
+      await FilePicker.platform.saveFile(fileName: fileName, bytes: bytes);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error downloading $fileName'),
+            backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -69,14 +80,13 @@ class _GradingScreenState extends State<GradingScreen> {
         return;
       }
 
-      final success = await context
-          .read<AssignmentSubmissionProvider>()
-          .gradeSubmission(
-            submissionId: widget.submission.id,
-            grade: grade,
-            feedback: _feedbackController.text,
-            instructorId: widget.instructorId,
-          );
+      final success =
+          await context.read<AssignmentSubmissionProvider>().gradeSubmission(
+                submissionId: widget.submission.id,
+                grade: grade,
+                feedback: _feedbackController.text,
+                instructorId: widget.instructorId,
+              );
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -156,7 +166,6 @@ class _GradingScreenState extends State<GradingScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-
                     if (widget.submission.submissionText != null &&
                         widget.submission.submissionText!.isNotEmpty) ...[
                       const SizedBox(height: 12),
@@ -174,7 +183,6 @@ class _GradingScreenState extends State<GradingScreen> {
                         child: Text(widget.submission.submissionText!),
                       ),
                     ],
-
                     if (widget.submission.submissionFiles.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       Text(
@@ -188,7 +196,7 @@ class _GradingScreenState extends State<GradingScreen> {
                             fileUrl.split('/').last,
                             style: GoogleFonts.poppins(fontSize: 14),
                           ),
-                          onTap: () => _openLink(fileUrl),
+                          onTap: () => _handleFileDownload(fileUrl),
                         );
                       }),
                     ],
