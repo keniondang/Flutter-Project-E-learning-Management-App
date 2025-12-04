@@ -175,7 +175,7 @@ types:
         index: 20
   Announcement:
     typeId: 6
-    nextIndex: 12
+    nextIndex: 13
     fields:
       id:
         index: 0
@@ -201,6 +201,8 @@ types:
         index: 10
       hasViewed:
         index: 11
+      hasAttachments:
+        index: 12
   CourseMaterial:
     typeId: 7
     nextIndex: 12

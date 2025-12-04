@@ -1,11 +1,8 @@
-import 'dart:io';
 import 'package:elearning_management_app/providers/announcement_provider.dart';
-import 'package:elearning_management_app/providers/notification_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/course.dart';
 import '../../models/group.dart';
 import '../../providers/group_provider.dart';
@@ -32,11 +29,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
 
   String _scopeType = 'all';
   List<String> _selectedGroups = [];
-  
+
   List<PlatformFile> _pickedFiles = [];
   bool _isUploading = false;
   bool _showMarkdownHelp = false;
-  
+
   List<Group> _availableGroups = [];
 
   @override
@@ -88,30 +85,6 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     });
   }
 
-  Future<List<String>> _uploadFiles() async {
-    List<String> urls = [];
-    final supabase = Supabase.instance.client;
-
-    for (var file in _pickedFiles) {
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.name}';
-      final path = 'announcements/$fileName';
-      
-      try {
-        if (file.bytes != null) {
-          await supabase.storage.from('course_files').uploadBinary(path, file.bytes!);
-        } else if (file.path != null) {
-          await supabase.storage.from('course_files').upload(path, File(file.path!));
-        }
-
-        final url = supabase.storage.from('course_files').getPublicUrl(path);
-        urls.add(url);
-      } catch (e) {
-        print('Upload failed for ${file.name}: $e');
-      }
-    }
-    return urls;
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_scopeType == 'specific' && _selectedGroups.isEmpty) {
@@ -124,25 +97,15 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     setState(() => _isUploading = true);
 
     try {
-      final fileUrls = await _uploadFiles();
-
       await context.read<AnnouncementProvider>().createAnnouncement(
             courseId: widget.course.id,
             instructorId: widget.instructorId,
             title: _titleController.text.trim(),
             content: _contentController.text.trim(),
-            fileAttachments: fileUrls,
+            fileAttachments: _pickedFiles,
             scopeType: _scopeType,
             targetGroups: _selectedGroups,
           );
-
-      await context.read<NotificationProvider>().createNotification(
-            userId: 'all_students',
-            type: 'announcement',
-            title: 'New Announcement: ${_titleController.text}',
-            message: 'Check the course stream for details.',
-          );
-
       if (mounted) {
         Navigator.pop(context);
       }
@@ -164,16 +127,13 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         title: Text('New Announcement', style: GoogleFonts.poppins()),
         actions: [
           IconButton(
-            icon: _isUploading 
-              ? const SizedBox(
-                  width: 20, 
-                  height: 20, 
-                  child: CircularProgressIndicator(
-                    color: Colors.white, 
-                    strokeWidth: 2
-                  )
-                )
-              : const Icon(Icons.check),
+            icon: _isUploading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.check),
             onPressed: _isUploading ? null : _submit,
           )
         ],
@@ -198,7 +158,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                 validator: (val) => val!.isEmpty ? 'Title is required' : null,
               ),
               const SizedBox(height: 16),
-              
+
               // Content Field with Markdown Support
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,13 +184,13 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                           style: GoogleFonts.poppins(fontSize: 12),
                         ),
                         onPressed: () {
-                          setState(() => _showMarkdownHelp = !_showMarkdownHelp);
+                          setState(
+                              () => _showMarkdownHelp = !_showMarkdownHelp);
                         },
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  
                   if (_showMarkdownHelp)
                     Container(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -261,18 +221,20 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                         ],
                       ),
                     ),
-                  
                   TextFormField(
                     controller: _contentController,
                     decoration: InputDecoration(
-                      hintText: 'Write your announcement content here...\n\nYou can use Markdown for formatting!',
-                      hintStyle: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[400]),
+                      hintText:
+                          'Write your announcement content here...\n\nYou can use Markdown for formatting!',
+                      hintStyle: GoogleFonts.poppins(
+                          fontSize: 14, color: Colors.grey[400]),
                       border: const OutlineInputBorder(),
                       alignLabelWithHint: true,
                     ),
                     style: GoogleFonts.poppins(),
                     maxLines: 8,
-                    validator: (val) => val!.isEmpty ? 'Content is required' : null,
+                    validator: (val) =>
+                        val!.isEmpty ? 'Content is required' : null,
                   ),
                 ],
               ),
@@ -297,13 +259,15 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                         ),
                       ),
                       RadioListTile<String>(
-                        title: Text('All Students', style: GoogleFonts.poppins()),
+                        title:
+                            Text('All Students', style: GoogleFonts.poppins()),
                         value: 'all',
                         groupValue: _scopeType,
                         onChanged: (val) => setState(() => _scopeType = val!),
                       ),
                       RadioListTile<String>(
-                        title: Text('Specific Groups', style: GoogleFonts.poppins()),
+                        title: Text('Specific Groups',
+                            style: GoogleFonts.poppins()),
                         value: 'specific',
                         groupValue: _scopeType,
                         onChanged: (val) => setState(() => _scopeType = val!),
@@ -312,17 +276,20 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                         Padding(
                           padding: const EdgeInsets.only(left: 16, top: 8),
                           child: Column(
-                            children: _availableGroups.map((g) => CheckboxListTile(
-                              title: Text(g.name, style: GoogleFonts.poppins()),
-                              value: _selectedGroups.contains(g.id),
-                              onChanged: (selected) {
-                                setState(() {
-                                  selected! 
-                                    ? _selectedGroups.add(g.id) 
-                                    : _selectedGroups.remove(g.id);
-                                });
-                              },
-                            )).toList(),
+                            children: _availableGroups
+                                .map((g) => CheckboxListTile(
+                                      title: Text(g.name,
+                                          style: GoogleFonts.poppins()),
+                                      value: _selectedGroups.contains(g.id),
+                                      onChanged: (selected) {
+                                        setState(() {
+                                          selected!
+                                              ? _selectedGroups.add(g.id)
+                                              : _selectedGroups.remove(g.id);
+                                        });
+                                      },
+                                    ))
+                                .toList(),
                           ),
                         ),
                     ],
@@ -351,7 +318,8 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                           ),
                           TextButton.icon(
                             icon: const Icon(Icons.attach_file),
-                            label: Text('Add Files', style: GoogleFonts.poppins()),
+                            label:
+                                Text('Add Files', style: GoogleFonts.poppins()),
                             onPressed: _pickFiles,
                           ),
                         ],
@@ -370,7 +338,8 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                               final file = entry.value;
                               return ListTile(
                                 dense: true,
-                                leading: const Icon(Icons.insert_drive_file, color: Colors.blue),
+                                leading: const Icon(Icons.insert_drive_file,
+                                    color: Colors.blue),
                                 title: Text(
                                   file.name,
                                   style: GoogleFonts.poppins(fontSize: 13),
@@ -380,7 +349,8 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                                   style: GoogleFonts.poppins(fontSize: 11),
                                 ),
                                 trailing: IconButton(
-                                  icon: const Icon(Icons.close, color: Colors.red),
+                                  icon: const Icon(Icons.close,
+                                      color: Colors.red),
                                   onPressed: () => _removeFile(index),
                                 ),
                               );

@@ -24,7 +24,7 @@ class CourseAdapter extends TypeAdapter<Course> {
       sessions: (fields[4] as num).toInt(),
       coverImage: fields[5] as String?,
       createdAt: fields[6] as DateTime,
-      instructorId: fields[13] as String,
+      instructorId: fields[13] as String?,
       semesterName: fields[7] as String?,
       groupIds: (fields[10] as Set?)?.cast<String>(),
       studentCount: (fields[12] as num?)?.toInt(),
@@ -431,6 +431,7 @@ class AnnouncementAdapter extends TypeAdapter<Announcement> {
       scopeType: fields[6] as String,
       targetGroups: (fields[7] as List).cast<String>(),
       createdAt: fields[8] as DateTime,
+      hasAttachments: fields[12] == null ? false : fields[12] as bool,
       viewCount: (fields[9] as num?)?.toInt(),
       commentCount: (fields[10] as num?)?.toInt(),
       hasViewed: fields[11] as bool?,
@@ -440,7 +441,7 @@ class AnnouncementAdapter extends TypeAdapter<Announcement> {
   @override
   void write(BinaryWriter writer, Announcement obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -464,7 +465,9 @@ class AnnouncementAdapter extends TypeAdapter<Announcement> {
       ..writeByte(10)
       ..write(obj.commentCount)
       ..writeByte(11)
-      ..write(obj.hasViewed);
+      ..write(obj.hasViewed)
+      ..writeByte(12)
+      ..write(obj.hasAttachments);
   }
 
   @override

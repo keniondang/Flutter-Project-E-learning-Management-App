@@ -97,7 +97,7 @@ class CourseMaterialProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('material_views')
-          .select('id')
+          .select('*')
           .eq('material_id', materialId)
           .count();
 
