@@ -4,7 +4,8 @@ class CourseMaterial {
   final String instructorId;
   final String title;
   final String? description;
-  final List<String> fileUrls;
+  final bool hasAttachments;
+  final List<String> fileAttachments;
   final List<String> externalLinks;
   final DateTime createdAt;
 
@@ -21,16 +22,19 @@ class CourseMaterial {
       required this.instructorId,
       required this.title,
       this.description,
-      required this.fileUrls,
+      List<String>? fileAttachments,
+      required this.hasAttachments,
       required this.externalLinks,
       required this.createdAt,
       this.viewCount,
       this.downloadCount,
       this.hasViewed,
-      this.semesterId});
+      this.semesterId})
+      : fileAttachments = fileAttachments ?? [];
 
   factory CourseMaterial.fromJson(
       {required Map<String, dynamic> json,
+      List<String>? fileAttachments,
       int? viewCount,
       int? downloadCount}) {
     return CourseMaterial(
@@ -39,7 +43,8 @@ class CourseMaterial {
       instructorId: json['instructor_id'],
       title: json['title'],
       description: json['description'],
-      fileUrls: List<String>.from(json['file_urls'] ?? []),
+      hasAttachments: json['has_attachments'],
+      fileAttachments: fileAttachments ?? [],
       externalLinks: List<String>.from(json['external_links'] ?? []),
       createdAt: DateTime.parse(json['created_at']),
       viewCount: viewCount ?? json['view_count'],
@@ -54,7 +59,7 @@ class CourseMaterial {
       'instructor_id': instructorId,
       'title': title,
       'description': description,
-      'file_urls': fileUrls,
+      'file_urls': fileAttachments,
       'external_links': externalLinks,
     };
   }

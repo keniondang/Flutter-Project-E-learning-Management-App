@@ -1,19 +1,21 @@
+import 'dart:io'; // Required for File object
 import 'package:elearning_management_app/providers/course_material_provider.dart';
+import 'package:file_picker/file_picker.dart'; // Required for file selection
+import 'package:flutter/foundation.dart'; // Required for kIsWeb
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../models/course.dart';
-import '../../providers/content_provider.dart';
 
 class CreateMaterialScreen extends StatefulWidget {
   final Course course;
   final String instructorId;
 
   const CreateMaterialScreen({
-    Key? key,
+    super.key,
     required this.course,
     required this.instructorId,
-  }) : super(key: key);
+  });
 
   @override
   State<CreateMaterialScreen> createState() => _CreateMaterialScreenState();
@@ -24,7 +26,9 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final List<TextEditingController> _linkControllers = [];
-  List<String> _fileUrls = [];
+
+  // Changed from List<String> to List<PlatformFile> to store actual file data
+  List<PlatformFile> _pickedFiles = [];
 
   void _addLinkField() {
     setState(() {
@@ -39,8 +43,109 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
     });
   }
 
+  // --- File Picking & Preview Logic ---
+
+  Future<void> _pickFiles() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.any,
+        withData: true, // Important for Web compatibility
+      );
+
+      if (result != null) {
+        setState(() {
+          _pickedFiles.addAll(result.files);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking files: $e')),
+        );
+      }
+    }
+  }
+
+  void _removeFile(int index) {
+    setState(() {
+      _pickedFiles.removeAt(index);
+    });
+  }
+
+  bool _isImage(String? extension) {
+    if (extension == null) return false;
+    final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'];
+    return imageExtensions.contains(extension.toLowerCase());
+  }
+
+  Widget _getImageWidget(PlatformFile file) {
+    if (file.bytes != null) {
+      return Image.memory(file.bytes!, fit: BoxFit.cover);
+    } else if (file.path != null && !kIsWeb) {
+      return Image.file(File(file.path!), fit: BoxFit.cover);
+    }
+    return const Icon(Icons.image_not_supported);
+  }
+
+  Widget _buildFilePreview(PlatformFile file) {
+    if (_isImage(file.extension)) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: _getImageWidget(file),
+        ),
+      );
+    }
+
+    IconData icon;
+    switch (file.extension?.toLowerCase()) {
+      case 'pdf':
+        icon = Icons.picture_as_pdf;
+        break;
+      case 'doc':
+      case 'docx':
+        icon = Icons.description;
+        break;
+      case 'zip':
+      case 'rar':
+        icon = Icons.folder_zip;
+        break;
+      case 'xls':
+      case 'xlsx':
+        icon = Icons.table_chart;
+        break;
+      case 'ppt':
+      case 'pptx':
+        icon = Icons.slideshow;
+        break;
+      default:
+        icon = Icons.insert_drive_file;
+    }
+
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Icon(icon, color: Colors.blue[700], size: 24),
+    );
+  }
+  // ------------------------------------
+
   Future<void> _createMaterial() async {
     if (_formKey.currentState!.validate()) {
+      showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+                child: CircularProgressIndicator(),
+              ));
+
       final externalLinks = _linkControllers
           .map((controller) => controller.text)
           .where((link) => link.isNotEmpty)
@@ -54,18 +159,30 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
                 description: _descriptionController.text.isNotEmpty
                     ? _descriptionController.text
                     : null,
-                fileUrls: _fileUrls,
+                fileAttachments: _pickedFiles, // Updated parameter name
                 externalLinks: externalLinks,
               );
 
-      if (success && mounted) {
+      if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Material added successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
+
+        if (success) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Material added successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Error adding material: ${context.read<CourseMaterialProvider>().error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -149,16 +266,7 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
                             ),
                           ),
                           ElevatedButton.icon(
-                            onPressed: () {
-                              // TODO: Implement file picker
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'File upload will be implemented later',
-                                  ),
-                                ),
-                              );
-                            },
+                            onPressed: _pickFiles, // Connected to logic
                             icon: const Icon(Icons.upload_file, size: 18),
                             label: const Text('Upload Files'),
                             style: ElevatedButton.styleFrom(
@@ -171,7 +279,9 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      if (_fileUrls.isEmpty)
+
+                      // Display Picked Files
+                      if (_pickedFiles.isEmpty)
                         Center(
                           child: Column(
                             children: [
@@ -191,20 +301,45 @@ class _CreateMaterialScreenState extends State<CreateMaterialScreen> {
                           ),
                         )
                       else
-                        ..._fileUrls.map((url) {
-                          return ListTile(
-                            leading: const Icon(Icons.insert_drive_file),
-                            title: Text(url.split('/').last),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () {
-                                setState(() {
-                                  _fileUrls.remove(url);
-                                });
-                              },
-                            ),
-                          );
-                        }).toList(),
+                        // List of files with previews
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: _pickedFiles.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final file = entry.value;
+                              return Column(
+                                children: [
+                                  ListTile(
+                                    leading: _buildFilePreview(file),
+                                    title: Text(
+                                      file.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500),
+                                    ),
+                                    subtitle: Text(
+                                      '${(file.size / 1024).toStringAsFixed(1)} KB',
+                                      style: GoogleFonts.poppins(fontSize: 11),
+                                    ),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.delete,
+                                          color: Colors.red),
+                                      onPressed: () => _removeFile(index),
+                                    ),
+                                  ),
+                                  if (index != _pickedFiles.length - 1)
+                                    const Divider(height: 1),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
                     ],
                   ),
                 ),

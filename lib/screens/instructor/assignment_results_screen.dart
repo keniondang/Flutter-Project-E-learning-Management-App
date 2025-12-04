@@ -32,7 +32,6 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
   @override
   void initState() {
     super.initState();
-    // Assign future synchronously to prevent late init error
     _studentsFuture = context.read<StudentProvider>().loadStudentsInCourse(
           widget.assignment.courseId,
         );

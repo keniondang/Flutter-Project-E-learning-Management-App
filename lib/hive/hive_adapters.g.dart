@@ -500,7 +500,8 @@ class CourseMaterialAdapter extends TypeAdapter<CourseMaterial> {
       instructorId: fields[2] as String,
       title: fields[3] as String,
       description: fields[4] as String?,
-      fileUrls: (fields[5] as List).cast<String>(),
+      fileAttachments: (fields[13] as List?)?.cast<String>(),
+      hasAttachments: fields[12] as bool,
       externalLinks: (fields[6] as List).cast<String>(),
       createdAt: fields[7] as DateTime,
       viewCount: (fields[9] as num?)?.toInt(),
@@ -513,7 +514,7 @@ class CourseMaterialAdapter extends TypeAdapter<CourseMaterial> {
   @override
   void write(BinaryWriter writer, CourseMaterial obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -524,8 +525,6 @@ class CourseMaterialAdapter extends TypeAdapter<CourseMaterial> {
       ..write(obj.title)
       ..writeByte(4)
       ..write(obj.description)
-      ..writeByte(5)
-      ..write(obj.fileUrls)
       ..writeByte(6)
       ..write(obj.externalLinks)
       ..writeByte(7)
@@ -537,7 +536,11 @@ class CourseMaterialAdapter extends TypeAdapter<CourseMaterial> {
       ..writeByte(10)
       ..write(obj.downloadCount)
       ..writeByte(11)
-      ..write(obj.hasViewed);
+      ..write(obj.hasViewed)
+      ..writeByte(12)
+      ..write(obj.hasAttachments)
+      ..writeByte(13)
+      ..write(obj.fileAttachments);
   }
 
   @override

@@ -1,6 +1,8 @@
+import 'package:elearning_management_app/providers/course_material_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/course_material.dart';
 import '../../models/user_model.dart';
@@ -10,54 +12,35 @@ class MaterialViewerScreen extends StatefulWidget {
   final UserModel student;
 
   const MaterialViewerScreen({
-    Key? key,
+    super.key,
     required this.material,
     required this.student,
-  }) : super(key: key);
+  });
 
   @override
   State<MaterialViewerScreen> createState() => _MaterialViewerScreenState();
 }
 
 class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
-  final SupabaseClient _supabase = Supabase.instance.client;
-
   @override
   void initState() {
     super.initState();
-    _trackView();
   }
 
-  Future<void> _trackView() async {
-    try {
-      await _supabase.from('material_views').upsert({
-        'material_id': widget.material.id,
-        'user_id': widget.student.id,
-        'viewed_at': DateTime.now().toIso8601String(),
-      });
-    } catch (e) {
-      print('Error tracking view: $e');
-    }
-  }
+  Future<void> _handleFileDownload(String url) async {
+    final fileName = url.split('/').last;
 
-  Future<void> _trackDownload() async {
-    try {
-      final response = await _supabase
-          .from('material_views')
-          .select('downloads')
-          .eq('material_id', widget.material.id)
-          .eq('user_id', widget.student.id)
-          .single();
+    final bytes =
+        await context.read<CourseMaterialProvider>().fetchFileAttachment(url);
 
-      final currentDownloads = response['downloads'] ?? 0;
-
-      await _supabase
-          .from('material_views')
-          .update({'downloads': currentDownloads + 1})
-          .eq('material_id', widget.material.id)
-          .eq('user_id', widget.student.id);
-    } catch (e) {
-      print('Error tracking download: $e');
+    if (bytes != null) {
+      await FilePicker.platform.saveFile(fileName: fileName, bytes: bytes);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error downloading $fileName'),
+            backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -65,7 +48,7 @@ class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
-    } else {
+    } else if (mounted) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Could not open $url')));
@@ -81,7 +64,7 @@ class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
           IconButton(
             icon: const Icon(Icons.download),
             onPressed: () {
-              _trackDownload();
+              // _trackDownload();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Download feature will be implemented'),
@@ -118,7 +101,7 @@ class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
             const SizedBox(height: 24),
 
             // Files section
-            if (widget.material.fileUrls.isNotEmpty) ...[
+            if (widget.material.fileAttachments.isNotEmpty) ...[
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -139,7 +122,7 @@ class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      ...widget.material.fileUrls.map((url) {
+                      ...widget.material.fileAttachments.map((url) {
                         final fileName = url.split('/').last;
                         return Card(
                           child: ListTile(
@@ -148,34 +131,16 @@ class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
                               color: Colors.grey[600],
                             ),
                             title: Text(fileName, style: GoogleFonts.poppins()),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.visibility),
-                                  onPressed: () {
-                                    // Preview functionality
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Preview coming soon'),
-                                      ),
-                                    );
-                                  },
-                                  tooltip: 'Preview',
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.download),
-                                  onPressed: () {
-                                    _trackDownload();
-                                    _openLink(url);
-                                  },
-                                  tooltip: 'Download',
-                                ),
-                              ],
+                            trailing: IconButton(
+                              icon: const Icon(Icons.download),
+                              onPressed: () {
+                                _handleFileDownload(url);
+                              },
+                              tooltip: 'Download',
                             ),
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ),
@@ -193,7 +158,7 @@ class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.link, color: Colors.green),
+                          const Icon(Icons.link, color: Colors.green),
                           const SizedBox(width: 8),
                           Text(
                             'External Links',
@@ -208,7 +173,8 @@ class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
                       ...widget.material.externalLinks.map((link) {
                         return Card(
                           child: ListTile(
-                            leading: Icon(Icons.public, color: Colors.blue),
+                            leading:
+                                const Icon(Icons.public, color: Colors.blue),
                             title: Text(
                               link,
                               style: GoogleFonts.poppins(fontSize: 14),
@@ -222,7 +188,7 @@ class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
                             ),
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ),

@@ -207,7 +207,7 @@ types:
         index: 12
   CourseMaterial:
     typeId: 7
-    nextIndex: 12
+    nextIndex: 14
     fields:
       id:
         index: 0
@@ -219,8 +219,6 @@ types:
         index: 3
       description:
         index: 4
-      fileUrls:
-        index: 5
       externalLinks:
         index: 6
       createdAt:
@@ -233,6 +231,10 @@ types:
         index: 10
       hasViewed:
         index: 11
+      hasAttachments:
+        index: 12
+      fileAttachments:
+        index: 13
   Semester:
     typeId: 8
     nextIndex: 5

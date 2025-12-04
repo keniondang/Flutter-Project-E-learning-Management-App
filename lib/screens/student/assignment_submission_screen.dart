@@ -50,13 +50,9 @@ class _AssignmentSubmissionScreenState
         _currentAttempt = (_existingSubmission!.attemptNumber) + 1;
         _submissionTextController.text =
             _existingSubmission!.submissionText ?? '';
-        // Note: We don't load previous files into _submissionFiles
-        // because that list represents NEW uploads for the new attempt.
       });
     }
   }
-
-  // --- File Picking & Preview Logic ---
 
   Future<void> _pickFiles() async {
     try {
@@ -152,7 +148,6 @@ class _AssignmentSubmissionScreenState
       child: Icon(icon, color: Colors.blue[700], size: 24),
     );
   }
-  // ------------------------------------
 
   Future<void> _submitAssignment() async {
     if (_submissionTextController.text.isEmpty && _submissionFiles.isEmpty) {
