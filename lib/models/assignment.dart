@@ -4,6 +4,7 @@ class Assignment {
   final String instructorId;
   final String title;
   final String description;
+  final bool hasAttachments;
   final List<String> fileAttachments;
   final DateTime startDate;
   final DateTime dueDate;
@@ -30,7 +31,8 @@ class Assignment {
     required this.instructorId,
     required this.title,
     required this.description,
-    required this.fileAttachments,
+    required this.hasAttachments,
+    List<String>? fileAttachments,
     required this.startDate,
     required this.dueDate,
     required this.lateSubmissionAllowed,
@@ -46,19 +48,21 @@ class Assignment {
     this.submissionCount,
     this.hasSubmitted,
     this.grade,
-  });
+  }) : fileAttachments = fileAttachments ?? [];
 
   factory Assignment.fromJson(
       {required Map<String, dynamic> json,
       String? semesterId,
-      int? submissionCount}) {
+      int? submissionCount,
+      List<String>? fileAttachments}) {
     return Assignment(
       id: json['id'],
       courseId: json['course_id'],
       instructorId: json['instructor_id'],
       title: json['title'],
       description: json['description'],
-      fileAttachments: List<String>.from(json['file_attachments'] ?? []),
+      hasAttachments: json['has_attachments'],
+      fileAttachments: fileAttachments ?? [],
       startDate: DateTime.parse(json['start_date']),
       dueDate: DateTime.parse(json['due_date']),
       lateSubmissionAllowed: json['late_submission_allowed'] ?? false,
@@ -117,6 +121,7 @@ class AssignmentSubmission {
   final String assignmentId;
   final String studentId;
   final String studentName;
+  final bool hasAttachments;
   final List<String> submissionFiles;
   final String? submissionText;
   final int attemptNumber;
@@ -132,6 +137,7 @@ class AssignmentSubmission {
     required this.studentId,
     required this.studentName,
     required this.submissionFiles,
+    required this.hasAttachments,
     this.submissionText,
     required this.attemptNumber,
     required this.submittedAt,
@@ -142,13 +148,16 @@ class AssignmentSubmission {
   });
 
   factory AssignmentSubmission.fromJson(
-      {required Map<String, dynamic> json, String? studentName}) {
+      {required Map<String, dynamic> json,
+      String? studentName,
+      List<String>? submissionFiles}) {
     return AssignmentSubmission(
       id: json['id'],
       assignmentId: json['assignment_id'],
       studentId: json['student_id'],
       studentName: studentName ?? 'Unknown',
-      submissionFiles: List<String>.from(json['submission_files'] ?? []),
+      hasAttachments: json['has_attachments'],
+      submissionFiles: submissionFiles ?? [],
       submissionText: json['submission_text'],
       attemptNumber: json['attempt_number'] ?? 1,
       submittedAt: DateTime.parse(json['submitted_at']),

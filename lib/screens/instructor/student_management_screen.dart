@@ -9,7 +9,7 @@ import '../../models/student.dart';
 import '../../providers/student_provider.dart';
 
 class StudentManagementScreen extends StatefulWidget {
-  const StudentManagementScreen({Key? key}) : super(key: key);
+  const StudentManagementScreen({super.key});
 
   @override
   State<StudentManagementScreen> createState() =>
@@ -545,111 +545,6 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                 },
               ));
     }
-
-    // final usernames = fields.map()
-
-    // final data = result['data'] as List<Map<String, dynamic>>;
-    // final headers = result['headers'] as List<String>;
-
-    // // Validate headers
-    // final requiredHeaders = ['username', 'email', 'full_name', 'password'];
-    // for (var header in requiredHeaders) {
-    //   if (!headers.contains(header)) {
-    //     ScaffoldMessenger.of(context).showSnackBar(
-    //       SnackBar(
-    //         content: Text('Missing required column: $header'),
-    //         backgroundColor: Colors.red,
-    //       ),
-    //     );
-    //     return;
-    //   }
-    // }
-
-    // // Import students
-    // final importResult =
-    //     await context.read<StudentProvider>().createMultipleStudents(data);
-
-    // if (mounted) {
-    //   _filterStudents();
-
-    //   showDialog(
-    //     context: context,
-    //     builder: (context) => AlertDialog(
-    //       title: Text(
-    //         'Import Results',
-    //         style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-    //       ),
-    //       content: Column(
-    //         mainAxisSize: MainAxisSize.min,
-    //         crossAxisAlignment: CrossAxisAlignment.start,
-    //         children: [
-    //           _buildResultRow(
-    //             'Successfully imported:',
-    //             importResult['successCount'],
-    //             Colors.green,
-    //           ),
-    //           _buildResultRow(
-    //             'Duplicates skipped:',
-    //             importResult['duplicateCount'],
-    //             Colors.orange,
-    //           ),
-    //           _buildResultRow(
-    //             'Errors:',
-    //             importResult['errorCount'],
-    //             Colors.red,
-    //           ),
-    //           if (importResult['errors'] != null &&
-    //               (importResult['errors'] as List).isNotEmpty) ...[
-    //             const SizedBox(height: 12),
-    //             Text(
-    //               'Error details:',
-    //               style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
-    //             ),
-    //             const SizedBox(height: 4),
-    //             ...(importResult['errors'] as List).take(3).map(
-    //                   (error) => Text(
-    //                     '• $error',
-    //                     style: const TextStyle(fontSize: 12),
-    //                   ),
-    //                 ),
-    //           ],
-    //         ],
-    //       ),
-    //       actions: [
-    //         ElevatedButton(
-    //           onPressed: () => Navigator.pop(context),
-    //           child: const Text('OK'),
-    //         ),
-    //       ],
-    //     ),
-    //   );
-    // }
-  }
-
-  Widget _buildResultRow(String label, int count, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: GoogleFonts.poppins()),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              count.toString(),
-              style: GoogleFonts.poppins(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   void _confirmDelete(Student student) {

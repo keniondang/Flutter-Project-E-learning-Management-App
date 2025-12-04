@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -31,11 +35,26 @@ class AssignmentProvider extends ChangeNotifier {
 
       await box
           .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
-        final assignment = Assignment.fromJson(
-          json: json,
-          semesterId: json['courses']['semester_id'],
-          submissionCount: await _fetchSubmissionCount(json['id']),
-        );
+        final id = json['id'] as String;
+        final hasAttachments = json['has_attachments'] as bool;
+
+        late Assignment assignment;
+
+        if (hasAttachments) {
+          final results = await Future.wait(
+              [_fetchSubmissionCount(id), _fetchFileAttachmentPaths(id)]);
+
+          assignment = Assignment.fromJson(
+              json: json,
+              semesterId: json['courses']['semester_id'],
+              submissionCount: results[0] as int,
+              fileAttachments: results[1] as List<String>);
+        } else {
+          assignment = Assignment.fromJson(
+              json: json,
+              semesterId: json['courses']['semester_id'],
+              submissionCount: await _fetchSubmissionCount(json['id']));
+        }
 
         return MapEntry(assignment.id, assignment);
       }))));
@@ -76,11 +95,26 @@ class AssignmentProvider extends ChangeNotifier {
 
       await box
           .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
-        final assignment = Assignment.fromJson(
-          json: json,
-          semesterId: json['courses']['semester_id'],
-          submissionCount: await _fetchSubmissionCount(json['id']),
-        );
+        final id = json['id'] as String;
+        final hasAttachments = json['has_attachments'] as bool;
+
+        late Assignment assignment;
+
+        if (hasAttachments) {
+          final results = await Future.wait(
+              [_fetchSubmissionCount(id), _fetchFileAttachmentPaths(id)]);
+
+          assignment = Assignment.fromJson(
+              json: json,
+              semesterId: json['courses']['semester_id'],
+              submissionCount: results[0] as int,
+              fileAttachments: results[1] as List<String>);
+        } else {
+          assignment = Assignment.fromJson(
+              json: json,
+              semesterId: json['courses']['semester_id'],
+              submissionCount: await _fetchSubmissionCount(json['id']));
+        }
 
         return MapEntry(assignment.id, assignment);
       }))));
@@ -113,6 +147,17 @@ class AssignmentProvider extends ChangeNotifier {
     }
   }
 
+  Future<Uint8List?> fetchFileAttachment(String url) async {
+    try {
+      return await _supabase.storage
+          .from('assignments_attachment')
+          .download(url);
+    } catch (e) {
+      print('Error fetching file attachment: $e');
+      return null;
+    }
+  }
+
   Future<int> _fetchSubmissionCount(String assignmentId) async {
     try {
       final response = await _supabase
@@ -128,12 +173,25 @@ class AssignmentProvider extends ChangeNotifier {
     }
   }
 
+  Future<List<String>> _fetchFileAttachmentPaths(String id) async {
+    try {
+      return (await _supabase.storage
+              .from('assignments_attachment')
+              .list(path: id))
+          .map((x) => '$id/${x.name}')
+          .toList();
+    } catch (e) {
+      print('Error fetching assignment attachments: $e');
+      return [];
+    }
+  }
+
   Future<bool> createAssignment({
     required String courseId,
     required String instructorId,
     required String title,
     required String description,
-    required List<String> fileAttachments,
+    required List<PlatformFile> fileAttachments,
     required DateTime startDate,
     required DateTime dueDate,
     required bool lateSubmissionAllowed,
@@ -146,30 +204,55 @@ class AssignmentProvider extends ChangeNotifier {
     required int totalPoints,
   }) async {
     try {
-      final response = await _supabase.from('assignments').insert({
-        'course_id': courseId,
-        'instructor_id': instructorId,
-        'title': title,
-        'description': description,
-        'file_attachments': fileAttachments,
-        'start_date': startDate.toIso8601String(),
-        'due_date': dueDate.toIso8601String(),
-        'late_submission_allowed': lateSubmissionAllowed,
-        'late_due_date': lateDueDate?.toIso8601String(),
-        'max_attempts': maxAttempts,
-        'max_file_size': maxFileSize,
-        'allowed_file_types': allowedFileTypes,
-        'scope_type': scopeType,
-        'target_groups': targetGroups,
-        'total_points': totalPoints,
-      }).select('*, courses(semester_id)');
+      final response = await _supabase
+          .from('assignments')
+          .insert({
+            'course_id': courseId,
+            'instructor_id': instructorId,
+            'title': title,
+            'description': description,
+            'file_attachments': [],
+            'has_attachments': fileAttachments.isNotEmpty,
+            'start_date': startDate.toIso8601String(),
+            'due_date': dueDate.toIso8601String(),
+            'late_submission_allowed': lateSubmissionAllowed,
+            'late_due_date': lateDueDate?.toIso8601String(),
+            'max_attempts': maxAttempts,
+            'max_file_size': maxFileSize,
+            'allowed_file_types': allowedFileTypes,
+            'scope_type': scopeType,
+            'target_groups': targetGroups,
+            'total_points': totalPoints,
+          })
+          .select('*, courses(semester_id)')
+          .single();
 
-      final assignment = response
-          .map((json) => Assignment.fromJson(
-              json: json,
-              semesterId: json['courses']['semester_id'],
-              submissionCount: 0))
-          .first;
+      List<String> paths = [];
+
+      if (fileAttachments.isNotEmpty) {
+        paths.addAll((await Future.wait(fileAttachments.map((file) async {
+          final id = response['id'] as String;
+
+          if (file.bytes != null) {
+            return await _supabase.storage
+                .from('assignments_attachment')
+                .uploadBinary('$id/${file.name}', file.bytes!);
+          } else if (file.path != null) {
+            return await _supabase.storage
+                .from('assignments_attachment')
+                .upload('$id/${file.name}', File(file.path!));
+          }
+
+          return '';
+        })))
+          ..removeWhere((x) => x.isEmpty));
+      }
+
+      final assignment = Assignment.fromJson(
+          json: response,
+          semesterId: response['courses']['semester_id'],
+          submissionCount: 0,
+          fileAttachments: paths.isNotEmpty ? paths : null);
 
       final box = await Hive.openBox<Assignment>(_boxName);
 
