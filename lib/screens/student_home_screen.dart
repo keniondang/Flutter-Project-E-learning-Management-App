@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:elearning_management_app/models/course.dart';
 import 'package:elearning_management_app/providers/student_course_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/semester.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
@@ -34,6 +37,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   CourseSortOption _currentSortOption = CourseSortOption.nameAsc;
   String _searchQuery = '';
 
+  late RealtimeChannel _notificationSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -41,16 +46,24 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     _loadNotifications();
   }
 
+  Future<void> _loadNotifications() async {
+    await context
+        .read<NotificationProvider>()
+        .loadNotifications(widget.user.id);
+
+    if (mounted) {
+      _notificationSubscription =
+          context.read<NotificationProvider>().subscribeNotification(
+                widget.user.id,
+              );
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
+    _notificationSubscription.unsubscribe();
     super.dispose();
-  }
-
-  Future<void> _loadNotifications() async {
-    await context.read<NotificationProvider>().loadNotifications(
-          widget.user.id,
-        );
   }
 
   Future<void> _loadSemesters() async {

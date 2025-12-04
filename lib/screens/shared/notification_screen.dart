@@ -24,19 +24,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   void initState() {
     super.initState();
-    _loadNotifications();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadNotifications() async {
-    await context.read<NotificationProvider>().loadNotifications(
-          widget.user.id,
-        );
   }
 
   IconData _getNotificationIcon(NotificationType type) {

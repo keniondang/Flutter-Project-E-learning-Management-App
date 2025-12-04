@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide Notification;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification.dart';
@@ -24,7 +26,7 @@ class NotificationProvider extends ChangeNotifier {
           .select(
               '*, notifications!notifications_to_notification_id_fkey!inner(*)')
           .eq('user_id', userId)
-          // .order('notifications.created_at', ascending: false)
+          .order('created_at', referencedTable: 'notifications')
           .limit(50);
 
       _notifications = response.map((json) {
@@ -41,6 +43,33 @@ class NotificationProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  RealtimeChannel subscribeNotification(String userId) {
+    return _supabase
+        .channel('notifications')
+        .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'notifications_to',
+            filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'user_id',
+                value: userId),
+            callback: (payload) async {
+              final notification = await _fetchNotification(payload.newRecord);
+
+              if (notification != null) {
+                _notifications.insert(0, notification);
+
+                if (!notification.isRead) {
+                  _unreadCount += 1;
+                }
+
+                notifyListeners();
+              }
+            })
+        .subscribe();
   }
 
   Future<void> markAsRead(String notificationId, String userId) async {
@@ -96,6 +125,27 @@ class NotificationProvider extends ChangeNotifier {
       });
     } catch (e) {
       print('Error creating notification: $e');
+    }
+  }
+
+  Future<Notification?> _fetchNotification(Map<String, dynamic> request) async {
+    try {
+      final response = await _supabase
+          .from('notifications')
+          .select()
+          .eq('id', request['notification_id'])
+          .maybeSingle();
+
+      if (response == null) {
+        return null;
+      } else {
+        return Notification.fromJson(
+            json: response, isRead: request['is_read'] as bool);
+      }
+    } catch (e) {
+      print('Error fetching notification: $e');
+
+      return null;
     }
   }
 }
