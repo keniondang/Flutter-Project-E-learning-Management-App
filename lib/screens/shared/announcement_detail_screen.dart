@@ -1,6 +1,7 @@
 import 'package:elearning_management_app/models/announcement.dart';
 import 'package:elearning_management_app/models/user_model.dart';
 import 'package:elearning_management_app/providers/announcement_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -39,7 +40,8 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
 
   Future<void> _markAsViewed() async {
     // ✅ Fix: Pass the current user ID explicitly
-    if (widget.announcement.hasViewed == false || widget.announcement.hasViewed == null) {
+    if (widget.announcement.hasViewed == false ||
+        widget.announcement.hasViewed == null) {
       await context
           .read<AnnouncementProvider>()
           .markAsViewed(widget.announcement.id, widget.currentUser.id);
@@ -74,7 +76,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
 
     setState(() => _isPostingComment = true);
     final text = _commentController.text.trim();
-    
+
     try {
       _commentController.clear();
       FocusScope.of(context).unfocus();
@@ -83,19 +85,19 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
       final newComment = await context.read<AnnouncementProvider>().addComment(
             widget.announcement.id,
             text,
-            widget.currentUser.id, 
+            widget.currentUser.id,
           );
 
       if (newComment != null && mounted) {
         setState(() {
           final displayComment = AnnouncementComment(
-            id: newComment.id,
-            announcementId: newComment.announcementId,
-            userId: newComment.userId,
-            userName: widget.currentUser.fullName, // Use local name for instant feedback
-            comment: newComment.comment,
-            createdAt: newComment.createdAt
-          );
+              id: newComment.id,
+              announcementId: newComment.announcementId,
+              userId: newComment.userId,
+              userName: widget
+                  .currentUser.fullName, // Use local name for instant feedback
+              comment: newComment.comment,
+              createdAt: newComment.createdAt);
           _comments.add(displayComment);
         });
         _scrollToBottom();
@@ -111,23 +113,26 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
 
   Future<void> _handleFileDownload(String url) async {
     final fileName = url.split('/').last;
-    // ✅ Fix: Pass the current user ID explicitly
-    await context.read<AnnouncementProvider>().trackDownload(
-        widget.announcement.id, fileName, widget.currentUser.id);
-        
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
+
+    final bytes =
+        await context.read<AnnouncementProvider>().fetchFileAttachment(url);
+
+    if (bytes != null) {
+      String? result =
+          await FilePicker.platform.saveFile(fileName: fileName, bytes: bytes);
+      print(result);
+    } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open file')),
+        SnackBar(
+            content: Text('Error downloading $fileName'),
+            backgroundColor: Colors.red),
       );
     }
   }
 
   void _showViewersSheet() {
     if (!widget.currentUser.isInstructor) return;
-    
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -181,8 +186,9 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
   }
 
   Widget _buildHeader() {
-    final date = DateFormat('MMM dd, yyyy • HH:mm').format(widget.announcement.createdAt);
-    
+    final date = DateFormat('MMM dd, yyyy • HH:mm')
+        .format(widget.announcement.createdAt);
+
     return Row(
       children: [
         CircleAvatar(
@@ -250,11 +256,14 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
           runSpacing: 8,
           children: widget.announcement.fileAttachments.map((url) {
             String fileName = url.split('/').last;
-            if (fileName.contains('_')) fileName = fileName.split('_').sublist(1).join('_');
-            if (fileName.length > 20) fileName = '${fileName.substring(0, 15)}...';
+
+            if (fileName.length > 20) {
+              fileName = '${fileName.substring(0, 15)}...';
+            }
 
             return ActionChip(
-              avatar: const Icon(Icons.attach_file, size: 16, color: Colors.white),
+              avatar:
+                  const Icon(Icons.attach_file, size: 16, color: Colors.white),
               label: Text(
                 fileName,
                 style: GoogleFonts.poppins(color: Colors.white),
@@ -308,7 +317,9 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
             radius: 16,
             backgroundColor: Colors.grey[300],
             child: Text(
-              comment.userName.isNotEmpty ? comment.userName[0].toUpperCase() : '?',
+              comment.userName.isNotEmpty
+                  ? comment.userName[0].toUpperCase()
+                  : '?',
               style: GoogleFonts.poppins(fontSize: 12, color: Colors.black87),
             ),
           ),
@@ -416,7 +427,8 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
 class _ViewersBottomSheet extends StatelessWidget {
   final String announcementId;
 
-  const _ViewersBottomSheet({Key? key, required this.announcementId}) : super(key: key);
+  const _ViewersBottomSheet({Key? key, required this.announcementId})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -470,7 +482,8 @@ class _ViewersBottomSheet extends StatelessWidget {
                         subtitle: Text(user['email']),
                         trailing: Text(
                           DateFormat('MMM dd, HH:mm').format(viewedAt),
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       );
                     },
