@@ -180,6 +180,13 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
 
   Future<void> _createAssignment() async {
     if (_formKey.currentState!.validate()) {
+      showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+                child: CircularProgressIndicator(),
+              ));
+
       final success = await context.read<AssignmentProvider>().createAssignment(
           courseId: widget.course.id,
           instructorId: widget.instructorId,
@@ -197,14 +204,25 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
           targetGroups: _selectedGroups,
           totalPoints: int.parse(_pointsController.text));
 
-      if (success && mounted) {
+      if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Assignment created successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
+
+        if (success) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Assignment created successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error creating assignment'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }

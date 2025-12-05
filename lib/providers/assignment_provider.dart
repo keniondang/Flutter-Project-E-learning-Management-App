@@ -211,7 +211,6 @@ class AssignmentProvider extends ChangeNotifier {
             'instructor_id': instructorId,
             'title': title,
             'description': description,
-            'file_attachments': [],
             'has_attachments': fileAttachments.isNotEmpty,
             'start_date': startDate.toIso8601String(),
             'due_date': dueDate.toIso8601String(),
@@ -263,6 +262,7 @@ class AssignmentProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _error = e.toString();
+      print('Erroring creating assignment: $e');
 
       notifyListeners();
       return false;

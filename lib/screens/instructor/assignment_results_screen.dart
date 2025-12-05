@@ -13,10 +13,10 @@ class AssignmentResultsScreen extends StatefulWidget {
   final UserModel instructor;
 
   const AssignmentResultsScreen({
-    Key? key,
+    super.key,
     required this.assignment,
     required this.instructor,
-  }) : super(key: key);
+  });
 
   @override
   State<AssignmentResultsScreen> createState() =>
@@ -32,9 +32,13 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
   @override
   void initState() {
     super.initState();
-    _studentsFuture = context.read<StudentProvider>().loadStudentsInCourse(
-          widget.assignment.courseId,
-        );
+    _studentsFuture = widget.assignment.scopeType == 'all'
+        ? context.read<StudentProvider>().loadStudentsInCourse(
+              widget.assignment.courseId,
+            )
+        : context.read<StudentProvider>().loadStudentsInGroups(
+              widget.assignment.targetGroups,
+            );
 
     _loadData();
     _searchController.addListener(_filterStudents);

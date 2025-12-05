@@ -27,9 +27,13 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
   void initState() {
     super.initState();
 
-    _studentsFuture = context.read<StudentProvider>().loadStudentsInCourse(
-          widget.quiz.courseId,
-        );
+    _studentsFuture = widget.quiz.scopeType == 'all'
+        ? context.read<StudentProvider>().loadStudentsInCourse(
+              widget.quiz.courseId,
+            )
+        : context
+            .read<StudentProvider>()
+            .loadStudentsInGroups(widget.quiz.targetGroups);
 
     _loadData();
     _searchController.addListener(_filterSubmissions);
@@ -116,7 +120,8 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
               builder: (context, provider, child) {
                 final totalStudents = _allStudents.length;
                 final submittedCount = _allStudents
-                    .where((s) => provider.getSubmissionForStudent(s.id) != null)
+                    .where(
+                        (s) => provider.getSubmissionForStudent(s.id) != null)
                     .length;
                 final notSubmittedCount = totalStudents - submittedCount;
 
@@ -124,13 +129,15 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
                 double totalScore = 0;
                 int scoredCount = 0;
                 for (var student in _allStudents) {
-                  final submission = provider.getSubmissionForStudent(student.id);
+                  final submission =
+                      provider.getSubmissionForStudent(student.id);
                   if (submission != null && submission.score != null) {
                     totalScore += submission.score!;
                     scoredCount++;
                   }
                 }
-                final averageScore = scoredCount > 0 ? totalScore / scoredCount : 0.0;
+                final averageScore =
+                    scoredCount > 0 ? totalScore / scoredCount : 0.0;
 
                 return Row(
                   children: [
@@ -319,9 +326,8 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
       subtitle = 'No attempt found';
     } else {
       // Get all attempts to show total count
-      final allAttempts = provider.submissions
-          .where((s) => s.studentId == student.id)
-          .toList();
+      final allAttempts =
+          provider.submissions.where((s) => s.studentId == student.id).toList();
       final attemptCount = allAttempts.length;
 
       status = 'Submitted';
@@ -480,9 +486,8 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
                   itemBuilder: (context, index) {
                     final attempt = attempts[index];
                     final isHighest = attempt.id == highestAttempt?.id;
-                    final percentage = (attempt.score ?? 0.0) /
-                        widget.quiz.totalPoints *
-                        100;
+                    final percentage =
+                        (attempt.score ?? 0.0) / widget.quiz.totalPoints * 100;
 
                     return Card(
                       color: isHighest ? Colors.amber[50] : null,
@@ -490,8 +495,8 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
                         leading: Stack(
                           children: [
                             CircleAvatar(
-                              backgroundColor: _getScoreColor(percentage)
-                                  .withOpacity(0.1),
+                              backgroundColor:
+                                  _getScoreColor(percentage).withOpacity(0.1),
                               child: Text(
                                 '#${attempt.attemptNumber}',
                                 style: TextStyle(
