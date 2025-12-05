@@ -21,7 +21,17 @@ class AuthService {
           .maybeSingle(); // Use maybeSingle instead of single to avoid errors
 
       if (response != null) {
-        _currentUser = UserModel.fromJson(response);
+        final hasAvatar = response['has_avatar'] as bool;
+
+        if (hasAvatar) {
+          _currentUser = UserModel.fromJson(
+              json: response,
+              avatarBytes: await _supabase.storage
+                  .from('avatars')
+                  .download('${response['id']}.jpg'));
+        } else {
+          _currentUser = UserModel.fromJson(json: response);
+        }
 
         // Save login state
         final prefs = await SharedPreferences.getInstance();
@@ -68,10 +78,10 @@ class AuthService {
             .from('users')
             .select()
             .eq('id', userId)
-            .single();
+            .maybeSingle();
 
         if (response != null) {
-          _currentUser = UserModel.fromJson(response);
+          _currentUser = UserModel.fromJson(json: response);
           return _currentUser;
         }
       } catch (e) {

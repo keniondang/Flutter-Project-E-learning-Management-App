@@ -34,9 +34,12 @@ class _AssignmentSubmissionScreenState
   AssignmentSubmission? _existingSubmission;
   int _currentAttempt = 1;
 
+  bool _isLoadingSubmission = true;
+
   @override
   void initState() {
     super.initState();
+    _loadExistingSubmission();
   }
 
   Future<void> _loadExistingSubmission() async {
@@ -52,6 +55,8 @@ class _AssignmentSubmissionScreenState
             _existingSubmission!.submissionText ?? '';
       });
     }
+
+    setState(() => _isLoadingSubmission = false);
   }
 
   Future<void> _pickFiles() async {
@@ -627,15 +632,8 @@ class _AssignmentSubmissionScreenState
         appBar: AppBar(
           title: Text('Submit Assignment', style: GoogleFonts.poppins()),
         ),
-        body: FutureBuilder(
-            future: _loadExistingSubmission(),
-            builder: (context, snapshot) {
-              switch (snapshot.connectionState) {
-                case ConnectionState.done:
-                  return _buildBody();
-                default:
-                  return const Center(child: CircularProgressIndicator());
-              }
-            }));
+        body: _isLoadingSubmission
+            ? const Center(child: CircularProgressIndicator())
+            : _buildBody());
   }
 }

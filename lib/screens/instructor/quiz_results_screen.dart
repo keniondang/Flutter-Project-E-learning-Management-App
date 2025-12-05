@@ -1,5 +1,6 @@
 import 'package:elearning_management_app/providers/quiz_attempt_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -345,6 +346,10 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
         ? (submission!.score! / widget.quiz.totalPoints) * 100
         : 0.0;
 
+    // Check for avatar bytes
+    final hasAvatar =
+        student.avatarBytes != null && student.avatarBytes!.isNotEmpty;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -357,15 +362,23 @@ class _QuizResultsScreenState extends State<QuizResultsScreen> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
+              // UPDATED: Use Avatar Bytes if available
               CircleAvatar(
                 backgroundColor: statusColor.withOpacity(0.1),
-                child: Text(
-                  student.fullName[0].toUpperCase(),
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                backgroundImage: hasAvatar
+                    ? MemoryImage(student.avatarBytes! as Uint8List)
+                    : null,
+                child: hasAvatar
+                    ? null
+                    : Text(
+                        student.fullName.isNotEmpty
+                            ? student.fullName[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:elearning_management_app/screens/shared/private_chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,7 +7,7 @@ import 'package:provider/provider.dart';
 import '../../models/course.dart';
 import '../../models/user_model.dart';
 import '../../providers/group_provider.dart';
-import '../../providers/student_provider.dart';
+import '../../providers/student_provider.dart'; // Corrected import
 import '../../providers/message_provider.dart';
 
 class CoursePeopleTab extends StatefulWidget {
@@ -104,12 +106,12 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
                     }
 
                     final instructor = UserModel(
-                      id: widget.course.instructorId!,
-                      email: '',
-                      username: 'Instructor',
-                      fullName: 'Instructor',
-                      role: 'instructor',
-                    );
+                        id: widget.course.instructorId!,
+                        email: '',
+                        username: 'Instructor',
+                        fullName: 'Instructor',
+                        role: 'instructor',
+                        hasAvatar: false);
                     _openChat(instructor);
                   },
                 ),
@@ -165,7 +167,6 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
           else
             ...studentProvider.students.map((student) {
               // LOGIC: Show message button ONLY if current user is Instructor
-              // Students CANNOT message other students
               final showMessageButton = widget.user.isInstructor;
               final isMe = student.id == widget.user.id;
 
@@ -179,6 +180,10 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
                 if (entry.value.isNotEmpty) groupName = entry.value;
               }
 
+              // Check if student has avatar bytes
+              final hasAvatarImage = student.avatarBytes != null &&
+                  student.avatarBytes!.isNotEmpty;
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 shape: RoundedRectangleBorder(
@@ -187,14 +192,22 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
                   leading: CircleAvatar(
                     backgroundColor:
                         isMe ? Colors.blue[100] : Colors.green[100],
-                    child: Text(
-                      student.fullName.isNotEmpty
-                          ? student.fullName[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                          color: isMe ? Colors.blue[700] : Colors.green[700],
-                          fontWeight: FontWeight.bold),
-                    ),
+                    // Display Image if available
+                    backgroundImage: hasAvatarImage
+                        ? MemoryImage(student.avatarBytes! as Uint8List)
+                        : null,
+                    // Display Initials if NO Image
+                    child: hasAvatarImage
+                        ? null
+                        : Text(
+                            student.fullName.isNotEmpty
+                                ? student.fullName[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(
+                                color:
+                                    isMe ? Colors.blue[700] : Colors.green[700],
+                                fontWeight: FontWeight.bold),
+                          ),
                   ),
                   title: Text(
                     isMe ? '${student.fullName} (You)' : student.fullName,

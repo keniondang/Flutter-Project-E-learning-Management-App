@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'user_model.dart';
 
 class Student extends UserModel {
@@ -9,7 +11,8 @@ class Student extends UserModel {
     required super.email,
     required super.username,
     required super.fullName,
-    super.avatarUrl,
+    required super.hasAvatar,
+    super.avatarBytes,
     Map<String, String>? groupMap,
     Set<String>? courseIds,
   })  : groupMap = groupMap ?? {},
@@ -20,6 +23,7 @@ class Student extends UserModel {
 
   factory Student.fromJson(
       {required Map<String, dynamic> json,
+      Uint8List? avatarByes,
       Map<String, String>? groupMap,
       Set<String>? courseIds}) {
     return Student(
@@ -27,7 +31,8 @@ class Student extends UserModel {
       email: json['email'],
       username: json['username'],
       fullName: json['full_name'],
-      avatarUrl: json['avatar_url'],
+      hasAvatar: json['has_avatar'],
+      avatarBytes: avatarByes,
       groupMap: groupMap ?? {},
       courseIds: courseIds ?? {},
     );

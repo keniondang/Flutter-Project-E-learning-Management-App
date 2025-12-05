@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:elearning_management_app/models/course.dart';
 import 'package:elearning_management_app/providers/student_course_provider.dart';
+import 'package:elearning_management_app/screens/student/student_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -33,6 +34,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   final AuthService _authService = AuthService();
   final TextEditingController _searchController = TextEditingController();
 
+  late UserModel user;
+
   Semester? _selectedSemester;
   CourseSortOption _currentSortOption = CourseSortOption.nameAsc;
   String _searchQuery = '';
@@ -42,19 +45,18 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   @override
   void initState() {
     super.initState();
+    user = widget.user;
     _loadSemesters();
     _loadNotifications();
   }
 
   Future<void> _loadNotifications() async {
-    await context
-        .read<NotificationProvider>()
-        .loadNotifications(widget.user.id);
+    await context.read<NotificationProvider>().loadNotifications(user.id);
 
     if (mounted) {
       _notificationSubscription =
           context.read<NotificationProvider>().subscribeNotification(
-                widget.user.id,
+                user.id,
               );
     }
   }
@@ -79,7 +81,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
   Future<Widget> _buildCourses(StudentCourseProvider provider) async {
     if (provider.currentSemester != _selectedSemester!.id) {
-      await provider.loadEnrolledCourses(widget.user.id, _selectedSemester!.id);
+      await provider.loadEnrolledCourses(user.id, _selectedSemester!.id);
     }
 
     List<Course> courses = provider.courses;
@@ -148,7 +150,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 MaterialPageRoute(
                   builder: (_) => CourseDetailScreen(
                     course: course,
-                    user: widget.user,
+                    user: user,
                   ),
                 ),
               );
@@ -247,7 +249,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => StudentDashboardScreen(student: widget.user),
+                  builder: (_) => StudentDashboardScreen(student: user),
                 ),
               );
             },
@@ -269,12 +271,28 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => NotificationScreen(user: widget.user),
+                        builder: (_) => NotificationScreen(user: user),
                       ),
                     );
                   },
                 ),
               );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.person),
+            tooltip: 'Edit Profile',
+            onPressed: () async {
+              final user = await Navigator.push(
+                context,
+                MaterialPageRoute<UserModel>(
+                  builder: (_) => StudentProfileScreen(user: this.user),
+                ),
+              );
+
+              setState(() {
+                if (user != null) this.user = user;
+              });
             },
           ),
           IconButton(
@@ -302,7 +320,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome back, ${widget.user.fullName}!',
+                  'Welcome back, ${user.fullName}!',
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -466,7 +484,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               // if (studentProvider.currentSemester != _selectedSemester!.id) {
               //   // Use addPostFrameCallback to avoid state errors during build
               //   studentProvider.loadEnrolledCourses(
-              //       widget.user.id, _selectedSemester!.id);
+              //       user.id, _selectedSemester!.id);
               //   return const Center(child: CircularProgressIndicator());
               // }
 

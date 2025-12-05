@@ -31,7 +31,7 @@ types:
         index: 13
   UserModel:
     typeId: 1
-    nextIndex: 6
+    nextIndex: 8
     fields:
       id:
         index: 0
@@ -43,11 +43,13 @@ types:
         index: 3
       role:
         index: 4
-      avatarUrl:
-        index: 5
+      avatarBytes:
+        index: 6
+      hasAvatar:
+        index: 7
   Student:
     typeId: 2
-    nextIndex: 12
+    nextIndex: 14
     fields:
       id:
         index: 4
@@ -57,12 +59,14 @@ types:
         index: 6
       fullName:
         index: 7
-      avatarUrl:
-        index: 8
       groupMap:
         index: 9
       courseIds:
         index: 11
+      avatarBytes:
+        index: 12
+      hasAvatar:
+        index: 13
   Group:
     typeId: 3
     nextIndex: 7
@@ -347,7 +351,7 @@ types:
         index: 8
   ForumReply:
     typeId: 14
-    nextIndex: 6
+    nextIndex: 7
     fields:
       id:
         index: 0
@@ -361,3 +365,5 @@ types:
         index: 4
       createdAt:
         index: 5
+      userHasAvatar:
+        index: 6

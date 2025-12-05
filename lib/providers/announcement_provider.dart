@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
 
 class AnnouncementProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -305,40 +306,24 @@ class AnnouncementProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('announcement_comments')
-          .select('*, users(full_name, avatar_url)')
+          .select('*, users(full_name, has_avatar)')
           .eq('announcement_id', announcementId)
           .order('created_at', ascending: true);
 
-      return (response as List).map((json) {
-        final Map<String, dynamic> adaptedJson = Map.from(json);
-        if (json['users'] != null) {
-          adaptedJson['user_name'] = json['users']['full_name'];
-        } else {
-          adaptedJson['user_name'] = 'Unknown User';
-        }
-        return AnnouncementComment.fromJson(adaptedJson);
-      }).toList();
+      return response
+          .map((json) => AnnouncementComment.fromJson(
+              json: json,
+              userName: json['users']['full_name'],
+              userHasAvatar: json['users']['has_avatar']))
+          .toList();
     } catch (e) {
-      // Fallback
-      try {
-        final fallbackResponse = await _supabase
-            .from('announcement_comments')
-            .select()
-            .eq('announcement_id', announcementId)
-            .order('created_at', ascending: true);
-        return (fallbackResponse as List).map((json) {
-          final Map<String, dynamic> adaptedJson = Map.from(json);
-          adaptedJson['user_name'] = 'User';
-          return AnnouncementComment.fromJson(adaptedJson);
-        }).toList();
-      } catch (e2) {
-        return [];
-      }
+      print('Error loading announcement\'s comments: $e');
+      return [];
     }
   }
 
   // ✅ UPDATED: Now requires userId explicitly
-  Future<AnnouncementComment?> addComment(
+  Future<Map<String, dynamic>?> addComment(
       String announcementId, String text, String userId) async {
     try {
       final response = await _supabase
@@ -351,15 +336,14 @@ class AnnouncementProvider extends ChangeNotifier {
           .select()
           .single();
 
-      final Map<String, dynamic> adaptedJson = Map.from(response);
-      adaptedJson['user_name'] = 'Me';
-
-      final newComment = AnnouncementComment.fromJson(adaptedJson);
       notifyListeners();
-      return newComment;
+      return response;
     } catch (e) {
+      _error = e.toString();
       print('Error adding comment: $e');
-      throw e;
+
+      notifyListeners();
+      return null;
     }
   }
 
@@ -395,7 +379,7 @@ class AnnouncementProvider extends ChangeNotifier {
       final users = response.map((json) {
         final userJson = json['users'];
         return (
-          user: UserModel.fromJson(userJson),
+          user: UserModel.fromJson(json: userJson),
           viewAt: DateTime.parse(json['viewed_at'])
         );
       }).toList();

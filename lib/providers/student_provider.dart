@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:elearning_management_app/models/user_model.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -29,10 +32,16 @@ class StudentProvider extends ChangeNotifier {
       final response =
           await _supabase.from('users').select().eq('role', 'student');
 
-      await box.putAll(Map.fromEntries((response as Iterable).map((json) {
-        final student = Student.fromJson(json: json);
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final hasAvatar = json['has_avatar'];
+
+        final student = Student.fromJson(
+            json: json,
+            avatarByes: hasAvatar ? await _fetchAvatarBytes(json['id']) : null);
+
         return MapEntry(student.id, student);
-      })));
+      }))));
     } catch (e) {
       _error = e.toString();
       print('Error loading students: $e');
@@ -57,26 +66,32 @@ class StudentProvider extends ChangeNotifier {
       final response = await _supabase
           .from('enrollments')
           .select(
-            '*, users!enrollments_student_id_fkey(id, email, username, full_name, avatar_url), groups(id, name, course_id)',
+            '*, users!enrollments_student_id_fkey(id, email, username, full_name, has_avatar), groups(id, name, course_id)',
           )
           .eq('group_id', groupId);
 
       // Update all students in this group
-      await box.putAll(Map.fromEntries((response as Iterable).map((json) {
-        final userId = json['users']['id'];
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final userJson = json['users'];
+        final userId = userJson['id'];
+        final hasAvatar = userJson['has_avatar'];
         final groupJson = json['groups'];
 
-        // Get existing student or create new
         final existingStudent = box.get(userId);
-        final student =
-            existingStudent ?? Student.fromJson(json: json['users']);
+
+        // Get existing student or create new
+        final student = existingStudent ??
+            Student.fromJson(
+                json: json['users'],
+                avatarByes: hasAvatar ? await _fetchAvatarBytes(userId) : null);
 
         // Update group mapping and course IDs
         student.groupMap[groupJson['id']] = groupJson['name'];
         student.courseIds.add(groupJson['course_id']);
 
         return MapEntry(student.id, student);
-      })));
+      }))));
     } catch (e) {
       _error = e.toString();
       print('Error loading students in group: $e');
@@ -97,26 +112,32 @@ class StudentProvider extends ChangeNotifier {
       final response = await _supabase
           .from('enrollments')
           .select(
-            '*, users!enrollments_student_id_fkey(id, email, username, full_name, avatar_url), groups(id, name, course_id)',
+            '*, users!enrollments_student_id_fkey(id, email, username, full_name, has_avatar), groups(id, name, course_id)',
           )
           .inFilter('group_id', groupIds);
 
       // Update all students in this group
-      await box.putAll(Map.fromEntries((response as Iterable).map((json) {
-        final userId = json['users']['id'];
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final userJson = json['users'];
+        final userId = userJson['id'];
+        final hasAvatar = userJson['has_avatar'];
         final groupJson = json['groups'];
 
-        // Get existing student or create new
         final existingStudent = box.get(userId);
-        final student =
-            existingStudent ?? Student.fromJson(json: json['users']);
+
+        // Get existing student or create new
+        final student = existingStudent ??
+            Student.fromJson(
+                json: json['users'],
+                avatarByes: hasAvatar ? await _fetchAvatarBytes(userId) : null);
 
         // Update group mapping and course IDs
         student.groupMap[groupJson['id']] = groupJson['name'];
         student.courseIds.add(groupJson['course_id']);
 
         return MapEntry(student.id, student);
-      })));
+      }))));
     } catch (e) {
       _error = e.toString();
       print('Error loading students in group: $e');
@@ -452,41 +473,66 @@ class StudentProvider extends ChangeNotifier {
   }
 
   // Update student
-  Future<bool> updateStudent({
+  Future<UserModel?> updateUser({
     required String id,
     required String email,
     required String fullName,
+    Uint8List? imageBytes,
   }) async {
     try {
-      await _supabase
+      final Map<String, dynamic> params = {
+        'email': email,
+        'full_name': fullName,
+      };
+
+      if (imageBytes != null) {
+        params['has_avatar'] = true;
+        await _supabase.storage.from('avatars').uploadBinary(
+            '$id.jpg', imageBytes,
+            fileOptions: const FileOptions(upsert: true));
+      }
+
+      final response = await _supabase
           .from('users')
-          .update({'email': email, 'full_name': fullName}).eq('id', id);
+          .update(params)
+          .eq('id', id)
+          .select()
+          .single();
 
       final box = await Hive.openBox<Student>(_boxName);
+      late Student student;
 
-      final student = box.get(id)!;
+      if (box.containsKey(id)) {
+        final boxStudent = box.get(id)!;
+        student = Student(
+          id: boxStudent.id,
+          email: email,
+          username: boxStudent.username,
+          fullName: fullName,
+          hasAvatar: imageBytes != null ? true : boxStudent.hasAvatar,
+          avatarBytes: imageBytes ?? boxStudent.avatarBytes,
+          groupMap: boxStudent.groupMap,
+          courseIds: boxStudent.courseIds,
+        );
+      } else {
+        student = Student.fromJson(json: response, avatarByes: imageBytes);
+      }
 
-      await box.put(
-          student.id,
-          Student(
-            id: student.id,
-            email: email,
-            username: student.username,
-            fullName: fullName,
-            avatarUrl: student.avatarUrl,
-            groupMap: student.groupMap,
-            courseIds: student.courseIds,
-          ));
+      await box.put(student.id, student);
+      final index = _students.indexWhere((x) => x.id == student.id);
 
-      _students = box.values.toList();
+      if (index > -1) {
+        _students[index] = student;
+      }
 
       notifyListeners();
-      return true;
+      return student;
     } catch (e) {
       _error = e.toString();
+      print('Error updating student: $e');
 
       notifyListeners();
-      return false;
+      return null;
     }
   }
 
@@ -544,26 +590,32 @@ class StudentProvider extends ChangeNotifier {
       final response = await _supabase
           .from('enrollments')
           .select(
-            'users!enrollments_student_id_fkey(id, email, username, full_name, avatar_url), groups!inner(id, course_id, name)',
+            'users!enrollments_student_id_fkey(id, email, username, full_name, has_avatar), groups!inner(id, course_id, name)',
           )
           .eq('groups.course_id', courseId);
 
       // Update all students in this course
-      await box.putAll(Map.fromEntries((response as Iterable).map((json) {
-        final userId = json['users']['id'];
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final userJson = json['users'];
+        final userId = userJson['id'];
+        final hasAvatar = userJson['has_avatar'];
         final groupJson = json['groups'];
 
-        // Get existing student or create new
         final existingStudent = box.get(userId);
-        final student =
-            existingStudent ?? Student.fromJson(json: json['users']);
+
+        // Get existing student or create new
+        final student = existingStudent ??
+            Student.fromJson(
+                json: json['users'],
+                avatarByes: hasAvatar ? await _fetchAvatarBytes(userId) : null);
 
         // Update group mapping and course IDs
         student.groupMap[groupJson['id']] = groupJson['name'];
-        student.courseIds.add(courseId);
+        student.courseIds.add(groupJson['course_id']);
 
         return MapEntry(student.id, student);
-      })));
+      }))));
     } catch (e) {
       _error = e.toString();
       print('Error loading students for course: $e');
@@ -585,30 +637,76 @@ class StudentProvider extends ChangeNotifier {
       final response = await _supabase
           .from('enrollments')
           .select(
-            'users!enrollments_student_id_fkey(id, email, username, full_name, avatar_url), groups!inner(id, course_id, name)',
+            'users!enrollments_student_id_fkey(id, email, username, full_name, has_avatar), groups!inner(id, course_id, name)',
           )
           .eq('groups.course_id', courseId);
 
       // Update all students in this course
-      await box.putAll(Map.fromEntries((response as Iterable).map((json) {
-        final userId = json['users']['id'];
+      await box
+          .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
+        final userJson = json['users'];
+        final userId = userJson['id'];
+        final hasAvatar = userJson['has_avatar'];
         final groupJson = json['groups'];
 
-        // Get existing student or create new
         final existingStudent = box.get(userId);
-        final student =
-            existingStudent ?? Student.fromJson(json: json['users']);
+
+        // Get existing student or create new
+        final student = existingStudent ??
+            Student.fromJson(
+                json: json['users'],
+                avatarByes: hasAvatar ? await _fetchAvatarBytes(userId) : null);
 
         // Update group mapping and course IDs
         student.groupMap[groupJson['id']] = groupJson['name'];
-        student.courseIds.add(courseId);
+        student.courseIds.add(groupJson['course_id']);
 
         return MapEntry(student.id, student);
-      })));
+      }))));
     } catch (e) {
       print('Error loading students in course: $e');
     }
 
     return box.values.where((x) => x.courseIds.contains(courseId)).toList();
+  }
+
+  Future<Uint8List?> fetchAvatarBytes(String userId) async {
+    try {
+      final box = await Hive.openBox<Student>(_boxName);
+
+      if (box.containsKey(userId)) {
+        return box.get(userId)!.avatarBytes as Uint8List;
+      }
+
+      final response =
+          await _supabase.from('users').select().eq('id', userId).single();
+
+      final hasAvatar = response['has_avatar'];
+
+      final student = Student.fromJson(
+          json: response,
+          avatarByes:
+              hasAvatar ? await _fetchAvatarBytes(response['id']) : null);
+
+      await box.put(student.id, student);
+
+      return student.avatarBytes as Uint8List;
+    } catch (e) {
+      _error = e.toString();
+      print('Error fetching avatar: $e');
+
+      return null;
+    }
+  }
+
+  Future<Uint8List?> _fetchAvatarBytes(String userId) async {
+    try {
+      return await _supabase.storage.from('avatars').download('$userId.jpg');
+    } catch (e) {
+      _error = e.toString();
+      print('Error fetching avatar: $e');
+
+      return null;
+    }
   }
 }

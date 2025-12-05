@@ -28,14 +28,15 @@ class ForumReplyProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('forum_replies')
-          .select('*, users(full_name)')
+          .select('*, users(full_name, has_avatar)')
           .eq('forum_id', forumId)
           .order('created_at');
 
       await box.putAll(Map.fromEntries(response.map((json) {
         final String fullName = json['users']['full_name'];
-        final forumReply =
-            ForumReply.fromJson(json: json, userFullName: fullName);
+        final bool hasAvatar = json['users']['has_avatar'];
+        final forumReply = ForumReply.fromJson(
+            json: json, userFullName: fullName, userHasAvatar: hasAvatar);
 
         return MapEntry(forumReply.id, forumReply);
       })));
@@ -54,16 +55,20 @@ class ForumReplyProvider extends ChangeNotifier {
   Future<bool> createForumReply(
       String forumId, String content, UserModel user) async {
     try {
-      final response = await _supabase.from('forum_replies').insert({
-        'forum_id': forumId,
-        'content': content,
-        'user_id': user.id,
-      }).select();
+      final response = await _supabase
+          .from('forum_replies')
+          .insert({
+            'forum_id': forumId,
+            'content': content,
+            'user_id': user.id,
+          })
+          .select()
+          .single();
 
-      final forumReply = response
-          .map((json) =>
-              ForumReply.fromJson(json: json, userFullName: user.fullName))
-          .first;
+      final forumReply = ForumReply.fromJson(
+          json: response,
+          userFullName: user.fullName,
+          userHasAvatar: user.hasAvatar);
 
       final box = await Hive.openBox<ForumReply>(_boxName);
 
