@@ -1,11 +1,13 @@
+import 'dart:io'; // Required for file handling
 import 'package:elearning_management_app/providers/assignment_provider.dart';
+import 'package:file_picker/file_picker.dart'; // Required for picking files
+import 'package:flutter/foundation.dart'; // Required for kIsWeb
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../models/course.dart';
 import '../../models/group.dart';
-import '../../providers/content_provider.dart';
 import '../../providers/group_provider.dart';
 
 class CreateAssignmentScreen extends StatefulWidget {
@@ -13,10 +15,10 @@ class CreateAssignmentScreen extends StatefulWidget {
   final String instructorId;
 
   const CreateAssignmentScreen({
-    Key? key,
+    super.key,
     required this.course,
     required this.instructorId,
-  }) : super(key: key);
+  });
 
   @override
   State<CreateAssignmentScreen> createState() => _CreateAssignmentScreenState();
@@ -36,7 +38,10 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
   bool _lateSubmissionAllowed = false;
   String _scopeType = 'all';
   List<String> _selectedGroups = [];
-  List<String> _fileAttachments = [];
+
+  // CHANGED: Use PlatformFile to store actual selected files
+  List<PlatformFile> _attachedFiles = [];
+
   List<String> _allowedFileTypes = ['.pdf', '.docx', '.txt'];
   List<Group> _availableGroups = [];
 
@@ -48,10 +53,92 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
 
   Future<void> _loadGroups() async {
     await context.read<GroupProvider>().loadGroups(widget.course.id);
+    if (mounted) {
+      setState(() {
+        _availableGroups = context.read<GroupProvider>().groups;
+      });
+    }
+  }
+
+  // --- File Picking Logic ---
+
+  Future<void> _pickFiles(FilePickerResult? result) async {
+    try {
+      if (result != null) {
+        setState(() {
+          _attachedFiles.addAll(result.files);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking files: $e')),
+        );
+      }
+    }
+  }
+
+  void _removeFile(int index) {
     setState(() {
-      _availableGroups = context.read<GroupProvider>().groups;
+      _attachedFiles.removeAt(index);
     });
   }
+
+  bool _isImage(String? extension) {
+    if (extension == null) return false;
+    final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'];
+    return imageExtensions.contains(extension.toLowerCase());
+  }
+
+  Widget _getImageWidget(PlatformFile file) {
+    if (file.bytes != null) {
+      return Image.memory(file.bytes!, fit: BoxFit.cover);
+    } else if (file.path != null && !kIsWeb) {
+      return Image.file(File(file.path!), fit: BoxFit.cover);
+    }
+    return const Icon(Icons.image_not_supported);
+  }
+
+  Widget _buildFilePreview(PlatformFile file) {
+    if (_isImage(file.extension)) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: _getImageWidget(file),
+        ),
+      );
+    }
+
+    IconData icon;
+    switch (file.extension?.toLowerCase()) {
+      case 'pdf':
+        icon = Icons.picture_as_pdf;
+        break;
+      case 'doc':
+      case 'docx':
+        icon = Icons.description;
+        break;
+      case 'zip':
+      case 'rar':
+        icon = Icons.folder_zip;
+        break;
+      default:
+        icon = Icons.insert_drive_file;
+    }
+
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Icon(icon, color: Colors.blue[700], size: 24),
+    );
+  }
+  // --------------------------
 
   Future<void> _selectDate(BuildContext context, String type) async {
     final picked = await showDatePicker(
@@ -94,24 +181,21 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
   Future<void> _createAssignment() async {
     if (_formKey.currentState!.validate()) {
       final success = await context.read<AssignmentProvider>().createAssignment(
-            courseId: widget.course.id,
-            instructorId: widget.instructorId,
-            title: _titleController.text,
-            description: _descriptionController.text,
-            fileAttachments: _fileAttachments,
-            startDate: _startDate,
-            dueDate: _dueDate,
-            lateSubmissionAllowed: _lateSubmissionAllowed,
-            lateDueDate: _lateDueDate,
-            maxAttempts: int.parse(_maxAttemptsController.text),
-            maxFileSize: int.parse(_maxFileSizeController.text) *
-                1024 *
-                1024, // Convert MB to bytes
-            allowedFileTypes: _allowedFileTypes,
-            scopeType: _scopeType,
-            targetGroups: _selectedGroups,
-            totalPoints: int.parse(_pointsController.text),
-          );
+          courseId: widget.course.id,
+          instructorId: widget.instructorId,
+          title: _titleController.text,
+          description: _descriptionController.text,
+          fileAttachments: _attachedFiles, // Passing the PlatformFile list
+          startDate: _startDate,
+          dueDate: _dueDate,
+          lateSubmissionAllowed: _lateSubmissionAllowed,
+          lateDueDate: _lateDueDate,
+          maxAttempts: int.parse(_maxAttemptsController.text),
+          maxFileSize: int.parse(_maxFileSizeController.text) * 1024 * 1024,
+          allowedFileTypes: _allowedFileTypes,
+          scopeType: _scopeType,
+          targetGroups: _selectedGroups,
+          totalPoints: int.parse(_pointsController.text));
 
       if (success && mounted) {
         Navigator.pop(context);
@@ -181,6 +265,91 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                 },
               ),
               const SizedBox(height: 16),
+
+              // --- NEW: Attachments Card ---
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Attachments',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () async {
+                              FilePickerResult? result =
+                                  await FilePicker.platform.pickFiles(
+                                allowMultiple: true,
+                                type: FileType.any,
+                                withData: true, // Important for Web
+                              );
+
+                              _pickFiles(result);
+                            },
+                            icon: const Icon(Icons.attach_file),
+                            label: const Text('Add Files'),
+                          ),
+                        ],
+                      ),
+                      if (_attachedFiles.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: Column(
+                            children:
+                                _attachedFiles.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final file = entry.value;
+                              return Column(
+                                children: [
+                                  ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    dense: true,
+                                    leading: _buildFilePreview(file),
+                                    title: Text(
+                                      file.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w500),
+                                    ),
+                                    subtitle: Text(
+                                      '${(file.size / 1024).toStringAsFixed(1)} KB',
+                                      style: GoogleFonts.poppins(fontSize: 11),
+                                    ),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.close,
+                                          color: Colors.red),
+                                      onPressed: () => _removeFile(index),
+                                    ),
+                                  ),
+                                  if (index != _attachedFiles.length - 1)
+                                    const Divider(height: 1),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // -----------------------------
 
               // Points
               TextFormField(

@@ -83,7 +83,7 @@ types:
         index: 6
   Assignment:
     typeId: 4
-    nextIndex: 21
+    nextIndex: 22
     fields:
       id:
         index: 0
@@ -127,6 +127,8 @@ types:
         index: 19
       grade:
         index: 20
+      hasAttachments:
+        index: 21
   Quiz:
     typeId: 5
     nextIndex: 21
@@ -205,7 +207,7 @@ types:
         index: 12
   CourseMaterial:
     typeId: 7
-    nextIndex: 12
+    nextIndex: 14
     fields:
       id:
         index: 0
@@ -217,8 +219,6 @@ types:
         index: 3
       description:
         index: 4
-      fileUrls:
-        index: 5
       externalLinks:
         index: 6
       createdAt:
@@ -231,6 +231,10 @@ types:
         index: 10
       hasViewed:
         index: 11
+      hasAttachments:
+        index: 12
+      fileAttachments:
+        index: 13
   Semester:
     typeId: 8
     nextIndex: 5
@@ -293,7 +297,7 @@ types:
         index: 8
   AssignmentSubmission:
     typeId: 12
-    nextIndex: 12
+    nextIndex: 13
     fields:
       id:
         index: 0
@@ -319,6 +323,8 @@ types:
         index: 10
       gradedAt:
         index: 11
+      hasAttachments:
+        index: 12
   Forum:
     typeId: 13
     nextIndex: 9

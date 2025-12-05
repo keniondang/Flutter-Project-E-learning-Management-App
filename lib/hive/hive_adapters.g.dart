@@ -239,7 +239,8 @@ class AssignmentAdapter extends TypeAdapter<Assignment> {
       instructorId: fields[2] as String,
       title: fields[3] as String,
       description: fields[4] as String,
-      fileAttachments: (fields[5] as List).cast<String>(),
+      hasAttachments: fields[21] as bool,
+      fileAttachments: (fields[5] as List?)?.cast<String>(),
       startDate: fields[6] as DateTime,
       dueDate: fields[7] as DateTime,
       lateSubmissionAllowed: fields[8] as bool,
@@ -261,7 +262,7 @@ class AssignmentAdapter extends TypeAdapter<Assignment> {
   @override
   void write(BinaryWriter writer, Assignment obj) {
     writer
-      ..writeByte(21)
+      ..writeByte(22)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -303,7 +304,9 @@ class AssignmentAdapter extends TypeAdapter<Assignment> {
       ..writeByte(19)
       ..write(obj.hasSubmitted)
       ..writeByte(20)
-      ..write(obj.grade);
+      ..write(obj.grade)
+      ..writeByte(21)
+      ..write(obj.hasAttachments);
   }
 
   @override
@@ -427,10 +430,10 @@ class AnnouncementAdapter extends TypeAdapter<Announcement> {
       instructorId: fields[2] as String,
       title: fields[3] as String,
       content: fields[4] as String,
-      fileAttachments: (fields[5] as List).cast<String>(),
       scopeType: fields[6] as String,
       targetGroups: (fields[7] as List).cast<String>(),
       createdAt: fields[8] as DateTime,
+      fileAttachments: (fields[5] as List?)?.cast<String>(),
       hasAttachments: fields[12] == null ? false : fields[12] as bool,
       viewCount: (fields[9] as num?)?.toInt(),
       commentCount: (fields[10] as num?)?.toInt(),
@@ -497,7 +500,8 @@ class CourseMaterialAdapter extends TypeAdapter<CourseMaterial> {
       instructorId: fields[2] as String,
       title: fields[3] as String,
       description: fields[4] as String?,
-      fileUrls: (fields[5] as List).cast<String>(),
+      fileAttachments: (fields[13] as List?)?.cast<String>(),
+      hasAttachments: fields[12] as bool,
       externalLinks: (fields[6] as List).cast<String>(),
       createdAt: fields[7] as DateTime,
       viewCount: (fields[9] as num?)?.toInt(),
@@ -510,7 +514,7 @@ class CourseMaterialAdapter extends TypeAdapter<CourseMaterial> {
   @override
   void write(BinaryWriter writer, CourseMaterial obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -521,8 +525,6 @@ class CourseMaterialAdapter extends TypeAdapter<CourseMaterial> {
       ..write(obj.title)
       ..writeByte(4)
       ..write(obj.description)
-      ..writeByte(5)
-      ..write(obj.fileUrls)
       ..writeByte(6)
       ..write(obj.externalLinks)
       ..writeByte(7)
@@ -534,7 +536,11 @@ class CourseMaterialAdapter extends TypeAdapter<CourseMaterial> {
       ..writeByte(10)
       ..write(obj.downloadCount)
       ..writeByte(11)
-      ..write(obj.hasViewed);
+      ..write(obj.hasViewed)
+      ..writeByte(12)
+      ..write(obj.hasAttachments)
+      ..writeByte(13)
+      ..write(obj.fileAttachments);
   }
 
   @override
@@ -754,6 +760,7 @@ class AssignmentSubmissionAdapter extends TypeAdapter<AssignmentSubmission> {
       studentId: fields[2] as String,
       studentName: fields[3] as String,
       submissionFiles: (fields[4] as List).cast<String>(),
+      hasAttachments: fields[12] as bool,
       submissionText: fields[5] as String?,
       attemptNumber: (fields[6] as num).toInt(),
       submittedAt: fields[7] as DateTime,
@@ -767,7 +774,7 @@ class AssignmentSubmissionAdapter extends TypeAdapter<AssignmentSubmission> {
   @override
   void write(BinaryWriter writer, AssignmentSubmission obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -791,7 +798,9 @@ class AssignmentSubmissionAdapter extends TypeAdapter<AssignmentSubmission> {
       ..writeByte(10)
       ..write(obj.feedback)
       ..writeByte(11)
-      ..write(obj.gradedAt);
+      ..write(obj.gradedAt)
+      ..writeByte(12)
+      ..write(obj.hasAttachments);
   }
 
   @override
