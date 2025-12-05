@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:elearning_management_app/models/user_model.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
@@ -33,7 +32,7 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('assignment_submissions')
-          .select('*, users!assignment_submissions_student_id_fkey(full_name)')
+          .select()
           .eq('assignment_id', assignmentId);
 
       await box
@@ -43,7 +42,6 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
 
         final submission = AssignmentSubmission.fromJson(
             json: json,
-            studentName: json['users']['full_name'],
             submissionFiles:
                 hasAttachments ? await _fetchFileAttachmentPaths(id) : null);
 
@@ -61,8 +59,40 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  RealtimeChannel subscribeSubmissions(String assignmentId) {
+    return _supabase
+        .channel('submissions')
+        .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'assignment_submissions',
+            filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'assignment_id',
+                value: assignmentId),
+            callback: (payload) async {
+              final json = payload.newRecord;
+
+              final id = json['id'] as String;
+              final hasAttachments = json['has_attachments'] as bool;
+
+              final submission = AssignmentSubmission.fromJson(
+                  json: json,
+                  submissionFiles: hasAttachments
+                      ? await _fetchFileAttachmentPaths(id)
+                      : null);
+
+              _submissions.add(submission);
+              notifyListeners();
+
+              final box = await Hive.openBox<AssignmentSubmission>(_boxName);
+              await box.put(submission.id, submission);
+            })
+        .subscribe();
+  }
+
   Future<AssignmentSubmission?> fetchStudentSubmission(
-      String assignmentId, UserModel student) async {
+      String assignmentId, String studentId) async {
     final box = await Hive.openBox<AssignmentSubmission>(_boxName);
 
     try {
@@ -70,15 +100,14 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
           .from('assignment_submissions')
           .select()
           .eq('assignment_id', assignmentId)
-          .eq('student_id', student.id)
+          .eq('student_id', studentId)
           .maybeSingle();
 
       if (response == null) {
         return null;
       }
 
-      final submission = AssignmentSubmission.fromJson(
-          json: response, studentName: student.fullName);
+      final submission = AssignmentSubmission.fromJson(json: response);
 
       await box.put(submission.id, submission);
 
@@ -88,7 +117,7 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
       print('Error loading submission: $e');
 
       final result = box.values.firstWhereOrNull(
-          (x) => x.assignmentId == assignmentId && x.studentId == student.id);
+          (x) => x.assignmentId == assignmentId && x.studentId == studentId);
 
       notifyListeners();
       return result;

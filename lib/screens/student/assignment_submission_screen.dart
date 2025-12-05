@@ -45,7 +45,7 @@ class _AssignmentSubmissionScreenState
   Future<void> _loadExistingSubmission() async {
     final submission = await context
         .read<AssignmentSubmissionProvider>()
-        .fetchStudentSubmission(widget.assignment.id, widget.student);
+        .fetchStudentSubmission(widget.assignment.id, widget.student.id);
 
     if (submission != null) {
       setState(() {

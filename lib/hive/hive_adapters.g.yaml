@@ -309,8 +309,6 @@ types:
         index: 1
       studentId:
         index: 2
-      studentName:
-        index: 3
       submissionFiles:
         index: 4
       submissionText:

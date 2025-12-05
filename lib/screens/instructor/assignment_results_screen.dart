@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/assignment.dart';
 import '../../models/student.dart';
 import '../../models/user_model.dart';
@@ -30,6 +31,8 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
   List<Student> _allStudents = [];
   List<Student> _filteredStudents = [];
 
+  late RealtimeChannel _submissionSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +52,8 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
     // Load submissions into the provider
     final submissionProvider = context.read<AssignmentSubmissionProvider>();
     await submissionProvider.loadAllSubmissions(widget.assignment.id);
+    _submissionSubscription =
+        submissionProvider.subscribeSubmissions(widget.assignment.id);
 
     // Await the future
     _allStudents = await _studentsFuture;
@@ -72,6 +77,7 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _submissionSubscription.unsubscribe();
     super.dispose();
   }
 
