@@ -89,6 +89,45 @@ class StudentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<List<Student>> loadStudentsInGroups(List<String> groupIds) async {
+    final box = await Hive.openBox<Student>(_boxName);
+
+    // ✅ FIX: Always fetch fresh enrollment data for the group
+    try {
+      final response = await _supabase
+          .from('enrollments')
+          .select(
+            '*, users!enrollments_student_id_fkey(id, email, username, full_name, avatar_url), groups(id, name, course_id)',
+          )
+          .inFilter('group_id', groupIds);
+
+      // Update all students in this group
+      await box.putAll(Map.fromEntries((response as Iterable).map((json) {
+        final userId = json['users']['id'];
+        final groupJson = json['groups'];
+
+        // Get existing student or create new
+        final existingStudent = box.get(userId);
+        final student =
+            existingStudent ?? Student.fromJson(json: json['users']);
+
+        // Update group mapping and course IDs
+        student.groupMap[groupJson['id']] = groupJson['name'];
+        student.courseIds.add(groupJson['course_id']);
+
+        return MapEntry(student.id, student);
+      })));
+    } catch (e) {
+      _error = e.toString();
+      print('Error loading students in group: $e');
+    }
+
+    return box.values
+        .where((x) =>
+            x.groupMap.keys.toSet().intersection(groupIds.toSet()).isNotEmpty)
+        .toList();
+  }
+
   Future<String?> fetchStudentGroupIdInCourse(
       String studentId, String courseId) async {
     try {
