@@ -140,7 +140,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
       List<QuizAttempt> allAttempts = [];
 
       for (var a in assignments) {
-        await submissionProvider.loadSubmissions(a.id);
+        await submissionProvider.loadAllSubmissions(a.id);
         allSubs.addAll(submissionProvider.submissions);
       }
 
@@ -328,7 +328,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
             ),
         ],
       ),
-
       body: TabBarView(
         controller: _tabController,
         children: [
@@ -366,7 +365,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                 onChanged: (val) => setState(() {}),
               ),
               const SizedBox(height: 12),
-
               Row(
                 children: [
                   FilterChip(
@@ -378,9 +376,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                   ),
                   const Spacer(),
                   Text(
-                    _streamSortNewestFirst
-                        ? 'Newest First'
-                        : 'Oldest First',
+                    _streamSortNewestFirst ? 'Newest First' : 'Oldest First',
                   ),
                   IconButton(
                     icon: Icon(
@@ -413,9 +409,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
               // filtering logic
               var filteredList = provider.announcements.where((a) {
                 final query = _streamSearchController.text.toLowerCase();
-                final matchesSearch =
-                    a.title.toLowerCase().contains(query) ||
-                        a.content.toLowerCase().contains(query);
+                final matchesSearch = a.title.toLowerCase().contains(query) ||
+                    a.content.toLowerCase().contains(query);
 
                 final matchesUnread =
                     !_streamShowUnreadOnly || (a.hasViewed == false);
@@ -461,8 +456,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
@@ -470,8 +464,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                   backgroundColor: Colors.blue[100],
                                   radius: 16,
                                   child: Icon(Icons.person,
-                                      size: 20,
-                                      color: Colors.blue[700]),
+                                      size: 20, color: Colors.blue[700]),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -482,8 +475,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                       Text(
                                         announcement.title,
                                         style: GoogleFonts.poppins(
-                                            fontWeight:
-                                                FontWeight.w600,
+                                            fontWeight: FontWeight.w600,
                                             fontSize: 16),
                                       ),
                                       Text(
@@ -495,8 +487,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                     ],
                                   ),
                                 ),
-                                if (!hasViewed &&
-                                    widget.user.isStudent)
+                                if (!hasViewed && widget.user.isStudent)
                                   Container(
                                       width: 10,
                                       height: 10,
@@ -516,17 +507,15 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                             Row(
                               children: [
                                 Icon(Icons.comment_outlined,
-                                    size: 16,
-                                    color: Colors.grey[600]),
+                                    size: 16, color: Colors.grey[600]),
                                 const SizedBox(width: 4),
                                 Text(
                                     '${announcement.commentCount ?? 0} comments'),
                                 const Spacer(),
-                                if (announcement.fileAttachments
-                                    .isNotEmpty) ...[
+                                if (announcement
+                                    .fileAttachments.isNotEmpty) ...[
                                   Icon(Icons.attach_file,
-                                      size: 16,
-                                      color: Colors.grey[600]),
+                                      size: 16, color: Colors.grey[600]),
                                   Text(
                                       ' ${announcement.fileAttachments.length}'),
                                 ]
@@ -567,8 +556,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
       ...assignmentProvider.assignments
           .map((a) => {'type': 'assignment', 'item': a}),
       ...quizProvider.quizzes.map((q) => {'type': 'quiz', 'item': q}),
-      ...materialProvider.materials
-          .map((m) => {'type': 'material', 'item': m}),
+      ...materialProvider.materials.map((m) => {'type': 'material', 'item': m}),
     ];
 
     if (allContent.isEmpty) {
@@ -592,11 +580,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
               child: ListTile(
                 leading: CircleAvatar(
                     backgroundColor: Colors.green[100],
-                    child: Icon(Icons.assignment,
-                        color: Colors.green[700])),
+                    child: Icon(Icons.assignment, color: Colors.green[700])),
                 title: Text(assignment.title,
-                    style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600)),
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
                 subtitle: Text(
                     isInstructor
                         ? 'Submissions: ${assignment.submissionCount ?? 0}'
@@ -614,18 +600,15 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                     Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) =>
-                                AssignmentSubmissionScreen(
-                                    assignment: assignment,
-                                    student: widget.user)));
+                            builder: (_) => AssignmentSubmissionScreen(
+                                assignment: assignment, student: widget.user)));
                   } else {
                     Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) =>
-                                AssignmentResultsScreen(
-                                    assignment: assignment,
-                                    instructor: widget.user)));
+                            builder: (_) => AssignmentResultsScreen(
+                                assignment: assignment,
+                                instructor: widget.user)));
                   }
                 },
               ),
@@ -640,12 +623,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
             int remainingAttempts = quiz.maxAttempts;
 
             if (isStudent) {
-              final attempts =
-                  studentQuizProvider.getAttemptsForQuiz(quiz.id);
-              attemptCount =
-                  attempts.where((a) => a.isCompleted).length;
-              highestScore =
-                  studentQuizProvider.getHighestScore(quiz.id);
+              final attempts = studentQuizProvider.getAttemptsForQuiz(quiz.id);
+              attemptCount = attempts.where((a) => a.isCompleted).length;
+              highestScore = studentQuizProvider.getHighestScore(quiz.id);
               remainingAttempts =
                   studentQuizProvider.getRemainingAttempts(quiz.id);
             }
@@ -655,11 +635,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
               child: ListTile(
                 leading: CircleAvatar(
                     backgroundColor: Colors.purple[100],
-                    child:
-                        Icon(Icons.quiz, color: Colors.purple[700])),
+                    child: Icon(Icons.quiz, color: Colors.purple[700])),
                 title: Text(quiz.title,
-                    style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600)),
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
                 subtitle: Text(
                     isInstructor
                         ? 'Submissions: ${quiz.submissionCount ?? 0}'
@@ -677,20 +655,17 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                               context,
                               MaterialPageRoute(
                                   builder: (_) => QuizTakingScreen(
-                                      quiz: quiz,
-                                      student: widget.user)))
+                                      quiz: quiz, student: widget.user)))
                           .then((_) => _loadData());
                     } else {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(const SnackBar(
-                              content: Text("This quiz is closed")));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("This quiz is closed")));
                     }
                   } else {
                     Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) =>
-                                QuizResultsScreen(quiz: quiz)));
+                            builder: (_) => QuizResultsScreen(quiz: quiz)));
                   }
                 },
               ),
@@ -704,19 +679,16 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
             child: ListTile(
               leading: CircleAvatar(
                   backgroundColor: Colors.blue[100],
-                  child:
-                      Icon(Icons.folder, color: Colors.blue[700])),
+                  child: Icon(Icons.folder, color: Colors.blue[700])),
               title: Text(material.title,
-                  style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600)),
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
               subtitle: Text(material.description ?? "No description"),
               onTap: () {
                 Navigator.push(
                     context,
                     MaterialPageRoute(
                         builder: (_) => MaterialViewerScreen(
-                            material: material,
-                            student: widget.user)));
+                            material: material, student: widget.user)));
               },
             ),
           );
