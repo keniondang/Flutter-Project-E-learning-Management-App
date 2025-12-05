@@ -305,7 +305,7 @@ class AnnouncementProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('announcement_comments')
-          .select('*, users(full_name, avatar_url)')
+          .select('*, users(full_name, has_avatar)')
           .eq('announcement_id', announcementId)
           .order('created_at', ascending: true);
 
@@ -395,7 +395,7 @@ class AnnouncementProvider extends ChangeNotifier {
       final users = response.map((json) {
         final userJson = json['users'];
         return (
-          user: UserModel.fromJson(userJson),
+          user: UserModel.fromJson(json: userJson),
           viewAt: DateTime.parse(json['viewed_at'])
         );
       }).toList();

@@ -86,14 +86,15 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       username: fields[2] as String,
       fullName: fields[3] as String,
       role: fields[4] as String,
-      avatarUrl: fields[5] as String?,
+      hasAvatar: fields[7] as bool,
+      avatarBytes: (fields[6] as List?)?.cast<int>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, UserModel obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -104,8 +105,10 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       ..write(obj.fullName)
       ..writeByte(4)
       ..write(obj.role)
-      ..writeByte(5)
-      ..write(obj.avatarUrl);
+      ..writeByte(6)
+      ..write(obj.avatarBytes)
+      ..writeByte(7)
+      ..write(obj.hasAvatar);
   }
 
   @override
@@ -134,7 +137,8 @@ class StudentAdapter extends TypeAdapter<Student> {
       email: fields[5] as String,
       username: fields[6] as String,
       fullName: fields[7] as String,
-      avatarUrl: fields[8] as String?,
+      hasAvatar: fields[13] as bool,
+      avatarBytes: (fields[12] as List?)?.cast<int>(),
       groupMap: (fields[9] as Map?)?.cast<String, String>(),
       courseIds: (fields[11] as Set?)?.cast<String>(),
     );
@@ -143,7 +147,7 @@ class StudentAdapter extends TypeAdapter<Student> {
   @override
   void write(BinaryWriter writer, Student obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(4)
       ..write(obj.id)
       ..writeByte(5)
@@ -152,12 +156,14 @@ class StudentAdapter extends TypeAdapter<Student> {
       ..write(obj.username)
       ..writeByte(7)
       ..write(obj.fullName)
-      ..writeByte(8)
-      ..write(obj.avatarUrl)
       ..writeByte(9)
       ..write(obj.groupMap)
       ..writeByte(11)
-      ..write(obj.courseIds);
+      ..write(obj.courseIds)
+      ..writeByte(12)
+      ..write(obj.avatarBytes)
+      ..writeByte(13)
+      ..write(obj.hasAvatar);
   }
 
   @override

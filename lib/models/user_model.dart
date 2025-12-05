@@ -1,10 +1,13 @@
+import 'dart:typed_data';
+
 class UserModel {
   final String id;
   final String email;
   final String username;
   final String fullName;
   final String role;
-  final String? avatarUrl;
+  final List<int>? avatarBytes;
+  final bool hasAvatar;
 
   UserModel({
     required this.id,
@@ -12,17 +15,20 @@ class UserModel {
     required this.username,
     required this.fullName,
     required this.role,
-    this.avatarUrl,
+    required this.hasAvatar,
+    this.avatarBytes,
   });
 
-  factory UserModel.fromJson(Map<String, dynamic> json) {
+  factory UserModel.fromJson(
+      {required Map<String, dynamic> json, Uint8List? avatarBytes}) {
     return UserModel(
       id: json['id'],
       email: json['email'],
       username: json['username'],
       fullName: json['full_name'],
       role: json['role'],
-      avatarUrl: json['avatar_url'],
+      hasAvatar: json['has_avatar'],
+      avatarBytes: avatarBytes,
     );
   }
 

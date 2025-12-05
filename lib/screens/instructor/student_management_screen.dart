@@ -143,13 +143,13 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               final provider = context.read<StudentProvider>();
 
               if (isEdit) {
-                final success = await provider.updateStudent(
+                final result = await provider.updateUser(
                   id: student.id,
                   email: emailController.text,
                   fullName: fullNameController.text,
                 );
 
-                if (success && mounted) {
+                if (result != null && mounted) {
                   Navigator.pop(context);
                   _filterStudents();
                   ScaffoldMessenger.of(context).showSnackBar(
