@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -109,9 +111,10 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
 
                         if (success && mounted) {
                           Navigator.pop(context);
-                          
-                          // ✅ CHANGE 1: Use refreshGroupStats instead of updateGroupStudentCount
-                          await context.read<GroupProvider>().refreshGroupStats(widget.group.id);
+
+                          await context
+                              .read<GroupProvider>()
+                              .refreshGroupStats(widget.group.id);
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -163,8 +166,9 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
                       );
 
               if (success && mounted) {
-                // ✅ CHANGE 2: Use refreshGroupStats instead of updateGroupStudentCount
-                await context.read<GroupProvider>().refreshGroupStats(widget.group.id);
+                await context
+                    .read<GroupProvider>()
+                    .refreshGroupStats(widget.group.id);
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -242,15 +246,28 @@ class _GroupStudentsScreenState extends State<GroupStudentsScreen> {
             itemCount: provider.students.length,
             itemBuilder: (context, index) {
               final student = provider.students[index];
+
+              // Check if avatar bytes are available
+              final hasAvatar = student.avatarBytes != null &&
+                  student.avatarBytes!.isNotEmpty;
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: Colors.blue[100],
-                    child: Text(
-                      student.fullName[0].toUpperCase(),
-                      style: TextStyle(color: Colors.blue[700]),
-                    ),
+                    // UPDATED: Show Avatar if available
+                    backgroundImage: hasAvatar
+                        ? MemoryImage(student.avatarBytes! as Uint8List)
+                        : null,
+                    child: hasAvatar
+                        ? null
+                        : Text(
+                            student.fullName.isNotEmpty
+                                ? student.fullName[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(color: Colors.blue[700]),
+                          ),
                   ),
                   title: Text(
                     student.fullName,

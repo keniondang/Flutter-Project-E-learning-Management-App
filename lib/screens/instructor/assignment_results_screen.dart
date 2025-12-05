@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../models/assignment.dart';
@@ -119,7 +120,7 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
                   return Center(child: Text('Error: ${studentSnapshot.error}'));
                 }
                 if (!studentSnapshot.hasData || studentSnapshot.data!.isEmpty) {
-                  return Center(
+                  return const Center(
                     child: Text('No students enrolled in this course.'),
                   );
                 }
@@ -179,10 +180,30 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
       trailing = Icon(Icons.pending, color: statusColor);
     }
 
+    // Check for avatar bytes
+    final hasAvatar =
+        student.avatarBytes != null && student.avatarBytes!.isNotEmpty;
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: ListTile(
-        leading: CircleAvatar(child: Text(student.fullName[0].toUpperCase())),
+        leading: CircleAvatar(
+          backgroundColor: statusColor.withOpacity(0.1),
+          // UPDATED: Show Avatar if available
+          backgroundImage:
+              hasAvatar ? MemoryImage(student.avatarBytes! as Uint8List) : null,
+          child: hasAvatar
+              ? null
+              : Text(
+                  student.fullName.isNotEmpty
+                      ? student.fullName[0].toUpperCase()
+                      : '?',
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+        ),
         title: Text(
           student.fullName,
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),

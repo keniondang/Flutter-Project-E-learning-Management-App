@@ -351,7 +351,7 @@ types:
         index: 8
   ForumReply:
     typeId: 14
-    nextIndex: 6
+    nextIndex: 7
     fields:
       id:
         index: 0
@@ -365,3 +365,5 @@ types:
         index: 4
       createdAt:
         index: 5
+      userHasAvatar:
+        index: 6

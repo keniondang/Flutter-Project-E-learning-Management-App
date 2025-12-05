@@ -137,77 +137,77 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
   // ... (Rest of the file remains unchanged: _showCSVImportDialog, _handleCSVImport, _confirmDelete, build method)
   // Ensure you keep the rest of the existing code here.
-  
-  void _showCSVImportDialog() {
-    if (_selectedCourse == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a course first'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Import Groups from CSV',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'CSV Format Required:',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'group_name',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    'Group A\nGroup B\nGroup C',
-                    style: GoogleFonts.poppins(fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              Navigator.pop(context);
-              _handleCSVImport();
-            },
-            icon: const Icon(Icons.upload_file),
-            label: const Text('Choose CSV File'),
-          ),
-        ],
-      ),
-    );
-  }
+  // void _showCSVImportDialog() {
+  //   if (_selectedCourse == null) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(
+  //         content: Text('Please select a course first'),
+  //         backgroundColor: Colors.orange,
+  //       ),
+  //     );
+  //     return;
+  //   }
+
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) => AlertDialog(
+  //       title: Text(
+  //         'Import Groups from CSV',
+  //         style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+  //       ),
+  //       content: Column(
+  //         mainAxisSize: MainAxisSize.min,
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           Text(
+  //             'CSV Format Required:',
+  //             style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+  //           ),
+  //           const SizedBox(height: 8),
+  //           Container(
+  //             padding: const EdgeInsets.all(12),
+  //             decoration: BoxDecoration(
+  //               color: Colors.grey[100],
+  //               borderRadius: BorderRadius.circular(8),
+  //               border: Border.all(color: Colors.grey[300]!),
+  //             ),
+  //             child: Column(
+  //               crossAxisAlignment: CrossAxisAlignment.start,
+  //               children: [
+  //                 Text(
+  //                   'group_name',
+  //                   style: GoogleFonts.poppins(
+  //                     fontSize: 12,
+  //                     fontWeight: FontWeight.w600,
+  //                   ),
+  //                 ),
+  //                 Text(
+  //                   'Group A\nGroup B\nGroup C',
+  //                   style: GoogleFonts.poppins(fontSize: 12),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.pop(context),
+  //           child: const Text('Cancel'),
+  //         ),
+  //         ElevatedButton.icon(
+  //           onPressed: () async {
+  //             Navigator.pop(context);
+  //             _handleCSVImport();
+  //           },
+  //           icon: const Icon(Icons.upload_file),
+  //           label: const Text('Choose CSV File'),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Future<void> _handleCSVImport() async {
     final result = await CSVService.pickAndParseCSV();
@@ -356,11 +356,11 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       appBar: AppBar(
         title: Text('Group Management', style: GoogleFonts.poppins()),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.upload_file),
-            onPressed: _showCSVImportDialog,
-            tooltip: 'Import from CSV',
-          ),
+          // IconButton(
+          //   icon: const Icon(Icons.upload_file),
+          //   onPressed: _showCSVImportDialog,
+          //   tooltip: 'Import from CSV',
+          // ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showAddEditDialog(),

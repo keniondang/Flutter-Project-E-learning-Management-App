@@ -29,74 +29,7 @@ class _ForumScreenState extends State<ForumScreen> {
 
   Future<void> _loadForums() async {
     await context.read<ForumProvider>().loadForums(widget.course.id);
-    // _forums = context.read<ForumProvider>().forums;
   }
-  // Future<void> _loadTopics() async {
-  //   setState(() => _isLoading = true);
-
-  //   try {
-  //     // First ensure forum exists for course
-  //     var forumResponse = await _supabase
-  //         .from('forums')
-  //         .select()
-  //         .eq('course_id', widget.course.id)
-  //         .maybeSingle();
-
-  //     String forumId;
-  //     forumResponse ??= await _supabase
-  //         .from('forums')
-  //         .insert({
-  //           'course_id': widget.course.id,
-  //           'title': '${widget.course.name} Forum',
-  //           'description': 'Discussion forum for ${widget.course.name}',
-  //           'created_by': widget.user.id,
-  //         })
-  //         .select()
-  //         .single();
-  //     forumId = forumResponse['id'];
-
-  //     // Load topics with user info and reply count
-  //     final topics = await _supabase
-  //         .from('forum_topics')
-  //         .select('*, users!forum_topics_created_by_fkey(full_name)')
-  //         .eq('forum_id', forumId)
-  //         .order('is_pinned', ascending: false)
-  //         .order('created_at', ascending: false);
-
-  //     // Get reply counts
-  //     for (var topic in topics) {
-  //       final replyCount = await _supabase
-  //           .from('forum_replies')
-  //           .select('id')
-  //           .eq('topic_id', topic['id']);
-  //       topic['reply_count'] = (replyCount as List).length;
-  //     }
-
-  //     setState(() {
-  //       _topics = List<Map<String, dynamic>>.from(topics);
-  //       _filteredTopics = _topics;
-  //       _isLoading = false;
-  //     });
-  //   } catch (e) {
-  //     print('Error loading forum topics: $e');
-  //     setState(() => _isLoading = false);
-  //   }
-  // }
-
-  // void _filterTopics(String query) {
-  //   setState(() {
-  //     if (query.isEmpty) {
-  //       _filteredTopics = _topics;
-  //     } else {
-  //       _filteredTopics = _topics.where((topic) {
-  //         final title = topic['title'].toString().toLowerCase();
-  //         final content = topic['content'].toString().toLowerCase();
-  //         return title.contains(query.toLowerCase()) ||
-  //             content.contains(query.toLowerCase());
-  //       }).toList();
-  //     }
-  //   });
-  // }
 
   void _showCreateTopicDialog() {
     final titleController = TextEditingController();

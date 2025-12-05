@@ -4,6 +4,7 @@ import 'package:elearning_management_app/providers/course_material_provider.dart
 import 'package:elearning_management_app/providers/quiz_provider.dart';
 import 'package:elearning_management_app/providers/student_provider.dart';
 import 'package:elearning_management_app/providers/student_quiz_provider.dart';
+import 'package:elearning_management_app/screens/shared/forum_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -37,7 +38,6 @@ import 'student/material_viewer_screen.dart';
 // Shared Screens
 import 'package:elearning_management_app/screens/shared/announcement_detail_screen.dart';
 import 'shared/course_people_tab.dart';
-import 'shared/forum_screen.dart';
 
 class CourseDetailScreen extends StatefulWidget {
   final Course course;
@@ -206,6 +206,18 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
         //          ONLY CHANGE REQUESTED: CSV EXPORT ADDED HERE
         // ------------------------------------------------------------------
         actions: [
+          IconButton(
+            icon: const Icon(Icons.forum),
+            tooltip: 'Forums',
+            onPressed: () async {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        ForumScreen(course: widget.course, user: widget.user)),
+              );
+            },
+          ),
           if (_isExportingCsv)
             const Padding(
               padding: EdgeInsets.only(right: 16),

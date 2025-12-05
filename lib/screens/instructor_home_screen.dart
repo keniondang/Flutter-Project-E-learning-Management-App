@@ -288,7 +288,8 @@ class InstructorHomeScreen extends StatelessWidget {
 
                     // --- TOTAL QUIZZES ---
                     Consumer2<SemesterProvider, QuizProvider>(
-                      builder: (context, semesterProvider, quizProvider, child) {
+                      builder:
+                          (context, semesterProvider, quizProvider, child) {
                         if (semesterProvider.currentSemester == null) {
                           return _buildStatCard(
                             'Total Quizzes',

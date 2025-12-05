@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
@@ -670,15 +671,28 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   itemCount: _filteredStudents.length,
                   itemBuilder: (context, index) {
                     final student = _filteredStudents[index];
+
+                    // Check if avatar bytes are available
+                    final hasAvatar = student.avatarBytes != null &&
+                        student.avatarBytes!.isNotEmpty;
+
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: Colors.green[100],
-                          child: Text(
-                            student.fullName[0].toUpperCase(),
-                            style: TextStyle(color: Colors.green[700]),
-                          ),
+                          // UPDATED: Show Avatar if available
+                          backgroundImage: hasAvatar
+                              ? MemoryImage(student.avatarBytes! as Uint8List)
+                              : null,
+                          child: hasAvatar
+                              ? null
+                              : Text(
+                                  student.fullName.isNotEmpty
+                                      ? student.fullName[0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(color: Colors.green[700]),
+                                ),
                         ),
                         title: Text(
                           student.fullName,
@@ -716,8 +730,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddEditDialog(),
-        child: const Icon(Icons.add),
         tooltip: 'Add Student',
+        child: const Icon(Icons.add),
       ),
     );
   }

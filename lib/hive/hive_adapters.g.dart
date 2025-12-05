@@ -891,6 +891,7 @@ class ForumReplyAdapter extends TypeAdapter<ForumReply> {
       content: fields[2] as String,
       userId: fields[3] as String,
       userFullName: fields[4] as String,
+      userHasAvatar: fields[6] as bool,
       createdAt: fields[5] as DateTime,
     );
   }
@@ -898,7 +899,7 @@ class ForumReplyAdapter extends TypeAdapter<ForumReply> {
   @override
   void write(BinaryWriter writer, ForumReply obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -910,7 +911,9 @@ class ForumReplyAdapter extends TypeAdapter<ForumReply> {
       ..writeByte(4)
       ..write(obj.userFullName)
       ..writeByte(5)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(6)
+      ..write(obj.userHasAvatar);
   }
 
   @override

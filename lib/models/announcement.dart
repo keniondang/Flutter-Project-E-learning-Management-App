@@ -70,6 +70,7 @@ class AnnouncementComment {
   final String announcementId;
   final String userId;
   final String userName;
+  final bool userHasAvatar;
   final String comment;
   final DateTime createdAt;
 
@@ -80,16 +81,21 @@ class AnnouncementComment {
     required this.userName,
     required this.comment,
     required this.createdAt,
+    required this.userHasAvatar,
   });
 
-  factory AnnouncementComment.fromJson(Map<String, dynamic> json) {
+  factory AnnouncementComment.fromJson(
+      {required Map<String, dynamic> json,
+      String? userName,
+      bool userHasAvatar = false}) {
     return AnnouncementComment(
       id: json['id'],
       announcementId: json['announcement_id'],
       userId: json['user_id'],
-      userName: json['user_name'] ?? 'Unknown',
+      userName: userName ?? 'Unknown',
       comment: json['comment'],
       createdAt: DateTime.parse(json['created_at']),
+      userHasAvatar: userHasAvatar,
     );
   }
 }

@@ -36,14 +36,10 @@ class StudentProvider extends ChangeNotifier {
           .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
         final hasAvatar = json['has_avatar'];
 
-        late Student student;
+        final student = Student.fromJson(
+            json: json,
+            avatarByes: hasAvatar ? await _fetchAvatarBytes(json['id']) : null);
 
-        if (hasAvatar) {
-          student = Student.fromJson(
-              json: json, avatarByes: await _fetchAvatarBytes(json['id']));
-        } else {
-          student = Student.fromJson(json: json);
-        }
         return MapEntry(student.id, student);
       }))));
     } catch (e) {
@@ -598,8 +594,6 @@ class StudentProvider extends ChangeNotifier {
           )
           .eq('groups.course_id', courseId);
 
-      print(response);
-
       // Update all students in this course
       await box
           .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
@@ -674,6 +668,35 @@ class StudentProvider extends ChangeNotifier {
     }
 
     return box.values.where((x) => x.courseIds.contains(courseId)).toList();
+  }
+
+  Future<Uint8List?> fetchAvatarBytes(String userId) async {
+    try {
+      final box = await Hive.openBox<Student>(_boxName);
+
+      if (box.containsKey(userId)) {
+        return box.get(userId)!.avatarBytes as Uint8List;
+      }
+
+      final response =
+          await _supabase.from('users').select().eq('id', userId).single();
+
+      final hasAvatar = response['has_avatar'];
+
+      final student = Student.fromJson(
+          json: response,
+          avatarByes:
+              hasAvatar ? await _fetchAvatarBytes(response['id']) : null);
+
+      await box.put(student.id, student);
+
+      return student.avatarBytes as Uint8List;
+    } catch (e) {
+      _error = e.toString();
+      print('Error fetching avatar: $e');
+
+      return null;
+    }
   }
 
   Future<Uint8List?> _fetchAvatarBytes(String userId) async {

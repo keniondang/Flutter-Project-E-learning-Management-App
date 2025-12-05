@@ -1,12 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:elearning_management_app/models/announcement.dart';
 import 'package:elearning_management_app/models/user_model.dart';
 import 'package:elearning_management_app/providers/announcement_provider.dart';
+import 'package:elearning_management_app/providers/student_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 class AnnouncementDetailScreen extends StatefulWidget {
@@ -14,10 +16,10 @@ class AnnouncementDetailScreen extends StatefulWidget {
   final UserModel currentUser;
 
   const AnnouncementDetailScreen({
-    Key? key,
+    super.key,
     required this.announcement,
     required this.currentUser,
-  }) : super(key: key);
+  });
 
   @override
   State<AnnouncementDetailScreen> createState() =>
@@ -77,37 +79,33 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     setState(() => _isPostingComment = true);
     final text = _commentController.text.trim();
 
-    try {
-      _commentController.clear();
-      FocusScope.of(context).unfocus();
+    _commentController.clear();
+    FocusScope.of(context).unfocus();
 
-      // ✅ Fix: Pass the current user ID explicitly
-      final newComment = await context.read<AnnouncementProvider>().addComment(
-            widget.announcement.id,
-            text,
-            widget.currentUser.id,
-          );
+    final response = await context
+        .read<AnnouncementProvider>()
+        .addComment(widget.announcement.id, text, widget.currentUser.id);
 
-      if (newComment != null && mounted) {
+    if (mounted) {
+      if (response != null) {
         setState(() {
-          final displayComment = AnnouncementComment(
-              id: newComment.id,
-              announcementId: newComment.announcementId,
-              userId: newComment.userId,
-              userName: widget
-                  .currentUser.fullName, // Use local name for instant feedback
-              comment: newComment.comment,
-              createdAt: newComment.createdAt);
-          _comments.add(displayComment);
+          final comment = AnnouncementComment.fromJson(
+              json: response,
+              userName: widget.currentUser.fullName,
+              userHasAvatar: widget.currentUser.hasAvatar);
+
+          _comments.add(comment);
         });
         _scrollToBottom();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Failed to post: ${context.read<AnnouncementProvider>().error}')),
+        );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to post: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _isPostingComment = false);
+
+      setState(() => _isPostingComment = false);
     }
   }
 
@@ -313,16 +311,51 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: Colors.grey[300],
-            child: Text(
-              comment.userName.isNotEmpty
-                  ? comment.userName[0].toUpperCase()
-                  : '?',
-              style: GoogleFonts.poppins(fontSize: 12, color: Colors.black87),
+          if (comment.userHasAvatar)
+            FutureBuilder<Uint8List?>(
+              future: context
+                  .read<StudentProvider>()
+                  .fetchAvatarBytes(comment.userId),
+              builder: (context, snapshot) {
+                switch (snapshot.connectionState) {
+                  case ConnectionState.done:
+                    final avatarBytes = snapshot.data;
+
+                    return CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.grey[300],
+                      // UPDATED: Show Avatar if available
+                      backgroundImage:
+                          avatarBytes != null ? MemoryImage(avatarBytes) : null,
+                      child: avatarBytes != null
+                          ? null
+                          : Text(
+                              comment.userName.isNotEmpty
+                                  ? comment.userName[0].toUpperCase()
+                                  : '?',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 12, color: Colors.black87),
+                            ),
+                    );
+                  default:
+                    return const SizedBox(
+                        width: 8,
+                        height: 8,
+                        child: CircularProgressIndicator());
+                }
+              },
+            )
+          else
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.grey[300],
+              child: Text(
+                comment.userName.isNotEmpty
+                    ? comment.userName[0].toUpperCase()
+                    : '?',
+                style: GoogleFonts.poppins(fontSize: 12, color: Colors.black87),
+              ),
             ),
-          ),
           const SizedBox(width: 12),
           Expanded(
             child: Container(
@@ -427,13 +460,12 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
 class _ViewersBottomSheet extends StatelessWidget {
   final String announcementId;
 
-  const _ViewersBottomSheet({Key? key, required this.announcementId})
-      : super(key: key);
+  const _ViewersBottomSheet({required this.announcementId});
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: context.read<AnnouncementProvider>().getViewers(announcementId),
+    return FutureBuilder<List<({UserModel user, DateTime viewAt})>>(
+      future: context.read<AnnouncementProvider>().getAnalytics(announcementId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox(
@@ -468,20 +500,17 @@ class _ViewersBottomSheet extends StatelessWidget {
                   child: ListView.builder(
                     itemCount: viewers.length,
                     itemBuilder: (context, index) {
-                      final viewer = viewers[index];
-                      final user = viewer['users'];
-                      final viewedAt = DateTime.parse(viewer['viewed_at']);
+                      final UserModel user = viewers[index].user;
+                      // final viewedAt = DateTime.parse(viewer['viewed_at']);
 
                       return ListTile(
                         leading: CircleAvatar(
-                          child: Text(
-                            (user['full_name'] as String)[0].toUpperCase(),
-                          ),
-                        ),
-                        title: Text(user['full_name']),
-                        subtitle: Text(user['email']),
+                            child: Text(user.fullName[0].toUpperCase())),
+                        title: Text(user.fullName),
+                        subtitle: Text(user.email),
                         trailing: Text(
-                          DateFormat('MMM dd, HH:mm').format(viewedAt),
+                          DateFormat('MMM dd, HH:mm')
+                              .format(viewers[index].viewAt),
                           style:
                               const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
