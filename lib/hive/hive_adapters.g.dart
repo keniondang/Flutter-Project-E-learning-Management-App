@@ -764,7 +764,6 @@ class AssignmentSubmissionAdapter extends TypeAdapter<AssignmentSubmission> {
       id: fields[0] as String,
       assignmentId: fields[1] as String,
       studentId: fields[2] as String,
-      studentName: fields[3] as String,
       submissionFiles: (fields[4] as List).cast<String>(),
       hasAttachments: fields[12] as bool,
       submissionText: fields[5] as String?,
@@ -780,15 +779,13 @@ class AssignmentSubmissionAdapter extends TypeAdapter<AssignmentSubmission> {
   @override
   void write(BinaryWriter writer, AssignmentSubmission obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.assignmentId)
       ..writeByte(2)
       ..write(obj.studentId)
-      ..writeByte(3)
-      ..write(obj.studentName)
       ..writeByte(4)
       ..write(obj.submissionFiles)
       ..writeByte(5)

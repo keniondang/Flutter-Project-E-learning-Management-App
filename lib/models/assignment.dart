@@ -120,7 +120,6 @@ class AssignmentSubmission {
   final String id;
   final String assignmentId;
   final String studentId;
-  final String studentName;
   final bool hasAttachments;
   final List<String> submissionFiles;
   final String? submissionText;
@@ -135,7 +134,6 @@ class AssignmentSubmission {
     required this.id,
     required this.assignmentId,
     required this.studentId,
-    required this.studentName,
     required this.submissionFiles,
     required this.hasAttachments,
     this.submissionText,
@@ -148,14 +146,11 @@ class AssignmentSubmission {
   });
 
   factory AssignmentSubmission.fromJson(
-      {required Map<String, dynamic> json,
-      String? studentName,
-      List<String>? submissionFiles}) {
+      {required Map<String, dynamic> json, List<String>? submissionFiles}) {
     return AssignmentSubmission(
       id: json['id'],
       assignmentId: json['assignment_id'],
       studentId: json['student_id'],
-      studentName: studentName ?? 'Unknown',
       hasAttachments: json['has_attachments'],
       submissionFiles: submissionFiles ?? [],
       submissionText: json['submission_text'],
