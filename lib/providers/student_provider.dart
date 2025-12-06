@@ -670,6 +670,35 @@ class StudentProvider extends ChangeNotifier {
     return box.values.where((x) => x.courseIds.contains(courseId)).toList();
   }
 
+  Future<Student?> fetchUser(String userId) async {
+    try {
+      final box = await Hive.openBox<Student>(_boxName);
+
+      if (box.containsKey(userId)) {
+        return box.get(userId)!;
+      }
+
+      final response =
+          await _supabase.from('users').select().eq('id', userId).single();
+
+      final hasAvatar = response['has_avatar'];
+
+      final student = Student.fromJson(
+          json: response,
+          avatarByes:
+              hasAvatar ? await _fetchAvatarBytes(response['id']) : null);
+
+      await box.put(student.id, student);
+
+      return student;
+    } catch (e) {
+      _error = e.toString();
+      print('Error fetching avatar: $e');
+
+      return null;
+    }
+  }
+
   Future<Uint8List?> fetchAvatarBytes(String userId) async {
     try {
       final box = await Hive.openBox<Student>(_boxName);

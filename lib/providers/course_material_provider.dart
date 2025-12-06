@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/analytic.dart';
+
 class CourseMaterialProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
   final _boxName = 'material-box';
@@ -37,24 +39,10 @@ class CourseMaterialProvider extends ChangeNotifier {
         final id = json['id'];
         final hasAttachments = json['has_attachments'] as bool;
 
-        late CourseMaterial material;
-
-        if (hasAttachments) {
-          final results = await Future.wait(
-              [_fetchStats(id), _fetchFileAttachmentPaths(id)]);
-          final (viewCount, downloadCount) = results[0] as (int, int);
-
-          material = CourseMaterial.fromJson(
-              json: json,
-              viewCount: viewCount,
-              downloadCount: downloadCount,
-              fileAttachments: results[1] as List<String>);
-        } else {
-          final (viewCount, downloadCount) = await _fetchStats(id);
-
-          material = CourseMaterial.fromJson(
-              json: json, viewCount: viewCount, downloadCount: downloadCount);
-        }
+        final material = CourseMaterial.fromJson(
+            json: json,
+            fileAttachments:
+                hasAttachments ? await _fetchFileAttachmentPaths(id) : null);
 
         return MapEntry(material.id, material);
       }))));
@@ -79,24 +67,6 @@ class CourseMaterialProvider extends ChangeNotifier {
     } catch (e) {
       print('Error fetching announcement attachments: $e');
       return [];
-    }
-  }
-
-  Future<(int, int)> _fetchStats(String materialId) async {
-    try {
-      final response = await _supabase
-          .from('material_views')
-          .select('*')
-          .eq('material_id', materialId)
-          .count();
-
-      return (
-        response.count,
-        response.data.where((json) => json['downloads'] as bool).length
-      );
-    } catch (e) {
-      print('Error loading material stats: $e');
-      return (0, 0);
     }
   }
 
@@ -145,10 +115,7 @@ class CourseMaterialProvider extends ChangeNotifier {
       }
 
       final material = CourseMaterial.fromJson(
-          json: response,
-          viewCount: 0,
-          downloadCount: 0,
-          fileAttachments: paths.isNotEmpty ? paths : []);
+          json: response, fileAttachments: paths.isNotEmpty ? paths : []);
 
       final box = await Hive.openBox<CourseMaterial>(_boxName);
 
@@ -172,6 +139,62 @@ class CourseMaterialProvider extends ChangeNotifier {
     } catch (e) {
       print('Error fetching file attachment: $e');
       return null;
+    }
+  }
+
+  Future<void> markAsViewed(String materialId, String userId) async {
+    try {
+      await _supabase.from('material_views').upsert({
+        'material_id': materialId,
+        'user_id': userId,
+        'viewed_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'material_id, user_id');
+    } catch (e) {
+      print('Error marking material as viewed: $e');
+    }
+  }
+
+  Future<void> trackDownload(
+      String materialId, String userId, String fileName) async {
+    try {
+      await _supabase.from('material_downloads').upsert({
+        'material_id': materialId,
+        'user_id': userId,
+        'file_name': fileName,
+        'downloaded_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'material_id, user_id');
+    } catch (e) {
+      print('Error tracking material download: $e');
+    }
+  }
+
+  Future<List<ViewAnalytic>> fetchViewAnalytics(String materialId) async {
+    try {
+      final response = await _supabase
+          .from('material_views')
+          .select('user_id, viewed_at')
+          .eq('material_id', materialId);
+
+      return response.map((json) => ViewAnalytic.fromJson(json)).toList();
+    } catch (e) {
+      print('Error fetching view analytics: $e');
+      return [];
+    }
+  }
+
+  Future<List<DownloadAnalytic>> fetchDownloadAnalytics(
+      String materialId, String userId) async {
+    try {
+      final response = await _supabase
+          .from('material_downloads')
+          .select('file_name, downloaded_at')
+          .eq('material_id', materialId)
+          .eq('user_id', userId);
+
+      return response.map((json) => DownloadAnalytic.fromJson(json)).toList();
+    } catch (e) {
+      print('Error fetching view analytics: $e');
+      return [];
     }
   }
 }

@@ -205,8 +205,6 @@ types:
         index: 9
       commentCount:
         index: 10
-      hasViewed:
-        index: 11
       hasAttachments:
         index: 12
   CourseMaterial:
@@ -229,12 +227,6 @@ types:
         index: 7
       semesterId:
         index: 8
-      viewCount:
-        index: 9
-      downloadCount:
-        index: 10
-      hasViewed:
-        index: 11
       hasAttachments:
         index: 12
       fileAttachments:

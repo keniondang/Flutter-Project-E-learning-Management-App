@@ -1,13 +1,12 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:elearning_management_app/models/analytic.dart';
 import 'package:elearning_management_app/models/announcement.dart';
-import 'package:elearning_management_app/models/user_model.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:provider/provider.dart';
 
 class AnnouncementProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -354,38 +353,51 @@ class AnnouncementProvider extends ChangeNotifier {
         'user_id': userId,
         'viewed_at': DateTime.now().toIso8601String(),
       }, onConflict: 'announcement_id, user_id');
-    } catch (_) {}
+    } catch (e) {
+      print('Error marking announcement as viewed: $e');
+    }
   }
 
-  Future<void> trackDownload(String id, String fileName, String userId) async {
+  Future<void> trackDownload(
+      String announcementId, String userId, String fileName) async {
     try {
-      await _supabase.from('announcement_downloads').insert({
-        'announcement_id': id,
+      await _supabase.from('announcement_downloads').upsert({
+        'announcement_id': announcementId,
         'user_id': userId,
         'file_name': fileName,
         'downloaded_at': DateTime.now().toIso8601String(),
-      });
-    } catch (_) {}
+      }, onConflict: 'announcement_id, user_id');
+    } catch (e) {
+      print('Error tracking announcement download: $e');
+    }
   }
 
-  Future<List<({UserModel user, DateTime viewAt})>> getAnalytics(
-      String id) async {
+  Future<List<ViewAnalytic>> fetchViewAnalytics(String announcementId) async {
     try {
       final response = await _supabase
           .from('announcement_views')
-          .select('viewed_at, users(*)')
-          .eq('announcement_id', id)
-          .order('viewed_at', ascending: false);
-      final users = response.map((json) {
-        final userJson = json['users'];
-        return (
-          user: UserModel.fromJson(json: userJson),
-          viewAt: DateTime.parse(json['viewed_at'])
-        );
-      }).toList();
+          .select('user_id, viewed_at')
+          .eq('announcement_id', announcementId);
 
-      return users;
-    } catch (_) {
+      return response.map((json) => ViewAnalytic.fromJson(json)).toList();
+    } catch (e) {
+      print('Error fetching view analytics: $e');
+      return [];
+    }
+  }
+
+  Future<List<DownloadAnalytic>> fetchDownloadAnalytics(
+      String announcementId, String userId) async {
+    try {
+      final response = await _supabase
+          .from('announcement_downloads')
+          .select('file_name, downloaded_at')
+          .eq('announcement_id', announcementId)
+          .eq('user_id', userId);
+
+      return response.map((json) => DownloadAnalytic.fromJson(json)).toList();
+    } catch (e) {
+      print('Error fetching view analytics: $e');
       return [];
     }
   }

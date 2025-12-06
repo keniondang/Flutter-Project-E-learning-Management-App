@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:elearning_management_app/models/analytic.dart';
 import 'package:elearning_management_app/models/announcement.dart';
+import 'package:elearning_management_app/models/student.dart';
 import 'package:elearning_management_app/models/user_model.dart';
 import 'package:elearning_management_app/providers/announcement_provider.dart';
 import 'package:elearning_management_app/providers/student_provider.dart';
@@ -41,9 +43,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
   }
 
   Future<void> _markAsViewed() async {
-    // ✅ Fix: Pass the current user ID explicitly
-    if (widget.announcement.hasViewed == false ||
-        widget.announcement.hasViewed == null) {
+    if (widget.currentUser.isStudent) {
       await context
           .read<AnnouncementProvider>()
           .markAsViewed(widget.announcement.id, widget.currentUser.id);
@@ -115,10 +115,13 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     final bytes =
         await context.read<AnnouncementProvider>().fetchFileAttachment(url);
 
-    if (bytes != null) {
-      String? result =
-          await FilePicker.platform.saveFile(fileName: fileName, bytes: bytes);
-      print(result);
+    if (bytes != null && mounted) {
+      if (widget.currentUser.isStudent) {
+        context.read<AnnouncementProvider>().trackDownload(
+            widget.announcement.id, widget.currentUser.id, fileName);
+      }
+
+      await FilePicker.platform.saveFile(fileName: fileName, bytes: bytes);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -132,14 +135,11 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     if (!widget.currentUser.isInstructor) return;
 
     showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => _ViewersBottomSheet(
-        announcementId: widget.announcement.id,
-      ),
-    );
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (context) => _buildViewersBottomSheet());
   }
 
   @override
@@ -151,7 +151,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
           if (widget.currentUser.isInstructor)
             IconButton(
               icon: const Icon(Icons.analytics_outlined),
-              tooltip: 'See Viewers',
+              tooltip: 'See Viewers & Downloads',
               onPressed: _showViewersSheet,
             ),
         ],
@@ -324,7 +324,6 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                     return CircleAvatar(
                       radius: 16,
                       backgroundColor: Colors.grey[300],
-                      // UPDATED: Show Avatar if available
                       backgroundImage:
                           avatarBytes != null ? MemoryImage(avatarBytes) : null,
                       child: avatarBytes != null
@@ -454,18 +453,12 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
       ),
     );
   }
-}
 
-// --- Internal Widget for Viewers Sheet ---
-class _ViewersBottomSheet extends StatelessWidget {
-  final String announcementId;
-
-  const _ViewersBottomSheet({required this.announcementId});
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<List<({UserModel user, DateTime viewAt})>>(
-      future: context.read<AnnouncementProvider>().getAnalytics(announcementId),
+  Widget _buildViewersBottomSheet() {
+    return FutureBuilder<List<ViewAnalytic>>(
+      future: context
+          .read<AnnouncementProvider>()
+          .fetchViewAnalytics(widget.announcement.id),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox(
@@ -497,23 +490,63 @@ class _ViewersBottomSheet extends StatelessWidget {
                 )
               else
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: viewers.length,
-                    itemBuilder: (context, index) {
-                      final UserModel user = viewers[index].user;
-                      // final viewedAt = DateTime.parse(viewer['viewed_at']);
+                  child: FutureBuilder<List<MapEntry<String, Student?>>>(
+                    future: Future.wait(viewers.map((x) async => MapEntry(
+                        x.userId,
+                        await context
+                            .read<StudentProvider>()
+                            .fetchUser(x.userId)))),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const SizedBox(
+                          height: 200,
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
 
-                      return ListTile(
-                        leading: CircleAvatar(
-                            child: Text(user.fullName[0].toUpperCase())),
-                        title: Text(user.fullName),
-                        subtitle: Text(user.email),
-                        trailing: Text(
-                          DateFormat('MMM dd, HH:mm')
-                              .format(viewers[index].viewAt),
-                          style:
-                              const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
+                      final userMap = Map.fromEntries(
+                          snapshot.data!.where((x) => x.value != null));
+
+                      viewers.sort((a, b) => b.viewedAt.compareTo(a.viewedAt));
+
+                      return ListView.builder(
+                        itemCount: viewers.length,
+                        itemBuilder: (context, index) {
+                          final UserModel user =
+                              userMap[viewers[index].userId]!;
+
+                          return ListTile(
+                            leading: user.hasAvatar
+                                ? CircleAvatar(
+                                    child: null,
+                                    backgroundImage: MemoryImage(
+                                        user.avatarBytes! as Uint8List))
+                                : CircleAvatar(
+                                    child:
+                                        Text(user.fullName[0].toUpperCase())),
+                            title: Text(user.fullName),
+                            subtitle: Text(user.email),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  DateFormat('MMM dd, HH:mm')
+                                      .format(viewers[index].viewedAt),
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.grey),
+                                ),
+                                if (widget.announcement.hasAttachments)
+                                  IconButton(
+                                    icon: const Icon(Icons.info_outline,
+                                        color: Colors.blue),
+                                    tooltip: 'View Downloads',
+                                    onPressed: () =>
+                                        _showDownloadAnalytics(context, user),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -522,6 +555,83 @@ class _ViewersBottomSheet extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  void _showDownloadAnalytics(BuildContext context, UserModel user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          '${user.fullName}\'s Downloads',
+          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: SizedBox(
+          width: 500,
+          child: FutureBuilder<List<DownloadAnalytic>>(
+            future: context
+                .read<AnnouncementProvider>()
+                .fetchDownloadAnalytics(widget.announcement.id, user.id),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                    height: 100,
+                    child: Center(child: CircularProgressIndicator()));
+              }
+              if (snapshot.hasError) {
+                return Text('Error: ${snapshot.error}');
+              }
+
+              final downloads = snapshot.data ?? [];
+
+              if (downloads.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('No files downloaded.'),
+                );
+              }
+
+              downloads
+                  .sort((a, b) => b.downloadedAt.compareTo(a.downloadedAt));
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ListView.separated(
+                    shrinkWrap: true,
+                    separatorBuilder: (context, index) => const Divider(),
+                    itemCount: downloads.length,
+                    itemBuilder: (context, index) {
+                      final item = downloads[index];
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading:
+                            const Icon(Icons.file_download, color: Colors.grey),
+                        title: Text(item.fileName,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w500)),
+                        subtitle: Text(
+                          DateFormat('MMM dd, HH:mm').format(item.downloadedAt),
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 }
