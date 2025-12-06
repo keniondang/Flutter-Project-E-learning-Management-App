@@ -69,8 +69,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
         ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.blue,
-          unselectedLabelColor: Colors.grey,
+          labelColor: Colors.grey,
+          unselectedLabelColor: Colors.white,
           indicatorColor: Colors.blue,
           tabs: const [
             Tab(text: 'Stream', icon: Icon(Icons.stream)),
