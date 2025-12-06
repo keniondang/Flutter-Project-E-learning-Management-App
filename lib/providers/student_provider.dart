@@ -367,9 +367,10 @@ class StudentProvider extends ChangeNotifier {
     }
   }
 
-  // Enroll multiple students (for CSV import)
+  // ✅ UPDATED: Enroll multiple students with Course ID check
   Future<Map<String, dynamic>> enrollMultipleStudents(
     List<Map<String, dynamic>> enrollmentData,
+    String courseId, // <--- Added courseId
   ) async {
     int successCount = 0;
     int duplicateCount = 0;
@@ -392,16 +393,17 @@ class StudentProvider extends ChangeNotifier {
           continue;
         }
 
-        // Get group ID from group name
+        // ✅ FIXED: Get group ID restricted to the selected course
         final groupResponse = await _supabase
             .from('groups')
             .select('id')
             .eq('name', enrollment['group_name'])
+            .eq('course_id', courseId) // <--- Fix: Filter by course
             .maybeSingle();
 
         if (groupResponse == null) {
           errorCount++;
-          errors.add('Group ${enrollment['group_name']} not found');
+          errors.add('Group "${enrollment['group_name']}" not found in this course');
           continue;
         }
 
@@ -426,7 +428,8 @@ class StudentProvider extends ChangeNotifier {
         successCount++;
       } catch (e) {
         errorCount++;
-        errors.add('Error: $e');
+        errors.add('Error processing ${enrollment['student_username']}: $e');
+        print(e);
       }
     }
 

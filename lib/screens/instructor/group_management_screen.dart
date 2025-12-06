@@ -1,4 +1,5 @@
 import 'package:elearning_management_app/providers/instructor_course_provider.dart';
+import 'package:elearning_management_app/providers/student_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -69,6 +70,342 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
         return 'Newest Created';
     }
   }
+
+  // --- CSV IMPORT LOGIC START ---
+
+  Future<void> _handleEnrollmentImport() async {
+    if (_selectedCourse == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a course first')),
+      );
+      return;
+    }
+
+    // 1. Pick CSV
+    final result = await CSVService.pickAndParseCSV();
+    if (result == null || !mounted) return;
+
+    final data = result['data'] as List<Map<String, dynamic>>;
+    final headers = result['headers'] as List<String>;
+
+    // 2. Validate Headers
+    if (!headers.contains('student_username') ||
+        !headers.contains('group_name')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Invalid CSV. Required columns: student_username, group_name'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // 3. Show Smart Preview Dialog
+    _showSmartPreviewDialog(data);
+  }
+
+  // Analyzes CSV data against current DB state without writing
+  Future<List<Map<String, dynamic>>> _analyzeCsvData(
+      List<Map<String, dynamic>> rawData) async {
+    final studentProvider = context.read<StudentProvider>();
+    final groupProvider = context.read<GroupProvider>();
+
+    // 1. Ensure we have all necessary data loaded
+    final allStudents = await studentProvider.fetchAllStudents();
+    final currentGroups = groupProvider.groups;
+
+    // Map for O(1) lookup
+    final studentMap = {for (var s in allStudents) s.username: s};
+    final groupMap = {for (var g in currentGroups) g.name: g};
+
+    // 2. Pre-fetch enrollments for the groups mentioned in CSV
+    // This allows us to check "Already Assigned" status locally
+    final targetGroupIds = rawData
+        .map((row) => groupMap[row['group_name']]?.id)
+        .whereType<String>()
+        .toSet()
+        .toList();
+
+    if (targetGroupIds.isNotEmpty) {
+      await studentProvider.loadStudentsInGroups(targetGroupIds);
+    }
+
+    // 3. Analyze each row
+    List<Map<String, dynamic>> analyzedRows = [];
+
+    for (var row in rawData) {
+      String username = row['student_username']?.toString().trim() ?? '';
+      String groupName = row['group_name']?.toString().trim() ?? '';
+      
+      String status = 'Ready';
+      Color color = Colors.green;
+      bool isValid = true;
+
+      final student = studentMap[username];
+      final group = groupMap[groupName];
+
+      if (student == null) {
+        status = 'Student Not Found';
+        color = Colors.red;
+        isValid = false;
+      } else if (group == null) {
+        status = 'Group Not Found';
+        color = Colors.red;
+        isValid = false;
+      } else {
+        // Check if student is already in THIS specific group
+        if (student.groupMap.containsKey(group.id)) {
+          status = 'Already Assigned';
+          color = Colors.orange;
+          isValid = false; // We skip duplicates
+        }
+      }
+
+      analyzedRows.add({
+        'student_username': username,
+        'group_name': groupName,
+        'status': status,
+        'color': color,
+        'isValid': isValid,
+      });
+    }
+
+    return analyzedRows;
+  }
+
+  void _showSmartPreviewDialog(List<Map<String, dynamic>> rawData) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: _analyzeCsvData(rawData),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const AlertDialog(
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text("Analyzing CSV data..."),
+                  ],
+                ),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return AlertDialog(
+                title: const Text("Error"),
+                content: Text("Failed to analyze CSV: ${snapshot.error}"),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Close"))
+                ],
+              );
+            }
+
+            final analyzedData = snapshot.data!;
+            final validCount = analyzedData.where((r) => r['isValid']).length;
+            final errorCount = analyzedData.length - validCount;
+
+            return AlertDialog(
+              title: Text(
+                'Import Preview',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 400,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                              color: Colors.green[100],
+                              borderRadius: BorderRadius.circular(4)),
+                          child: Text('$validCount Ready',
+                              style: TextStyle(
+                                  color: Colors.green[800],
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12)),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                              color: Colors.orange[100],
+                              borderRadius: BorderRadius.circular(4)),
+                          child: Text('$errorCount Skipped',
+                              style: TextStyle(
+                                  color: Colors.orange[900],
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.vertical,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: DataTable(
+                              headingRowHeight: 40,
+                              dataRowMinHeight: 40,
+                              headingRowColor:
+                                  MaterialStateProperty.all(Colors.grey[100]),
+                              columns: const [
+                                DataColumn(label: Text('Status')),
+                                DataColumn(label: Text('Student')),
+                                DataColumn(label: Text('Group')),
+                              ],
+                              rows: analyzedData.map((row) {
+                                return DataRow(
+                                  color: MaterialStateProperty.all(
+                                      (row['color'] as Color).withOpacity(0.1)),
+                                  cells: [
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            row['isValid']
+                                                ? Icons.check_circle
+                                                : (row['status'] ==
+                                                        'Already Assigned'
+                                                    ? Icons.info
+                                                    : Icons.cancel),
+                                            size: 16,
+                                            color: row['color'],
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            row['status'],
+                                            style: TextStyle(
+                                                color: row['color'],
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 11),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    DataCell(Text(row['student_username'])),
+                                    DataCell(Text(row['group_name'])),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: validCount > 0
+                      ? () {
+                          Navigator.pop(context); // Close Preview
+                          _executeImport(analyzedData);
+                        }
+                      : null,
+                  child: Text('Import $validCount Students'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _executeImport(List<Map<String, dynamic>> analyzedData) async {
+    final validRows = analyzedData.where((r) => r['isValid']).toList();
+
+    if (validRows.isEmpty) return;
+
+    // Show Loading
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Processing enrollments...')),
+    );
+
+    // Call Provider with _selectedCourse!.id
+    final result = await context
+        .read<StudentProvider>()
+        .enrollMultipleStudents(validRows, _selectedCourse!.id);
+
+    if (mounted) {
+      _showResultDialog(result, analyzedData.length);
+      // Refresh group stats
+      if (_selectedCourse != null) {
+        context.read<GroupProvider>().loadGroups(_selectedCourse!.id);
+      }
+    }
+  }
+
+  void _showResultDialog(Map<String, dynamic> result, int totalProcessed) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import Complete'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Processed $totalProcessed rows.'),
+            const SizedBox(height: 8),
+            Text('✅ Success: ${result['successCount']}'),
+            Text('⚠️ Skipped (Duplicates): ${result['duplicateCount']}'),
+            Text('❌ Errors: ${result['errorCount']}'),
+            if ((result['errors'] as List).isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Details:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Container(
+                height: 100,
+                width: double.maxFinite,
+                padding: const EdgeInsets.all(8),
+                color: Colors.grey[100],
+                child: ListView(
+                  children: (result['errors'] as List)
+                      .map((e) => Text(e.toString(),
+                          style:
+                              const TextStyle(color: Colors.red, fontSize: 12)))
+                      .toList(),
+                ),
+              ),
+            ]
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          )
+        ],
+      ),
+    );
+  }
+
+  // --- CSV IMPORT LOGIC END ---
 
   void _showAddEditDialog([Group? group]) {
     if (_selectedCourse == null) {
@@ -196,11 +533,6 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
     );
   }
 
-  // kept for structure, but currently not used in UI actions based on previous file
-  void _showCSVImportDialog() {
-    // ... logic for CSV import if needed ...
-  }
-
   @override
   Widget build(BuildContext context) {
     final semesterProvider = context.watch<SemesterProvider>();
@@ -210,6 +542,12 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       appBar: AppBar(
         title: Text('Group Management', style: GoogleFonts.poppins()),
         actions: [
+          // NEW: Import Button
+          IconButton(
+            icon: const Icon(Icons.group_add),
+            onPressed: _handleEnrollmentImport,
+            tooltip: 'Import Enrollments (CSV)',
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showAddEditDialog(),
