@@ -1081,6 +1081,7 @@ class NotificationAdapter extends TypeAdapter<Notification> {
     };
     return Notification(
       id: fields[0] as String,
+      userId: fields[6] as String,
       type: fields[1] as NotificationType,
       title: fields[2] as String,
       message: fields[3] as String,
@@ -1092,7 +1093,7 @@ class NotificationAdapter extends TypeAdapter<Notification> {
   @override
   void write(BinaryWriter writer, Notification obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -1104,7 +1105,9 @@ class NotificationAdapter extends TypeAdapter<Notification> {
       ..writeByte(4)
       ..write(obj.isRead)
       ..writeByte(5)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(6)
+      ..write(obj.userId);
   }
 
   @override
@@ -1114,6 +1117,51 @@ class NotificationAdapter extends TypeAdapter<Notification> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is NotificationAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class NotificationTypeAdapter extends TypeAdapter<NotificationType> {
+  @override
+  final typeId = 20;
+
+  @override
+  NotificationType read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return NotificationType.announcement;
+      case 1:
+        return NotificationType.deadline;
+      case 2:
+        return NotificationType.feedback;
+      case 3:
+        return NotificationType.submission;
+      default:
+        return NotificationType.announcement;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, NotificationType obj) {
+    switch (obj) {
+      case NotificationType.announcement:
+        writer.writeByte(0);
+      case NotificationType.deadline:
+        writer.writeByte(1);
+      case NotificationType.feedback:
+        writer.writeByte(2);
+      case NotificationType.submission:
+        writer.writeByte(3);
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NotificationTypeAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

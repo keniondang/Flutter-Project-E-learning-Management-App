@@ -36,5 +36,6 @@ import '../models/user_model.dart';
   AdapterSpec<DownloadAnalytic>(),
   AdapterSpec<PrivateMessage>(),
   AdapterSpec<Notification>(),
+  AdapterSpec<NotificationType>(),
 ])
 part 'hive_adapters.g.dart';

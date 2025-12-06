@@ -18,6 +18,7 @@ extension HiveRegistrar on HiveInterface {
     registerAdapter(ForumReplyAdapter());
     registerAdapter(GroupAdapter());
     registerAdapter(NotificationAdapter());
+    registerAdapter(NotificationTypeAdapter());
     registerAdapter(PrivateMessageAdapter());
     registerAdapter(QuestionAdapter());
     registerAdapter(QuestionOptionAdapter());
@@ -43,6 +44,7 @@ extension IsolatedHiveRegistrar on IsolatedHiveInterface {
     registerAdapter(ForumReplyAdapter());
     registerAdapter(GroupAdapter());
     registerAdapter(NotificationAdapter());
+    registerAdapter(NotificationTypeAdapter());
     registerAdapter(PrivateMessageAdapter());
     registerAdapter(QuestionAdapter());
     registerAdapter(QuestionOptionAdapter());
