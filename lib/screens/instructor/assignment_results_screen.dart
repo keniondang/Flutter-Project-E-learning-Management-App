@@ -8,6 +8,7 @@ import '../../models/student.dart';
 import '../../models/user_model.dart';
 import '../../providers/assignment_submission_provider.dart';
 import '../../providers/student_provider.dart';
+import '../../services/csv_export_service.dart'; // 1. Import CSV Service
 import 'grading_screen.dart';
 
 class AssignmentResultsScreen extends StatefulWidget {
@@ -30,6 +31,9 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
   final _searchController = TextEditingController();
   List<Student> _allStudents = [];
   List<Student> _filteredStudents = [];
+  
+  // 2. Add Export Loading State
+  bool _isExporting = false;
 
   late RealtimeChannel _submissionSubscription;
 
@@ -74,6 +78,39 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
     });
   }
 
+  // 3. Add Export Method
+  Future<void> _exportAssignmentReport() async {
+    setState(() => _isExporting = true);
+
+    try {
+      final submissionProvider = context.read<AssignmentSubmissionProvider>();
+      
+      // Ensure we have the latest submissions loaded
+      // (They should be loaded from _loadData, but this accesses the current state)
+      final submissions = submissionProvider.submissions;
+
+      await CsvExportService().exportAssignmentGrades(
+        assignment: widget.assignment,
+        submissions: submissions,
+        allStudents: _allStudents,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Report exported to Downloads")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Export failed: $e"), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -95,6 +132,24 @@ class _AssignmentResultsScreenState extends State<AssignmentResultsScreen> {
             ),
           ],
         ),
+        actions: [
+          // 4. Add Export Button to AppBar
+          if (_isExporting)
+            const Padding(
+              padding: EdgeInsets.only(right: 16.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.download),
+              tooltip: 'Export Grades CSV',
+              onPressed: _exportAssignmentReport,
+            ),
+        ],
       ),
       body: Column(
         children: [

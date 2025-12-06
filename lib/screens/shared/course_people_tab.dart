@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../models/course.dart';
+import '../../models/student.dart';
 import '../../models/user_model.dart';
 import '../../providers/group_provider.dart';
-import '../../providers/student_provider.dart'; // Corrected import
+import '../../providers/student_provider.dart';
 import '../../providers/message_provider.dart';
+
+enum PeopleSortOption { nameAsc, nameDesc, groupAsc }
 
 class CoursePeopleTab extends StatefulWidget {
   final Course course;
@@ -21,10 +24,22 @@ class CoursePeopleTab extends StatefulWidget {
 }
 
 class _CoursePeopleTabState extends State<CoursePeopleTab> {
+  final TextEditingController _searchController = TextEditingController();
+  PeopleSortOption _sortOption = PeopleSortOption.nameAsc;
+  
+  // State for Group Button Filter
+  String? _selectedGroupId; // null means "All Groups"
+
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -49,6 +64,75 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
     );
   }
 
+  String _getGroupName(Student student) {
+    if (widget.course.groupIds.isNotEmpty) {
+      // Find the group name corresponding to one of the course's group IDs
+      final entry = student.groupMap.entries.firstWhere(
+        (e) => widget.course.groupIds.contains(e.key),
+        orElse: () => const MapEntry('', ''),
+      );
+      if (entry.value.isNotEmpty) return entry.value;
+    }
+    return 'No Group';
+  }
+
+  // --- Widget: Group Filter Buttons ---
+  Widget _buildGroupFilterList() {
+    final groups = context.watch<GroupProvider>().groups;
+
+    if (groups.isEmpty) return const SizedBox.shrink();
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: Text("Filter Group:",
+                style: GoogleFonts.poppins(
+                    fontSize: 12, fontWeight: FontWeight.w500)),
+          ),
+          // "All" Button
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ChoiceChip(
+              label: const Text('All'),
+              selected: _selectedGroupId == null,
+              onSelected: (selected) {
+                if (selected) setState(() => _selectedGroupId = null);
+              },
+              selectedColor: Colors.blue[100],
+              labelStyle: TextStyle(
+                color: _selectedGroupId == null ? Colors.blue[900] : Colors.black87,
+                fontWeight:
+                    _selectedGroupId == null ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+          // Individual Group Buttons
+          ...groups.map((group) {
+            final isSelected = _selectedGroupId == group.id;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ChoiceChip(
+                label: Text(group.name),
+                selected: isSelected,
+                onSelected: (selected) {
+                  setState(() => _selectedGroupId = selected ? group.id : null);
+                },
+                selectedColor: Colors.blue[100],
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.blue[900] : Colors.black87,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final groupProvider = context.watch<GroupProvider>();
@@ -57,6 +141,40 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
     if (groupProvider.isLoading || studentProvider.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
+
+    // --- FILTER LOGIC ---
+    List<Student> filteredStudents = studentProvider.students.where((student) {
+      // 1. Text Search Filter
+      final query = _searchController.text.toLowerCase();
+      final nameMatch = student.fullName.toLowerCase().contains(query);
+      final groupName = _getGroupName(student);
+      final groupMatch = groupName.toLowerCase().contains(query);
+      
+      // 2. Group Button Filter
+      bool groupButtonMatch = true;
+      if (_selectedGroupId != null) {
+        // Check if student belongs to the selected group ID
+        groupButtonMatch = student.groupMap.containsKey(_selectedGroupId);
+      }
+
+      return (nameMatch || groupMatch) && groupButtonMatch;
+    }).toList();
+
+    // --- SORT LOGIC ---
+    filteredStudents.sort((a, b) {
+      switch (_sortOption) {
+        case PeopleSortOption.nameAsc:
+          return a.fullName.compareTo(b.fullName);
+        case PeopleSortOption.nameDesc:
+          return b.fullName.compareTo(a.fullName);
+        case PeopleSortOption.groupAsc:
+          final groupA = _getGroupName(a);
+          final groupB = _getGroupName(b);
+          int cmp = groupA.compareTo(groupB);
+          if (cmp == 0) return a.fullName.compareTo(b.fullName);
+          return cmp;
+      }
+    });
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -122,7 +240,7 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
             const SizedBox(height: 16),
           ],
 
-          // --- STUDENTS SECTION ---
+          // --- HEADER: Title & Count ---
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -147,17 +265,78 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
           ),
           const SizedBox(height: 12),
 
-          if (studentProvider.students.isEmpty)
+          // --- CONTROLS: Search & Sort ---
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search by name...',
+                    prefixIcon: const Icon(Icons.search),
+                    contentPadding: EdgeInsets.zero,
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                  ),
+                  onChanged: (val) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 8),
+              PopupMenuButton<PeopleSortOption>(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.sort),
+                ),
+                tooltip: 'Sort Students',
+                onSelected: (PeopleSortOption result) {
+                  setState(() => _sortOption = result);
+                },
+                itemBuilder: (BuildContext context) => [
+                  const PopupMenuItem(
+                    value: PeopleSortOption.nameAsc,
+                    child: Text('Name (A-Z)'),
+                  ),
+                  const PopupMenuItem(
+                    value: PeopleSortOption.nameDesc,
+                    child: Text('Name (Z-A)'),
+                  ),
+                  const PopupMenuItem(
+                    value: PeopleSortOption.groupAsc,
+                    child: Text('Group (A-Z)'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // --- CONTROLS: Group Buttons ---
+          _buildGroupFilterList(),
+          
+          const SizedBox(height: 16),
+
+          // --- STUDENTS LIST ---
+          if (filteredStudents.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(32),
                 child: Column(
                   children: [
-                    Icon(Icons.people_outline,
-                        size: 48, color: Colors.grey[300]),
+                    Icon(Icons.search_off, size: 48, color: Colors.grey[300]),
                     const SizedBox(height: 8),
                     Text(
-                      'No students enrolled yet.',
+                      _searchController.text.isEmpty && _selectedGroupId == null
+                          ? 'No students enrolled yet.'
+                          : 'No matching students found.',
                       style: GoogleFonts.poppins(color: Colors.grey[600]),
                     ),
                   ],
@@ -165,22 +344,11 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
               ),
             )
           else
-            ...studentProvider.students.map((student) {
-              // LOGIC: Show message button ONLY if current user is Instructor
+            ...filteredStudents.map((student) {
               final showMessageButton = widget.user.isInstructor;
               final isMe = student.id == widget.user.id;
+              String groupName = _getGroupName(student);
 
-              // Find group name safely
-              String groupName = 'No Group';
-              if (widget.course.groupIds.isNotEmpty) {
-                final entry = student.groupMap.entries.firstWhere(
-                  (e) => widget.course.groupIds.contains(e.key),
-                  orElse: () => const MapEntry('', ''),
-                );
-                if (entry.value.isNotEmpty) groupName = entry.value;
-              }
-
-              // Check if student has avatar bytes
               final hasAvatarImage = student.avatarBytes != null &&
                   student.avatarBytes!.isNotEmpty;
 
@@ -192,11 +360,9 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
                   leading: CircleAvatar(
                     backgroundColor:
                         isMe ? Colors.blue[100] : Colors.green[100],
-                    // Display Image if available
                     backgroundImage: hasAvatarImage
                         ? MemoryImage(student.avatarBytes! as Uint8List)
                         : null,
-                    // Display Initials if NO Image
                     child: hasAvatarImage
                         ? null
                         : Text(
@@ -230,7 +396,6 @@ class _CoursePeopleTabState extends State<CoursePeopleTab> {
               );
             }),
 
-          // Add some bottom padding for floating action buttons
           const SizedBox(height: 80),
         ],
       ),

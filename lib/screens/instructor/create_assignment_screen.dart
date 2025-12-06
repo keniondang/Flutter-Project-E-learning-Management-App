@@ -29,7 +29,9 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _pointsController = TextEditingController(text: '100');
-  // Removed _maxAttemptsController as we are defaulting to unlimited
+  
+  // 1. ADDED: Max Attempts Controller (Default '1')
+  final _maxAttemptsController = TextEditingController(text: '1'); 
   final _maxFileSizeController = TextEditingController(text: '10');
 
   DateTime _startDate = DateTime.now();
@@ -50,6 +52,16 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
     _loadGroups();
   }
 
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _pointsController.dispose();
+    _maxAttemptsController.dispose(); // Dispose here
+    _maxFileSizeController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadGroups() async {
     await context.read<GroupProvider>().loadGroups(widget.course.id);
     if (mounted) {
@@ -60,7 +72,6 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
   }
 
   // --- File Picking Logic ---
-
   Future<void> _pickFiles(FilePickerResult? result) async {
     try {
       if (result != null) {
@@ -137,7 +148,6 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
       child: Icon(icon, color: Colors.blue[700], size: 24),
     );
   }
-  // --------------------------
 
   Future<void> _selectDate(BuildContext context, String type) async {
     final picked = await showDatePicker(
@@ -186,6 +196,10 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                 child: CircularProgressIndicator(),
               ));
 
+      // 2. PARSE MAX ATTEMPTS (If empty or 0, treat as Unlimited/999)
+      int maxAttempts = int.tryParse(_maxAttemptsController.text) ?? 999;
+      if (maxAttempts <= 0) maxAttempts = 999;
+
       final success = await context.read<AssignmentProvider>().createAssignment(
           courseId: widget.course.id,
           instructorId: widget.instructorId,
@@ -196,7 +210,7 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
           dueDate: _dueDate,
           lateSubmissionAllowed: _lateSubmissionAllowed,
           lateDueDate: _lateDueDate,
-          maxAttempts: 999, // Hardcoded to represent "Unlimited"
+          maxAttempts: maxAttempts, // 3. Pass the dynamic value
           maxFileSize: int.parse(_maxFileSizeController.text) * 1024 * 1024,
           allowedFileTypes: _allowedFileTypes,
           scopeType: _scopeType,
@@ -476,7 +490,17 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // REMOVED: Maximum Attempts Field
+                      // 4. ADDED: Max Attempts Input
+                      TextFormField(
+                        controller: _maxAttemptsController,
+                        decoration: const InputDecoration(
+                          labelText: 'Allowed Attempts',
+                          helperText: 'Leave empty or 0 for unlimited',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
 
                       // Max file size
                       TextFormField(
@@ -484,6 +508,7 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Maximum File Size (MB)',
                           helperText: 'Maximum size per file in megabytes',
+                          border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
                       ),

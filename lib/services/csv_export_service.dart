@@ -20,13 +20,12 @@ class CsvExportService {
     required List<AssignmentSubmission> submissions,
     required List<Student> allStudents,
   }) async {
-    // Header
+    // Header (Removed Student ID)
     List<List<dynamic>> rows = [
       [
-        'Student ID',
         'Full Name',
         'Email',
-        'Group', // Crucial for Group-based grading
+        'Group',
         'Status',
         'Submitted At',
         'Is Late',
@@ -58,8 +57,8 @@ class CsvExportService {
         feedback = sub.feedback ?? '';
       }
 
+      // Row Data (Removed student.id)
       rows.add([
-        student.id,
         student.fullName,
         student.email,
         groupName,
@@ -84,10 +83,9 @@ class CsvExportService {
     required List<QuizAttempt> attempts,
     required List<Student> allStudents,
   }) async {
-    // Header
+    // Header (Removed Student ID)
     List<List<dynamic>> rows = [
       [
-        'Student ID',
         'Full Name',
         'Email',
         'Attempt #',
@@ -106,7 +104,6 @@ class CsvExportService {
       // If no attempts
       if (studentAttempts.isEmpty) {
         rows.add([
-          student.id,
           student.fullName,
           student.email,
           '0',
@@ -119,13 +116,12 @@ class CsvExportService {
         continue;
       }
 
-      // If multiple attempts, add a row for EACH attempt (or just the best one if you prefer)
-      // Here we list ALL attempts as it provides more detail for the instructor
+      // If multiple attempts, add a row for EACH attempt
       for (var attempt in studentAttempts) {
         final percentage = (attempt.score ?? 0) / (quiz.totalPoints == 0 ? 1 : quiz.totalPoints) * 100;
         
+        // Row Data (Removed student.id)
         rows.add([
-          student.id,
           student.fullName,
           student.email,
           attempt.attemptNumber,
@@ -153,8 +149,8 @@ class CsvExportService {
     required List<AssignmentSubmission> allSubmissions,
     required List<QuizAttempt> allAttempts,
   }) async {
-    // 1. Build Header Row
-    List<dynamic> headers = ['Student ID', 'Full Name', 'Email', 'Group'];
+    // 1. Build Header Row (Removed Student ID)
+    List<dynamic> headers = ['Full Name', 'Email', 'Group'];
     
     // Add columns for Assignments
     for (var a in assignments) {
@@ -172,10 +168,10 @@ class CsvExportService {
     // 2. Build Student Rows
     for (var student in students) {
       double totalStudentScore = 0;
-      double maxPossibleScore = 0;
+      double maxPossibleScore = 0; // Calculated but currently unused in row data
 
+      // Row Data (Removed student.id)
       List<dynamic> row = [
-        student.id,
         student.fullName,
         student.email,
         student.groupMap.values.join(', '),

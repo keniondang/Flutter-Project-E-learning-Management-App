@@ -10,6 +10,8 @@ import '../../providers/semester_provider.dart';
 import '../../services/csv_service.dart';
 import 'group_students_screen.dart';
 
+enum GroupSortOption { nameAsc, nameDesc, studentCountDesc, newest }
+
 class GroupManagementScreen extends StatefulWidget {
   const GroupManagementScreen({super.key});
 
@@ -21,10 +23,20 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
   Semester? _selectedSemester;
   Course? _selectedCourse;
 
+  // Search and Sort State
+  final TextEditingController _searchController = TextEditingController();
+  GroupSortOption _sortOption = GroupSortOption.nameAsc;
+
   @override
   void initState() {
     super.initState();
     _loadInitialData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInitialData() async {
@@ -42,6 +54,19 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
             .read<InstructorCourseProvider>()
             .loadCourses(_selectedSemester!.id);
       }
+    }
+  }
+
+  String _getSortLabel(GroupSortOption option) {
+    switch (option) {
+      case GroupSortOption.nameAsc:
+        return 'Name (A-Z)';
+      case GroupSortOption.nameDesc:
+        return 'Name (Z-A)';
+      case GroupSortOption.studentCountDesc:
+        return 'Most Students';
+      case GroupSortOption.newest:
+        return 'Newest Created';
     }
   }
 
@@ -134,181 +159,6 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
     );
   }
 
-  // ... (Rest of the file remains unchanged: _showCSVImportDialog, _handleCSVImport, _confirmDelete, build method)
-  // Ensure you keep the rest of the existing code here.
-
-  // void _showCSVImportDialog() {
-  //   if (_selectedCourse == null) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(
-  //         content: Text('Please select a course first'),
-  //         backgroundColor: Colors.orange,
-  //       ),
-  //     );
-  //     return;
-  //   }
-
-  //   showDialog(
-  //     context: context,
-  //     builder: (context) => AlertDialog(
-  //       title: Text(
-  //         'Import Groups from CSV',
-  //         style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-  //       ),
-  //       content: Column(
-  //         mainAxisSize: MainAxisSize.min,
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           Text(
-  //             'CSV Format Required:',
-  //             style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
-  //           ),
-  //           const SizedBox(height: 8),
-  //           Container(
-  //             padding: const EdgeInsets.all(12),
-  //             decoration: BoxDecoration(
-  //               color: Colors.grey[100],
-  //               borderRadius: BorderRadius.circular(8),
-  //               border: Border.all(color: Colors.grey[300]!),
-  //             ),
-  //             child: Column(
-  //               crossAxisAlignment: CrossAxisAlignment.start,
-  //               children: [
-  //                 Text(
-  //                   'group_name',
-  //                   style: GoogleFonts.poppins(
-  //                     fontSize: 12,
-  //                     fontWeight: FontWeight.w600,
-  //                   ),
-  //                 ),
-  //                 Text(
-  //                   'Group A\nGroup B\nGroup C',
-  //                   style: GoogleFonts.poppins(fontSize: 12),
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () => Navigator.pop(context),
-  //           child: const Text('Cancel'),
-  //         ),
-  //         ElevatedButton.icon(
-  //           onPressed: () async {
-  //             Navigator.pop(context);
-  //             _handleCSVImport();
-  //           },
-  //           icon: const Icon(Icons.upload_file),
-  //           label: const Text('Choose CSV File'),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
-  Future<void> _handleCSVImport() async {
-    final result = await CSVService.pickAndParseCSV();
-
-    if (result == null || !mounted) return;
-
-    final data = result['data'] as List<Map<String, dynamic>>;
-    final headers = result['headers'] as List<String>;
-
-    if (!headers.contains('group_name')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invalid CSV format. Required column: group_name'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    _showCSVPreviewDialog(data);
-  }
-
-  void _showCSVPreviewDialog(List<Map<String, dynamic>> data) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Import Preview',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${data.length} groups will be imported',
-                style: GoogleFonts.poppins(),
-              ),
-              const SizedBox(height: 16),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: data.take(10).map((row) {
-                      return ListTile(
-                        dense: true,
-                        leading: const Icon(Icons.group, size: 20),
-                        title: Text(row['group_name'] ?? ''),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-              if (data.length > 10)
-                Text(
-                  '... and ${data.length - 10} more',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-
-              final groupNames = data
-                  .map((row) => row['group_name']?.toString() ?? '')
-                  .where((name) => name.isNotEmpty)
-                  .toList();
-
-              final success =
-                  await context.read<GroupProvider>().createMultipleGroups(
-                        courseId: _selectedCourse!.id,
-                        groupNames: groupNames,
-                      );
-
-              if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${groupNames.length} groups imported successfully',
-                    ),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            },
-            child: const Text('Import'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _confirmDelete(Group group) {
     showDialog(
       context: context,
@@ -346,6 +196,11 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
     );
   }
 
+  // kept for structure, but currently not used in UI actions based on previous file
+  void _showCSVImportDialog() {
+    // ... logic for CSV import if needed ...
+  }
+
   @override
   Widget build(BuildContext context) {
     final semesterProvider = context.watch<SemesterProvider>();
@@ -355,11 +210,6 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       appBar: AppBar(
         title: Text('Group Management', style: GoogleFonts.poppins()),
         actions: [
-          // IconButton(
-          //   icon: const Icon(Icons.upload_file),
-          //   onPressed: _showCSVImportDialog,
-          //   tooltip: 'Import from CSV',
-          // ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showAddEditDialog(),
@@ -369,6 +219,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       ),
       body: Column(
         children: [
+          // Selectors
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.grey[100],
@@ -465,6 +316,58 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
               ],
             ),
           ),
+
+          // Search and Sort Bar
+          if (_selectedCourse != null)
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              color: Colors.grey[100],
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search groups...',
+                        prefixIcon: const Icon(Icons.search),
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      onChanged: (val) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  PopupMenuButton<GroupSortOption>(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.sort),
+                    ),
+                    tooltip: 'Sort Groups',
+                    onSelected: (GroupSortOption result) {
+                      setState(() => _sortOption = result);
+                    },
+                    itemBuilder: (context) => GroupSortOption.values.map((opt) {
+                      return PopupMenuItem(
+                        value: opt,
+                        child: Text(_getSortLabel(opt)),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+
+          // Group List
           Expanded(
             child: Consumer<GroupProvider>(
               builder: (context, provider, child) {
@@ -495,7 +398,27 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (provider.groups.isEmpty) {
+                // Filtering & Sorting Logic
+                List<Group> filteredGroups = provider.groups.where((group) {
+                  final query = _searchController.text.toLowerCase();
+                  return group.name.toLowerCase().contains(query);
+                }).toList();
+
+                filteredGroups.sort((a, b) {
+                  switch (_sortOption) {
+                    case GroupSortOption.nameAsc:
+                      return a.name.compareTo(b.name);
+                    case GroupSortOption.nameDesc:
+                      return b.name.compareTo(a.name);
+                    case GroupSortOption.studentCountDesc:
+                      return (b.studentCount ?? 0)
+                          .compareTo(a.studentCount ?? 0);
+                    case GroupSortOption.newest:
+                      return b.createdAt.compareTo(a.createdAt);
+                  }
+                });
+
+                if (filteredGroups.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -507,26 +430,30 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'No groups yet',
+                          _searchController.text.isEmpty
+                              ? 'No groups yet'
+                              : 'No groups match search',
                           style: GoogleFonts.poppins(
                             fontSize: 18,
                             color: Colors.grey[600],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'for ${_selectedCourse!.name}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[500],
+                        if (_searchController.text.isEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'for ${_selectedCourse!.name}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () => _showAddEditDialog(),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add First Group'),
-                        ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: () => _showAddEditDialog(),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add First Group'),
+                          ),
+                        ],
                       ],
                     ),
                   );
@@ -534,9 +461,9 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: provider.groups.length,
+                  itemCount: filteredGroups.length,
                   itemBuilder: (context, index) {
-                    final group = provider.groups[index];
+                    final group = filteredGroups[index];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(

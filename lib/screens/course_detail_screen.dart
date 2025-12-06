@@ -31,6 +31,10 @@ import 'student/assignment_submission_screen.dart';
 import 'shared/material_viewer_screen.dart';
 import 'student/quiz_taking_screen.dart';
 
+enum ClassworkType { all, assignment, quiz, material }
+
+enum ClassworkSort { newest, oldest, dueDate }
+
 class CourseDetailScreen extends StatefulWidget {
   final Course course;
   final UserModel user;
@@ -53,182 +57,25 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   final TextEditingController _streamSearchController = TextEditingController();
   bool _streamSortNewestFirst = true;
 
-  @override
-  Widget build(BuildContext context) {
-    final isInstructor = widget.user.isInstructor;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.course.name,
-                style: GoogleFonts.poppins(
-                    fontSize: 18, fontWeight: FontWeight.bold)),
-            Text(widget.course.code, style: GoogleFonts.poppins(fontSize: 12)),
-          ],
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.grey,
-          unselectedLabelColor: Colors.white,
-          indicatorColor: Colors.blue,
-          tabs: const [
-            Tab(text: 'Stream', icon: Icon(Icons.stream)),
-            Tab(text: 'Classwork', icon: Icon(Icons.assignment)),
-            Tab(text: 'People', icon: Icon(Icons.people)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.forum),
-            tooltip: 'Forums',
-            onPressed: () async {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) =>
-                        ForumScreen(course: widget.course, user: widget.user)),
-              );
-            },
-          ),
-          if (_isExportingCsv)
-            const Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
-              ),
-            ),
-          if (isInstructor)
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                switch (value) {
-                  case 'export_csv':
-                    _exportGradebook();
-                    break;
-                  case 'announcement':
-                    Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => CreateAnnouncementScreen(
-                                    course: widget.course,
-                                    instructorId: widget.user.id)))
-                        .then((_) => _loadData());
-                    break;
-                  case 'assignment':
-                    Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => CreateAssignmentScreen(
-                                    course: widget.course,
-                                    instructorId: widget.user.id)))
-                        .then((_) => _loadData());
-                    break;
-                  case 'quiz':
-                    Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => CreateQuizScreen(
-                                    course: widget.course,
-                                    instructorId: widget.user.id)))
-                        .then((_) => _loadData());
-                    break;
-                  case 'material':
-                    Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => CreateMaterialScreen(
-                                    course: widget.course,
-                                    instructorId: widget.user.id)))
-                        .then((_) => _loadData());
-                    break;
-                  case 'question_bank':
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                QuestionBankScreen(course: widget.course)));
-                    break;
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'export_csv',
-                  child: Row(
-                    children: [
-                      Icon(Icons.table_chart, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Text("Export Gradebook (CSV)"),
-                    ],
-                  ),
-                ),
-                const PopupMenuDivider(),
-                const PopupMenuItem(
-                    value: 'announcement',
-                    child: Row(children: [
-                      Icon(Icons.campaign, color: Colors.orange),
-                      SizedBox(width: 8),
-                      Text('Announcement')
-                    ])),
-                const PopupMenuItem(
-                    value: 'assignment',
-                    child: Row(children: [
-                      Icon(Icons.assignment, color: Colors.green),
-                      SizedBox(width: 8),
-                      Text('Assignment')
-                    ])),
-                const PopupMenuItem(
-                    value: 'quiz',
-                    child: Row(children: [
-                      Icon(Icons.quiz, color: Colors.purple),
-                      SizedBox(width: 8),
-                      Text('Quiz')
-                    ])),
-                const PopupMenuItem(
-                    value: 'material',
-                    child: Row(children: [
-                      Icon(Icons.book, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Text('Material')
-                    ])),
-                const PopupMenuDivider(),
-                const PopupMenuItem(
-                    value: 'question_bank',
-                    child: Row(children: [
-                      Icon(Icons.help_outline, color: Colors.teal),
-                      SizedBox(width: 8),
-                      Text('Question Bank')
-                    ])),
-              ],
-            ),
-        ],
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildStreamTab(),
-          _buildClassworkTab(),
-          _buildPeopleTab(),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _streamSearchController.dispose();
-    super.dispose();
-  }
+  // --- CLASSWORK FILTERING ---
+  final TextEditingController _classworkSearchController =
+      TextEditingController();
+  ClassworkType _selectedClassworkType = ClassworkType.all;
+  ClassworkSort _classworkSort = ClassworkSort.dueDate;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _streamSearchController.dispose();
+    _classworkSearchController.dispose();
+    super.dispose();
   }
 
   // --- Helper: Build Audience Badge ---
@@ -423,6 +270,25 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
 
   // ---------------- CLASSWORK TAB -----------------
 
+  Widget _buildFilterChip(String label, ClassworkType type) {
+    final isSelected = _selectedClassworkType == type;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: isSelected,
+        onSelected: (selected) {
+          if (selected) setState(() => _selectedClassworkType = type);
+        },
+        selectedColor: Colors.blue[100],
+        labelStyle: TextStyle(
+          color: isSelected ? Colors.blue[900] : Colors.black87,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
   Widget _buildClassworkTab() {
     final assignmentProvider = context.watch<AssignmentProvider>();
     final quizProvider = context.watch<QuizProvider>();
@@ -438,167 +304,296 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     final isStudent = widget.user.role == 'student';
     final isInstructor = widget.user.role == 'instructor';
 
-    final allContent = [
-      ...assignmentProvider.assignments
-          .map((a) => {'type': 'assignment', 'item': a}),
-      ...quizProvider.quizzes.map((q) => {'type': 'quiz', 'item': q}),
-      ...materialProvider.materials.map((m) => {'type': 'material', 'item': m}),
+    // 1. Combine All Content
+    List<Map<String, dynamic>> allContent = [
+      ...assignmentProvider.assignments.map((a) => {
+            'type': ClassworkType.assignment,
+            'date': a.createdAt,
+            'due': a.dueDate,
+            'item': a
+          }),
+      ...quizProvider.quizzes.map((q) => {
+            'type': ClassworkType.quiz,
+            'date': q.createdAt,
+            'due': q.closeTime,
+            'item': q
+          }),
+      ...materialProvider.materials.map((m) => {
+            'type': ClassworkType.material,
+            'date': m.createdAt,
+            'due': DateTime(2100), // Push to end if sorting by due date
+            'item': m
+          }),
     ];
 
-    if (allContent.isEmpty) {
-      return const Center(child: Text("No classwork yet"));
+    // 2. Apply Filter (Type)
+    if (_selectedClassworkType != ClassworkType.all) {
+      allContent = allContent
+          .where((x) => x['type'] == _selectedClassworkType)
+          .toList();
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: allContent.length,
-        itemBuilder: (context, index) {
-          final content = allContent[index];
-          final type = content['type'];
-          final item = content['item'];
+    // 3. Apply Filter (Search)
+    if (_classworkSearchController.text.isNotEmpty) {
+      final query = _classworkSearchController.text.toLowerCase();
+      allContent = allContent.where((x) {
+        final item = x['item'];
+        // All models (Assignment, Quiz, CourseMaterial) have a 'title' field
+        final title = (item as dynamic).title.toString().toLowerCase();
+        return title.contains(query);
+      }).toList();
+    }
 
-          if (type == 'assignment') {
-            final assignment = item as Assignment;
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: CircleAvatar(
-                    backgroundColor: Colors.green[100],
-                    child: Icon(Icons.assignment, color: Colors.green[700])),
-                title: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        assignment.title,
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                        overflow: TextOverflow.ellipsis,
+    // 4. Apply Sort
+    allContent.sort((a, b) {
+      if (_classworkSort == ClassworkSort.dueDate) {
+        return (a['due'] as DateTime).compareTo(b['due'] as DateTime);
+      } else if (_classworkSort == ClassworkSort.newest) {
+        return (b['date'] as DateTime).compareTo(a['date'] as DateTime);
+      } else {
+        return (a['date'] as DateTime).compareTo(b['date'] as DateTime);
+      }
+    });
+
+    return Column(
+      children: [
+        // FILTER HEADER
+        Container(
+          padding: const EdgeInsets.all(12),
+          color: Colors.white,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _classworkSearchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search classwork...',
+                        prefixIcon: const Icon(Icons.search),
+                        contentPadding: EdgeInsets.zero,
+                        isDense: true,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        filled: true,
+                        fillColor: Colors.grey[100],
                       ),
+                      onChanged: (val) => setState(() {}),
                     ),
-                    if (isInstructor)
-                      _buildTargetBadge(
-                          assignment.scopeType, assignment.targetGroups),
-                  ],
-                ),
-                subtitle: Text(
-                    isInstructor
-                        ? 'Submissions: ${assignment.submissionCount ?? 0}'
-                        : 'Due: ${_formatDate(assignment.dueDate)}',
-                    style: GoogleFonts.poppins(fontSize: 12)),
-                
-                trailing: _buildAssignmentStatusChip(assignment, isStudent),
-                
-                onTap: () {
-                  if (isStudent) {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => AssignmentSubmissionScreen(
-                                assignment: assignment, student: widget.user)));
-                  } else {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => AssignmentResultsScreen(
-                                assignment: assignment,
-                                instructor: widget.user)));
-                  }
-                },
+                  ),
+                  const SizedBox(width: 8),
+                  PopupMenuButton<ClassworkSort>(
+                    icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.sort, color: Colors.black87)),
+                    onSelected: (val) => setState(() => _classworkSort = val),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                          value: ClassworkSort.dueDate,
+                          child: Text('Due Date (Soonest)')),
+                      PopupMenuItem(
+                          value: ClassworkSort.newest,
+                          child: Text('Created (Newest)')),
+                      PopupMenuItem(
+                          value: ClassworkSort.oldest,
+                          child: Text('Created (Oldest)')),
+                    ],
+                  )
+                ],
               ),
-            );
-          }
-
-          if (type == 'quiz') {
-            final quiz = item as Quiz;
-
-            // ✅ Calculate Student Attempts
-            int myAttempts = 0;
-            if (isStudent) {
-              final attempts =
-                  studentQuizProvider.getAttemptsForQuiz(quiz.id);
-              myAttempts = attempts.where((a) => a.isCompleted).length;
-            }
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: CircleAvatar(
-                    backgroundColor: Colors.purple[100],
-                    child: Icon(Icons.quiz, color: Colors.purple[700])),
-                title: Row(
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        quiz.title,
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isInstructor)
-                      _buildTargetBadge(quiz.scopeType, quiz.targetGroups),
+                    _buildFilterChip('All', ClassworkType.all),
+                    _buildFilterChip('Assignments', ClassworkType.assignment),
+                    _buildFilterChip('Quizzes', ClassworkType.quiz),
+                    _buildFilterChip('Materials', ClassworkType.material),
                   ],
                 ),
-                
-                // ✅ UPDATED SUBTITLE: Shows Attempts X/Y for Students
-                subtitle: Text(
-                    isInstructor
-                        ? 'Submissions: ${quiz.submissionCount ?? 0}'
-                        : 'Attempts: $myAttempts/${quiz.maxAttempts}  •  Closes: ${_formatDate(quiz.closeTime)}',
-                    style: GoogleFonts.poppins(fontSize: 12)),
-                
-                trailing: quiz.isPastDue
-                    ? const Chip(label: Text('Closed'))
-                    : quiz.isOpen
-                        ? const Chip(label: Text('Open'))
-                        : const Chip(label: Text('Scheduled')),
-                onTap: () {
-                  if (isStudent) {
-                    if (quiz.isOpen) {
-                      if (studentQuizProvider.canAttemptQuiz(quiz.id)) {
-                         _confirmStartQuiz(quiz); 
-                      } else {
-                         ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("You have used all attempts for this quiz."))
-                         );
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+
+        // LIST
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadData,
+            child: allContent.isEmpty
+                ? const Center(child: Text("No classwork found"))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: allContent.length,
+                    itemBuilder: (context, index) {
+                      final content = allContent[index];
+                      final type = content['type'];
+                      final item = content['item'];
+
+                      if (type == ClassworkType.assignment) {
+                        final assignment = item as Assignment;
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                                backgroundColor: Colors.green[100],
+                                child: Icon(Icons.assignment,
+                                    color: Colors.green[700])),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    assignment.title,
+                                    style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isInstructor)
+                                  _buildTargetBadge(assignment.scopeType,
+                                      assignment.targetGroups),
+                              ],
+                            ),
+                            subtitle: Text(
+                                isInstructor
+                                    ? 'Submissions: ${assignment.submissionCount ?? 0}'
+                                    : 'Due: ${_formatDate(assignment.dueDate)}',
+                                style: GoogleFonts.poppins(fontSize: 12)),
+                            trailing: _buildAssignmentStatusChip(
+                                assignment, isStudent),
+                            onTap: () async {
+                              if (isStudent) {
+                                await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            AssignmentSubmissionScreen(
+                                                assignment: assignment,
+                                                student: widget.user)));
+                                if (mounted) {
+                                  setState(() {}); 
+                                  // OR call _loadData() if you want to refresh everything from DB
+                                  // _loadData(); 
+                                }
+                              } else {
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => AssignmentResultsScreen(
+                                            assignment: assignment,
+                                            instructor: widget.user)));
+                              }
+                            },
+                          ),
+                        );
                       }
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("This quiz is closed")));
-                    }
-                  } else {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => QuizResultsScreen(quiz: quiz)));
-                  }
-                },
-              ),
-            );
-          }
 
-          // MATERIAL
-          final material = item as CourseMaterial;
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              leading: CircleAvatar(
-                  backgroundColor: Colors.blue[100],
-                  child: Icon(Icons.folder, color: Colors.blue[700])),
-              title: Text(material.title,
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-              subtitle: Text(material.description ?? "No description"),
-              onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => MaterialViewerScreen(
-                            material: material, user: widget.user)));
-              },
-            ),
-          );
-        },
-      ),
+                      if (type == ClassworkType.quiz) {
+                        final quiz = item as Quiz;
+
+                        int myAttempts = 0;
+                        if (isStudent) {
+                          final attempts =
+                              studentQuizProvider.getAttemptsForQuiz(quiz.id);
+                          myAttempts =
+                              attempts.where((a) => a.isCompleted).length;
+                        }
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                                backgroundColor: Colors.purple[100],
+                                child: Icon(Icons.quiz,
+                                    color: Colors.purple[700])),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    quiz.title,
+                                    style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isInstructor)
+                                  _buildTargetBadge(
+                                      quiz.scopeType, quiz.targetGroups),
+                              ],
+                            ),
+                            subtitle: Text(
+                                isInstructor
+                                    ? 'Submissions: ${quiz.submissionCount ?? 0}'
+                                    : 'Attempts: $myAttempts/${quiz.maxAttempts}  •  Closes: ${_formatDate(quiz.closeTime)}',
+                                style: GoogleFonts.poppins(fontSize: 12)),
+                            trailing: quiz.isPastDue
+                                ? const Chip(label: Text('Closed'))
+                                : quiz.isOpen
+                                    ? const Chip(label: Text('Open'))
+                                    : const Chip(label: Text('Scheduled')),
+                            onTap: () {
+                              if (isStudent) {
+                                if (quiz.isOpen) {
+                                  if (studentQuizProvider
+                                      .canAttemptQuiz(quiz.id)) {
+                                    _confirmStartQuiz(quiz);
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                "You have used all attempts for this quiz.")));
+                                  }
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text("This quiz is closed")));
+                                }
+                              } else {
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            QuizResultsScreen(quiz: quiz)));
+                              }
+                            },
+                          ),
+                        );
+                      }
+
+                      // MATERIAL
+                      final material = item as CourseMaterial;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                              backgroundColor: Colors.blue[100],
+                              child:
+                                  Icon(Icons.folder, color: Colors.blue[700])),
+                          title: Text(material.title,
+                              style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600)),
+                          subtitle:
+                              Text(material.description ?? "No description"),
+                          onTap: () {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => MaterialViewerScreen(
+                                        material: material,
+                                        user: widget.user)));
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -611,7 +606,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
 
     return Column(
       children: [
-        // Search + Sorting Section (SAME ROW)
+        // Search + Sorting Section
         Container(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           color: Colors.white,
@@ -621,7 +616,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                 child: TextField(
                   controller: _streamSearchController,
                   decoration: InputDecoration(
-                    hintText: 'Search...',
+                    hintText: 'Search announcements...',
                     prefixIcon: const Icon(Icons.search),
                     contentPadding: EdgeInsets.zero,
                     border: OutlineInputBorder(
@@ -811,6 +806,170 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     );
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final isInstructor = widget.user.isInstructor;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.course.name,
+                style: GoogleFonts.poppins(
+                    fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(widget.course.code, style: GoogleFonts.poppins(fontSize: 12)),
+          ],
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          tabs: const [
+            Tab(text: 'Stream', icon: Icon(Icons.stream)),
+            Tab(text: 'Classwork', icon: Icon(Icons.assignment)),
+            Tab(text: 'People', icon: Icon(Icons.people)),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.forum),
+            tooltip: 'Forums',
+            onPressed: () async {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        ForumScreen(course: widget.course, user: widget.user)),
+              );
+            },
+          ),
+          if (_isExportingCsv)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              ),
+            ),
+          if (isInstructor)
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                switch (value) {
+                  case 'export_csv':
+                    _exportGradebook();
+                    break;
+                  case 'announcement':
+                    Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => CreateAnnouncementScreen(
+                                    course: widget.course,
+                                    instructorId: widget.user.id)))
+                        .then((_) => _loadData());
+                    break;
+                  case 'assignment':
+                    Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => CreateAssignmentScreen(
+                                    course: widget.course,
+                                    instructorId: widget.user.id)))
+                        .then((_) => _loadData());
+                    break;
+                  case 'quiz':
+                    Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => CreateQuizScreen(
+                                    course: widget.course,
+                                    instructorId: widget.user.id)))
+                        .then((_) => _loadData());
+                    break;
+                  case 'material':
+                    Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => CreateMaterialScreen(
+                                    course: widget.course,
+                                    instructorId: widget.user.id)))
+                        .then((_) => _loadData());
+                    break;
+                  case 'question_bank':
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                QuestionBankScreen(course: widget.course)));
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'export_csv',
+                  child: Row(
+                    children: [
+                      Icon(Icons.table_chart, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text("Export Gradebook (CSV)"),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                    value: 'announcement',
+                    child: Row(children: [
+                      Icon(Icons.campaign, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text('Announcement')
+                    ])),
+                const PopupMenuItem(
+                    value: 'assignment',
+                    child: Row(children: [
+                      Icon(Icons.assignment, color: Colors.green),
+                      SizedBox(width: 8),
+                      Text('Assignment')
+                    ])),
+                const PopupMenuItem(
+                    value: 'quiz',
+                    child: Row(children: [
+                      Icon(Icons.quiz, color: Colors.purple),
+                      SizedBox(width: 8),
+                      Text('Quiz')
+                    ])),
+                const PopupMenuItem(
+                    value: 'material',
+                    child: Row(children: [
+                      Icon(Icons.book, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text('Material')
+                    ])),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                    value: 'question_bank',
+                    child: Row(children: [
+                      Icon(Icons.help_outline, color: Colors.teal),
+                      SizedBox(width: 8),
+                      Text('Question Bank')
+                    ])),
+              ],
+            ),
+        ],
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildStreamTab(),
+          _buildClassworkTab(),
+          _buildPeopleTab(),
+        ],
+      ),
+    );
+  }
+
   Future<void> _exportGradebook() async {
     setState(() => _isExportingCsv = true);
 
@@ -824,7 +983,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
       final attemptProvider = context.read<QuizAttemptProvider>();
 
       await studentProvider.loadStudentsInCourse(courseId);
-      final students = studentProvider.students;
+      final students = await studentProvider.loadStudentsInCourse(courseId);
 
       final assignments = assignmentProvider.assignments;
       final quizzes = quizProvider.quizzes;
