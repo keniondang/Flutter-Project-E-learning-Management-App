@@ -50,9 +50,13 @@ class _AssignmentSubmissionScreenState
     if (submission != null) {
       setState(() {
         _existingSubmission = submission;
-        _currentAttempt = (_existingSubmission!.attemptNumber) + 1;
-        _submissionTextController.text =
-            _existingSubmission!.submissionText ?? '';
+        // If submission exists, next attempt is current + 1
+        _currentAttempt = (submission.attemptNumber) + 1;
+        
+        // Pre-fill text only if you want them to edit previous text
+        // Usually for resubmission, starting fresh or keeping old is a design choice.
+        // Keeping old text for editing:
+        _submissionTextController.text = submission.submissionText ?? '';
       });
     }
 
@@ -165,15 +169,8 @@ class _AssignmentSubmissionScreenState
       return;
     }
 
-    if (_currentAttempt > widget.assignment.maxAttempts) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Maximum attempts exceeded'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    // --- REMOVED MAX ATTEMPT CHECK FOR "GOOGLE CLASSROOM" STYLE ---
+    // We allow unlimited resubmissions as long as the assignment is open.
 
     final now = DateTime.now();
     final isLate = now.isAfter(widget.assignment.dueDate);
@@ -207,7 +204,7 @@ class _AssignmentSubmissionScreenState
             submittedAt: now);
 
     if (mounted) {
-      Navigator.pop(context);
+      Navigator.pop(context); // Close loading dialog
 
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -216,7 +213,7 @@ class _AssignmentSubmissionScreenState
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        Navigator.pop(context); // Go back to course screen
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -236,8 +233,6 @@ class _AssignmentSubmissionScreenState
         await context.read<AssignmentProvider>().fetchFileAttachment(url);
 
     if (bytes != null) {
-      // Note: saveFile might behave differently on Web/Mobile,
-      // but keeping it as requested in previous snippets.
       await FilePicker.platform.saveFile(fileName: fileName, bytes: bytes);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -297,6 +292,16 @@ class _AssignmentSubmissionScreenState
     final hoursUntilDue =
         widget.assignment.dueDate.difference(now).inHours % 24;
 
+    // Determine button text based on state
+    String buttonText;
+    if (!widget.assignment.isOpen) {
+      buttonText = 'Assignment Closed';
+    } else if (_existingSubmission != null) {
+      buttonText = 'Resubmit Assignment';
+    } else {
+      buttonText = 'Turn In';
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -323,12 +328,11 @@ class _AssignmentSubmissionScreenState
                   ),
                   const SizedBox(height: 16),
 
-                  // --- Integrated Attachments Display (Course Materials) ---
+                  // --- Integrated Attachments Display ---
                   _buildAttachments(),
                   if (widget.assignment.fileAttachments.isNotEmpty)
                     const SizedBox(height: 16),
-                  // --------------------------------------------------------
-
+                  
                   const Divider(),
                   const SizedBox(height: 12),
                   Row(
@@ -353,16 +357,20 @@ class _AssignmentSubmissionScreenState
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.replay, size: 20, color: Colors.grey[600]),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Attempt: $_currentAttempt / ${widget.assignment.maxAttempts}',
-                        style: GoogleFonts.poppins(fontSize: 14),
-                      ),
-                    ],
-                  ),
+                  
+                  // --- CHANGED: Show "Version" instead of "Attempt x/y" ---
+                  if (_existingSubmission != null)
+                    Row(
+                      children: [
+                        Icon(Icons.history, size: 20, color: Colors.grey[600]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Current Version: $_currentAttempt', 
+                          style: GoogleFonts.poppins(fontSize: 14),
+                        ),
+                      ],
+                    ),
+
                   if (!widget.assignment.isPastDue)
                     Container(
                       margin: const EdgeInsets.only(top: 12),
@@ -410,13 +418,14 @@ class _AssignmentSubmissionScreenState
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.history, color: Colors.grey[600]),
+                        Icon(Icons.check_circle_outline, color: Colors.green[700]),
                         const SizedBox(width: 8),
                         Text(
-                          'Previous Submission',
+                          'Last Submission',
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
+                            color: Colors.green[800]
                           ),
                         ),
                       ],
@@ -460,7 +469,7 @@ class _AssignmentSubmissionScreenState
 
           // Submission form
           Text(
-            'Your Submission',
+            _existingSubmission == null ? 'Your Work' : 'Resubmit Work',
             style: GoogleFonts.poppins(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -499,7 +508,7 @@ class _AssignmentSubmissionScreenState
                         ),
                       ),
                       ElevatedButton.icon(
-                        onPressed: _pickFiles, // Now calls the pick logic
+                        onPressed: _pickFiles,
                         icon: const Icon(Icons.attach_file, size: 18),
                         label: const Text('Add File'),
                       ),
@@ -600,7 +609,7 @@ class _AssignmentSubmissionScreenState
 
           const SizedBox(height: 24),
 
-          // Submit button
+          // Submit button with dynamic text
           SizedBox(
             width: double.infinity,
             height: 48,
@@ -611,9 +620,7 @@ class _AssignmentSubmissionScreenState
                     widget.assignment.isOpen ? Colors.blue : Colors.grey,
               ),
               child: Text(
-                widget.assignment.isOpen
-                    ? 'Submit Assignment'
-                    : 'Assignment Closed',
+                buttonText,
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,

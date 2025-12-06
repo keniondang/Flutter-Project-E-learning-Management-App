@@ -29,7 +29,7 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _pointsController = TextEditingController(text: '100');
-  final _maxAttemptsController = TextEditingController(text: '1');
+  // Removed _maxAttemptsController as we are defaulting to unlimited
   final _maxFileSizeController = TextEditingController(text: '10');
 
   DateTime _startDate = DateTime.now();
@@ -39,7 +39,6 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
   String _scopeType = 'all';
   List<String> _selectedGroups = [];
 
-  // CHANGED: Use PlatformFile to store actual selected files
   List<PlatformFile> _attachedFiles = [];
 
   List<String> _allowedFileTypes = ['.pdf', '.docx', '.txt'];
@@ -192,12 +191,12 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
           instructorId: widget.instructorId,
           title: _titleController.text,
           description: _descriptionController.text,
-          fileAttachments: _attachedFiles, // Passing the PlatformFile list
+          fileAttachments: _attachedFiles,
           startDate: _startDate,
           dueDate: _dueDate,
           lateSubmissionAllowed: _lateSubmissionAllowed,
           lateDueDate: _lateDueDate,
-          maxAttempts: int.parse(_maxAttemptsController.text),
+          maxAttempts: 999, // Hardcoded to represent "Unlimited"
           maxFileSize: int.parse(_maxFileSizeController.text) * 1024 * 1024,
           allowedFileTypes: _allowedFileTypes,
           scopeType: _scopeType,
@@ -284,7 +283,7 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
               ),
               const SizedBox(height: 16),
 
-              // --- NEW: Attachments Card ---
+              // Attachments Card
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -367,7 +366,6 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // -----------------------------
 
               // Points
               TextFormField(
@@ -478,16 +476,7 @@ class _CreateAssignmentScreenState extends State<CreateAssignmentScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Max attempts
-                      TextFormField(
-                        controller: _maxAttemptsController,
-                        decoration: const InputDecoration(
-                          labelText: 'Maximum Attempts',
-                          helperText: 'Number of times students can submit',
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 12),
+                      // REMOVED: Maximum Attempts Field
 
                       // Max file size
                       TextFormField(
