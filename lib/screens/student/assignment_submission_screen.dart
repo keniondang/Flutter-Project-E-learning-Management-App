@@ -1,4 +1,5 @@
 import 'dart:io'; // Required for File object
+import 'dart:typed_data'; // Required for Uint8List
 import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:elearning_management_app/providers/assignment_submission_provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -50,10 +51,9 @@ class _AssignmentSubmissionScreenState
     if (submission != null) {
       setState(() {
         _existingSubmission = submission;
-        // If submission exists, next attempt is current + 1
         _currentAttempt = (submission.attemptNumber) + 1;
         
-        // Pre-fill text for editing if desired
+        // Pre-fill text so student can edit their previous work
         _submissionTextController.text = submission.submissionText ?? '';
       });
     }
@@ -227,12 +227,10 @@ class _AssignmentSubmissionScreenState
     Uint8List? bytes;
     
     if (isSubmission) {
-      // Download from submissions bucket
       bytes = await context
           .read<AssignmentSubmissionProvider>()
           .fetchFileAttachment(url);
     } else {
-      // Download from assignment materials bucket
       bytes = await context
           .read<AssignmentProvider>()
           .fetchFileAttachment(url);
@@ -249,10 +247,9 @@ class _AssignmentSubmissionScreenState
     }
   }
 
-  // Helper to make filenames look nicer (remove timestamp prefix)
+  // Helper to remove timestamps from filenames for display
   String _cleanFileName(String path) {
     final fullName = path.split('/').last;
-    // Pattern: matches "digits_filename"
     final regex = RegExp(r'^\d+_(.+)'); 
     final match = regex.firstMatch(fullName);
     if (match != null) {
@@ -283,7 +280,6 @@ class _AssignmentSubmissionScreenState
           runSpacing: 8,
           children: widget.assignment.fileAttachments.map((url) {
             String fileName = url.split('/').last;
-            // Shorten for display
             if (fileName.length > 20) {
               fileName = '${fileName.substring(0, 15)}...';
             }
@@ -310,7 +306,6 @@ class _AssignmentSubmissionScreenState
     final hoursUntilDue =
         widget.assignment.dueDate.difference(now).inHours % 24;
 
-    // Determine button text based on state
     String buttonText;
     if (!widget.assignment.isOpen) {
       buttonText = 'Assignment Closed';
@@ -325,7 +320,7 @@ class _AssignmentSubmissionScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Assignment info card
+          // --- ASSIGNMENT INFO CARD ---
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -346,7 +341,6 @@ class _AssignmentSubmissionScreenState
                   ),
                   const SizedBox(height: 16),
 
-                  // --- Course Attachments ---
                   _buildAttachments(),
                   if (widget.assignment.fileAttachments.isNotEmpty)
                     const SizedBox(height: 16),
@@ -424,7 +418,7 @@ class _AssignmentSubmissionScreenState
           ),
           const SizedBox(height: 24),
 
-          // Previous submission (if exists)
+          // --- PREVIOUS SUBMISSION CARD ---
           if (_existingSubmission != null) ...[
             Card(
               color: Colors.grey[50],
@@ -478,7 +472,24 @@ class _AssignmentSubmissionScreenState
                       ),
                     ],
 
-                    // --- ✅ NEW: List Previous Attached Files ---
+                    // --- ✅ ADDED: Display Submitted Text ---
+                    if (_existingSubmission!.submissionText != null &&
+                        _existingSubmission!.submissionText!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Your Text Answer:',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _existingSubmission!.submissionText!,
+                        style: GoogleFonts.poppins(fontSize: 13, color: Colors.black87),
+                      ),
+                    ],
+
+                    // --- Display Submitted Files ---
                     if (_existingSubmission!.submissionFiles.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       const Divider(),
@@ -493,7 +504,7 @@ class _AssignmentSubmissionScreenState
                           contentPadding: EdgeInsets.zero,
                           leading: const Icon(Icons.attach_file, color: Colors.blue),
                           title: Text(
-                            _cleanFileName(path), // Uses cleaned name
+                            _cleanFileName(path),
                             style: GoogleFonts.poppins(fontSize: 13),
                           ),
                           trailing: IconButton(
@@ -510,7 +521,7 @@ class _AssignmentSubmissionScreenState
             const SizedBox(height: 24),
           ],
 
-          // Submission form
+          // --- SUBMISSION FORM ---
           Text(
             _existingSubmission == null ? 'Your Work' : 'Resubmit Work',
             style: GoogleFonts.poppins(
@@ -533,7 +544,7 @@ class _AssignmentSubmissionScreenState
           ),
           const SizedBox(height: 16),
 
-          // --- Student File Upload Section ---
+          // --- UPLOAD SECTION ---
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -573,7 +584,7 @@ class _AssignmentSubmissionScreenState
                     ),
                   ),
 
-                  // Display Student's Selected Files
+                  // Display Currently Selected Files (Before Upload)
                   if (_submissionFiles.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -648,11 +659,10 @@ class _AssignmentSubmissionScreenState
               ),
             ),
           ),
-          // -----------------------------------
 
           const SizedBox(height: 24),
 
-          // Submit button with dynamic text
+          // SUBMIT BUTTON
           SizedBox(
             width: double.infinity,
             height: 48,
