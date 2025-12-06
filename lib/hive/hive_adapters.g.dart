@@ -441,7 +441,6 @@ class AnnouncementAdapter extends TypeAdapter<Announcement> {
       createdAt: fields[8] as DateTime,
       fileAttachments: (fields[5] as List?)?.cast<String>(),
       hasAttachments: fields[12] == null ? false : fields[12] as bool,
-      viewCount: (fields[9] as num?)?.toInt(),
       commentCount: (fields[10] as num?)?.toInt(),
     );
   }
@@ -449,7 +448,7 @@ class AnnouncementAdapter extends TypeAdapter<Announcement> {
   @override
   void write(BinaryWriter writer, Announcement obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -468,8 +467,6 @@ class AnnouncementAdapter extends TypeAdapter<Announcement> {
       ..write(obj.targetGroups)
       ..writeByte(8)
       ..write(obj.createdAt)
-      ..writeByte(9)
-      ..write(obj.viewCount)
       ..writeByte(10)
       ..write(obj.commentCount)
       ..writeByte(12)

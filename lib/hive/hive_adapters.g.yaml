@@ -201,8 +201,6 @@ types:
         index: 7
       createdAt:
         index: 8
-      viewCount:
-        index: 9
       commentCount:
         index: 10
       hasAttachments:

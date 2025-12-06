@@ -46,32 +46,18 @@ class AnnouncementProvider extends ChangeNotifier {
 
         if (hasAttachments) {
           final results = await Future.wait([
-            _fetchViewCount(id),
             _fetchCommentCount(id),
-            _checkIfViewed(id, currentUserId),
             _fetchFileAttachmentPaths(id),
           ]);
 
           return Announcement.fromJson(
             json: json,
-            viewCount: results[0] as int,
-            commentCount: results[1] as int,
-            hasViewed: results[2] as bool,
-            fileAttachments: results[3] as List<String>,
+            commentCount: results[0] as int,
+            fileAttachments: results[1] as List<String>,
           );
         } else {
-          final results = await Future.wait([
-            _fetchViewCount(id),
-            _fetchCommentCount(id),
-            _checkIfViewed(id, currentUserId),
-          ]);
-
           return Announcement.fromJson(
-            json: json,
-            viewCount: results[0] as int,
-            commentCount: results[1] as int,
-            hasViewed: results[2] as bool,
-          );
+              json: json, commentCount: await _fetchCommentCount(id));
         }
       }));
 
@@ -82,8 +68,7 @@ class AnnouncementProvider extends ChangeNotifier {
       print('Error loading announcements: $e');
     }
 
-    _announcements = box.values.where((x) => x.courseId == courseId).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    _announcements = box.values.where((x) => x.courseId == courseId).toList();
 
     _isLoading = false;
     notifyListeners();
@@ -122,32 +107,18 @@ class AnnouncementProvider extends ChangeNotifier {
 
         if (hasAttachments) {
           final results = await Future.wait([
-            _fetchViewCount(id),
             _fetchCommentCount(id),
-            _checkIfViewed(id, currentUserId),
             _fetchFileAttachmentPaths(id),
           ]);
 
           return Announcement.fromJson(
             json: json,
-            viewCount: results[0] as int,
-            commentCount: results[1] as int,
-            hasViewed: results[2] as bool,
-            fileAttachments: results[3] as List<String>,
+            commentCount: results[0] as int,
+            fileAttachments: results[1] as List<String>,
           );
         } else {
-          final results = await Future.wait([
-            _fetchViewCount(id),
-            _fetchCommentCount(id),
-            _checkIfViewed(id, currentUserId),
-          ]);
-
           return Announcement.fromJson(
-            json: json,
-            viewCount: results[0] as int,
-            commentCount: results[1] as int,
-            hasViewed: results[2] as bool,
-          );
+              json: json, commentCount: await _fetchCommentCount(id));
         }
       }));
 
@@ -158,8 +129,7 @@ class AnnouncementProvider extends ChangeNotifier {
       print('Error loading announcements: $e');
     }
 
-    _announcements = box.values.where((x) => x.courseId == courseId).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    _announcements = box.values.where((x) => x.courseId == courseId).toList();
 
     _isLoading = false;
     notifyListeners();
@@ -212,9 +182,7 @@ class AnnouncementProvider extends ChangeNotifier {
 
       final announcement = Announcement.fromJson(
           json: response,
-          viewCount: 0,
           commentCount: 0,
-          hasViewed: true,
           fileAttachments: paths.isNotEmpty ? paths : null);
 
       final box = await Hive.openBox<Announcement>(_boxName);
@@ -245,18 +213,18 @@ class AnnouncementProvider extends ChangeNotifier {
 
   // --- HELPER METHODS ---
 
-  Future<int> _fetchViewCount(String id) async {
-    try {
-      return (await _supabase
-              .from('announcement_views')
-              .select('id')
-              .eq('announcement_id', id)
-              .count())
-          .count;
-    } catch (_) {
-      return 0;
-    }
-  }
+  // Future<int> _fetchViewCount(String id) async {
+  //   try {
+  //     return (await _supabase
+  //             .from('announcement_views')
+  //             .select('id')
+  //             .eq('announcement_id', id)
+  //             .count())
+  //         .count;
+  //   } catch (_) {
+  //     return 0;
+  //   }
+  // }
 
   Future<int> _fetchCommentCount(String id) async {
     try {
@@ -271,19 +239,19 @@ class AnnouncementProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> _checkIfViewed(String id, String userId) async {
-    try {
-      final res = await _supabase
-          .from('announcement_views')
-          .select('id')
-          .eq('announcement_id', id)
-          .eq('user_id', userId)
-          .maybeSingle();
-      return res != null;
-    } catch (_) {
-      return false;
-    }
-  }
+  // Future<bool> _checkIfViewed(String id, String userId) async {
+  //   try {
+  //     final res = await _supabase
+  //         .from('announcement_views')
+  //         .select('id')
+  //         .eq('announcement_id', id)
+  //         .eq('user_id', userId)
+  //         .maybeSingle();
+  //     return res != null;
+  //   } catch (_) {
+  //     return false;
+  //   }
+  // }
 
   Future<List<String>> _fetchFileAttachmentPaths(String id) async {
     try {
