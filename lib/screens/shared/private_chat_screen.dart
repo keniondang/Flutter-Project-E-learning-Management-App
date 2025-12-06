@@ -11,10 +11,10 @@ class PrivateChatScreen extends StatefulWidget {
   final UserModel targetUser; // The person we are talking to
 
   const PrivateChatScreen({
-    Key? key,
+    super.key,
     required this.currentUser,
     required this.targetUser,
-  }) : super(key: key);
+  });
 
   @override
   State<PrivateChatScreen> createState() => _PrivateChatScreenState();
