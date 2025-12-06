@@ -10,7 +10,6 @@ class Announcement {
   final DateTime createdAt;
   final int? viewCount;
   final int? commentCount;
-  final bool? hasViewed;
   final bool hasAttachments;
 
   Announcement({
@@ -26,7 +25,6 @@ class Announcement {
     this.hasAttachments = false,
     this.viewCount,
     this.commentCount,
-    this.hasViewed,
   }) : fileAttachments = fileAttachments ?? [];
 
   factory Announcement.fromJson(
@@ -48,7 +46,6 @@ class Announcement {
       createdAt: DateTime.parse(json['created_at']),
       viewCount: viewCount ?? json['view_count'],
       commentCount: commentCount ?? json['comment_count'],
-      hasViewed: json['has_viewed'],
     );
   }
 

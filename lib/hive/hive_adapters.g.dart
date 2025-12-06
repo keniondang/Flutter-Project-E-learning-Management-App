@@ -443,14 +443,13 @@ class AnnouncementAdapter extends TypeAdapter<Announcement> {
       hasAttachments: fields[12] == null ? false : fields[12] as bool,
       viewCount: (fields[9] as num?)?.toInt(),
       commentCount: (fields[10] as num?)?.toInt(),
-      hasViewed: fields[11] as bool?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Announcement obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -473,8 +472,6 @@ class AnnouncementAdapter extends TypeAdapter<Announcement> {
       ..write(obj.viewCount)
       ..writeByte(10)
       ..write(obj.commentCount)
-      ..writeByte(11)
-      ..write(obj.hasViewed)
       ..writeByte(12)
       ..write(obj.hasAttachments);
   }
@@ -510,9 +507,6 @@ class CourseMaterialAdapter extends TypeAdapter<CourseMaterial> {
       hasAttachments: fields[12] as bool,
       externalLinks: (fields[6] as List).cast<String>(),
       createdAt: fields[7] as DateTime,
-      viewCount: (fields[9] as num?)?.toInt(),
-      downloadCount: (fields[10] as num?)?.toInt(),
-      hasViewed: fields[11] as bool?,
       semesterId: fields[8] as String?,
     );
   }
@@ -520,7 +514,7 @@ class CourseMaterialAdapter extends TypeAdapter<CourseMaterial> {
   @override
   void write(BinaryWriter writer, CourseMaterial obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -537,12 +531,6 @@ class CourseMaterialAdapter extends TypeAdapter<CourseMaterial> {
       ..write(obj.createdAt)
       ..writeByte(8)
       ..write(obj.semesterId)
-      ..writeByte(9)
-      ..write(obj.viewCount)
-      ..writeByte(10)
-      ..write(obj.downloadCount)
-      ..writeByte(11)
-      ..write(obj.hasViewed)
       ..writeByte(12)
       ..write(obj.hasAttachments)
       ..writeByte(13)
