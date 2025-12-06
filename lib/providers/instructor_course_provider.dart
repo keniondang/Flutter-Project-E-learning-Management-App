@@ -90,28 +90,24 @@ class InstructorCourseProvider extends ChangeNotifier {
     required String code,
     required String name,
     required int sessions,
+    required String userId,
     String? coverImage,
   }) async {
     try {
-      final response = await _supabase.from('courses').insert({
-        'semester_id': semesterId,
-        'code': code,
-        'name': name,
-        'sessions': sessions,
-        'cover_image': coverImage,
-        'instructor_id': Supabase.instance.client.auth.currentUser!.id,
-      }).select('*');
+      final response = await _supabase
+          .from('courses')
+          .insert({
+            'semester_id': semesterId,
+            'code': code,
+            'name': name,
+            'sessions': sessions,
+            'cover_image': coverImage,
+            'instructor_id': userId,
+          })
+          .select('*')
+          .single();
 
-      final newCourse = (response as Iterable).map((json) {
-        // Extract semester name from relation
-        String? semesterName;
-
-        if (json['semesters'] != null) {
-          semesterName = json['semesters']['name'];
-        }
-
-        return Course.fromJson(json: json, semesterName: semesterName);
-      }).first;
+      final newCourse = Course.fromJson(json: response);
 
       final box = await Hive.openBox<Course>(_boxName);
 
@@ -122,6 +118,7 @@ class InstructorCourseProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _error = e.toString();
+      print('Error creating course: $e');
 
       notifyListeners();
       return false;

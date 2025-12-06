@@ -150,6 +150,7 @@ class _CourseManagementScreenState extends State<CourseManagementScreen> {
                     code: codeController.text,
                     name: nameController.text,
                     sessions: sessions,
+                    userId: widget.user.id,
                   );
                 }
 
