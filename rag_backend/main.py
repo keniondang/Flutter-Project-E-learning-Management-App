@@ -1,41 +1,94 @@
 import os
 import shutil
-import uvicorn
 from typing import List
+
+import uvicorn
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+<<<<<<< HEAD
 # --- LangChain & RAG Imports ---
 from langchain_groq import ChatGroq
 from langchain_community.embeddings import HuggingFaceEmbeddings
+=======
+# LangChain + RAG
+from langchain_groq import ChatGroq
+>>>>>>> 0656ccf (chatbot new version)
 from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.chains import ConversationalRetrievalChain
-from langchain.memory import ConversationBufferMemory
-from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage, AIMessage
 
-# --- CONFIGURATION ---
+
+# ================================
+# CONFIG
+# ================================
 class Config:
+<<<<<<< HEAD
     MODEL_NAME = "llama3-8b-8192"  # Ensure you have this pulled in 
     EMBEDDING_MODEL = "all-MiniLM-L6-v2" 
     CHROMA_PATH = "chroma_db_storage"
+=======
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    MODEL_NAME = "llama-3.1-8b-instant"
+    EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+    CHROMA_PATH = "chroma_db"
+    TOP_K = 4
+>>>>>>> 0656ccf (chatbot new version)
     CHUNK_SIZE = 1000
     CHUNK_OVERLAP = 200
-    # Search settings
-    TOP_K = 4 
 
+
+# ================================
+# GLOBALS
+# ================================
 app = FastAPI()
 
-# --- GLOBAL STATE ---
-# We keep these global to persist memory across calls
-vector_store = None
-conversation_chain = None
-memory = None
+# CORS so Flutter Web (GitHub Pages) can call Railway
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],          # for dev; you can restrict to your domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# --- HELPER CLASSES (The "Brain" Logic) ---
+vector_store = None
+retriever = None
+llm = None
+chat_history: List = []
+
+
+# ================================
+# INIT / REBUILD RAG
+# ================================
+def rebuild_rag():
+    """
+    Rebuild retriever + LLM pipeline after adding new documents.
+    """
+    global retriever, llm
+
+    if vector_store is None:
+        return
+
+    retriever = vector_store.as_retriever(
+        search_kwargs={"k": Config.TOP_K}
+    )
+
+    if llm is None:
+        if not Config.GROQ_API_KEY:
+            raise RuntimeError("GROQ_API_KEY is not set in environment.")
+        llm = ChatGroq(
+            groq_api_key=Config.GROQ_API_KEY,
+            model_name=Config.MODEL_NAME,
+            temperature=0.2,
+        )
+
 
 def init_system():
+<<<<<<< HEAD
     """Initializes the Vector DB and Chat Chain on startup."""
     global vector_store, conversation_chain, memory
     
@@ -45,27 +98,35 @@ def init_system():
 
     # 2. Load or Create Vector Store
     # We use ChromaDB to store the PDF info
+=======
+    global vector_store, llm
+
+    embeddings = HuggingFaceEmbeddings(
+        model_name=Config.EMBEDDING_MODEL
+    )
+
+>>>>>>> 0656ccf (chatbot new version)
     vector_store = Chroma(
         persist_directory=Config.CHROMA_PATH,
+        collection_name="knowledgebase",
         embedding_function=embeddings,
-        collection_name="pdf_knowledge_base"
-    )
-    
-    # 3. Setup Memory (Stores chat history)
-    memory = ConversationBufferMemory(
-        memory_key="chat_history",
-        return_messages=True,
-        output_key='answer' 
     )
 
-    # 4. Setup Retrieval Chain (Connects LLM + Memory + DB)
-    # Only create chain if DB has data, otherwise wait for upload
+    # Initialize LLM once
+    if Config.GROQ_API_KEY:
+        llm = ChatGroq(
+            groq_api_key=Config.GROQ_API_KEY,
+            model_name=Config.MODEL_NAME,
+            temperature=0.2,
+        )
+
     if vector_store._collection.count() > 0:
-        create_chain()
-        print("✅ System Ready: Loaded existing knowledge base.")
+        rebuild_rag()
+        print("✅ Knowledge base loaded.")
     else:
-        print("⚠️ System Ready: Database empty. Waiting for PDF upload.")
+        print("⚠️ Knowledge base empty — upload PDFs.")
 
+<<<<<<< HEAD
 def create_chain():
     """Creates the conversational chain using the current vector store."""
     global vector_store, conversation_chain, memory
@@ -120,85 +181,153 @@ def format_response_with_citations(response_dict):
 
 class QueryRequest(BaseModel):
     query: str
+=======
+>>>>>>> 0656ccf (chatbot new version)
 
 @app.on_event("startup")
 async def startup():
     init_system()
 
+
+# ================================
+# MODELS
+# ================================
+class Query(BaseModel):
+    query: str
+
+
+# ================================
+# HEALTH CHECK
+# ================================
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "RAG backend is running."}
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+# ================================
+# UPLOAD PDF
+# ================================
 @app.post("/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):
     global vector_store
-    
-    temp_filename = f"temp_{file.filename}"
+
+    if vector_store is None:
+        raise HTTPException(500, "Vector store is not initialized.")
+
+    tmp_path = f"temp_{file.filename}"
+
     try:
-        # 1. Save File Temporarily
-        with open(temp_filename, "wb+") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
-        print(f"📥 Processing {file.filename}...")
+        with open(tmp_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
 
-        # 2. Load and Split PDF
-        loader = PyPDFLoader(temp_filename)
-        documents = loader.load()
-        
-        # Add metadata so we know which file the info came from
-        for doc in documents:
-            doc.metadata['source'] = file.filename
+        loader = PyPDFLoader(tmp_path)
+        pages = loader.load()
 
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=Config.CHUNK_SIZE, 
-            chunk_overlap=Config.CHUNK_OVERLAP
+        # add source metadata so we can show file names later
+        for p in pages:
+            p.metadata["source"] = file.filename
+
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=Config.CHUNK_SIZE,
+            chunk_overlap=Config.CHUNK_OVERLAP,
         )
-        chunks = text_splitter.split_documents(documents)
-        
-        # 3. Add to Vector DB
-        # This automatically persists in Chroma
+
+        chunks = splitter.split_documents(pages)
         vector_store.add_documents(chunks)
-        
-        # 4. Re-initialize Chain to ensure it uses new data
-        create_chain()
-        
-        return {"status": "success", "message": f"Learned from {file.filename}!"}
-        
+
+        # re-create retriever after adding new docs
+        rebuild_rag()
+
+        return {"status": "ok", "message": f"PDF '{file.filename}' added."}
+
     except Exception as e:
-        print(f"❌ Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print("❌ Error while processing PDF:", e)
+        raise HTTPException(500, f"Failed to process PDF: {e}")
     finally:
-        if os.path.exists(temp_filename):
-            os.remove(temp_filename)
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
+
+# ================================
+# ASK (Flutter-compatible)
+# ================================
 @app.post("/ask")
-async def ask(request: QueryRequest):
-    global conversation_chain
-    
-    if conversation_chain is None:
-        raise HTTPException(status_code=400, detail="Database is empty. Upload a PDF first.")
-        
+async def ask(req: Query):
+    global chat_history, retriever, llm
+
+    if retriever is None or llm is None:
+        raise HTTPException(400, "Knowledge base is empty or LLM not initialized.")
+
+    user_question = req.query
+
+    # 1. Build simple text-based history (optional)
+    history_text = ""
+    for msg in chat_history:
+        if isinstance(msg, HumanMessage):
+            history_text += f"Human: {msg.content}\n"
+        elif isinstance(msg, AIMessage):
+            history_text += f"AI: {msg.content}\n"
+
+    # 2. Use ONLY current question for retrieval
+    docs = retriever.get_relevant_documents(user_question)
+    context = "\n\n".join(doc.page_content for doc in docs[: Config.TOP_K])
+
+    # 3. Build prompt with context + history
+    system_prompt = (
+        "You are a helpful learning assistant for an e-learning system.\n"
+        "Always answer clearly and step-by-step.\n"
+        "Use the following context if it is relevant:\n\n"
+        f"{context}\n\n"
+        "If the context is not helpful, answer from your own knowledge."
+    )
+
+    messages = [
+        HumanMessage(content=system_prompt),
+        HumanMessage(content=f"Conversation so far:\n{history_text}"),
+        HumanMessage(content=f"User question: {user_question}"),
+    ]
+
     try:
-        # Run the chain (Handles history + Retrieval + Generation)
-        # We pass only the question; memory handles the history automatically
-        response = conversation_chain.invoke({"question": request.query})
-        
-        # Format the final text
-        final_text = format_response_with_citations(response)
-        
-        return {"answer": final_text}
-        
+        response = llm.invoke(messages)
+        answer = response.content
     except Exception as e:
-        print(f"❌ Error generating answer: {e}")
-        raise HTTPException(status_code=500, detail="Processing failed.")
+        print("❌ Error while generating answer:", e)
+        raise HTTPException(500, "Failed to generate answer")
 
+    # 4. Update memory
+    chat_history.append(HumanMessage(content=user_question))
+    chat_history.append(AIMessage(content=answer))
+
+    # 5. Collect simple source filenames (for UI, optional)
+    sources = []
+    for d in docs:
+        src = d.metadata.get("source")
+        if src and src not in sources:
+            sources.append(src)
+
+    return {
+        "answer": answer,
+        "sources": sources,  # Flutter can ignore if not needed
+    }
+
+
+# ================================
+# RESET MEMORY
+# ================================
 @app.post("/reset")
-async def reset_memory():
-    """Clears the chat history so the bot forgets previous context."""
-    global memory
-    if memory:
-        memory.clear()
-    return {"status": "memory_cleared"}
+async def reset():
+    chat_history.clear()
+    return {"status": "cleared"}
 
+
+# ================================
+# RUN (Railway)
+# ================================
 if __name__ == "__main__":
-    # Ensure database folder exists
-    if not os.path.exists(Config.CHROMA_PATH):
-        os.makedirs(Config.CHROMA_PATH)
-        
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
