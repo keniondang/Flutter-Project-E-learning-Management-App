@@ -20,7 +20,7 @@ class CsvExportService {
     required List<AssignmentSubmission> submissions,
     required List<Student> allStudents,
   }) async {
-    // Header (Removed Student ID)
+    // Header
     List<List<dynamic>> rows = [
       [
         'Full Name',
@@ -41,7 +41,7 @@ class CsvExportService {
           .cast<AssignmentSubmission?>()
           .firstWhere((s) => s?.studentId == student.id, orElse: () => null);
 
-      final groupName = student.groupMap.values.join(', '); // Get student's group
+      final groupName = student.groupMap.values.join(', '); 
       
       String status = 'Not Submitted';
       String submittedAt = '-';
@@ -57,7 +57,6 @@ class CsvExportService {
         feedback = sub.feedback ?? '';
       }
 
-      // Row Data (Removed student.id)
       rows.add([
         student.fullName,
         student.email,
@@ -83,7 +82,7 @@ class CsvExportService {
     required List<QuizAttempt> attempts,
     required List<Student> allStudents,
   }) async {
-    // Header (Removed Student ID)
+    // Header
     List<List<dynamic>> rows = [
       [
         'Full Name',
@@ -120,7 +119,6 @@ class CsvExportService {
       for (var attempt in studentAttempts) {
         final percentage = (attempt.score ?? 0) / (quiz.totalPoints == 0 ? 1 : quiz.totalPoints) * 100;
         
-        // Row Data (Removed student.id)
         rows.add([
           student.fullName,
           student.email,
@@ -149,7 +147,7 @@ class CsvExportService {
     required List<AssignmentSubmission> allSubmissions,
     required List<QuizAttempt> allAttempts,
   }) async {
-    // 1. Build Header Row (Removed Student ID)
+    // 1. Build Header Row
     List<dynamic> headers = ['Full Name', 'Email', 'Group'];
     
     // Add columns for Assignments
@@ -168,9 +166,8 @@ class CsvExportService {
     // 2. Build Student Rows
     for (var student in students) {
       double totalStudentScore = 0;
-      double maxPossibleScore = 0; // Calculated but currently unused in row data
+      double maxPossibleScore = 0; 
 
-      // Row Data (Removed student.id)
       List<dynamic> row = [
         student.fullName,
         student.email,
@@ -202,7 +199,6 @@ class CsvExportService {
 
         double bestScore = 0;
         if (studentAttempts.isNotEmpty) {
-           // Get max score from attempts
            bestScore = studentAttempts
                .map((a) => a.score ?? 0.0)
                .reduce((a, b) => a > b ? a : b);
@@ -223,11 +219,67 @@ class CsvExportService {
     await _saveFile('${courseName}_Final_Gradebook', rows);
   }
 
+  /// ---------------------------------------------------------
+  /// 4. EXPORT SEMESTER SUMMARY
+  /// Requirement: Matrix of Students vs Courses for the whole semester
+  /// ---------------------------------------------------------
+  Future<void> exportSemesterSummary({
+    required String semesterName,
+    required List<String> courseNames,
+    required List<Student> allStudents,
+    // Map<StudentId, Map<CourseName, Score>>
+    required Map<String, Map<String, String>> studentGrades,
+  }) async {
+    // 1. Build Header Row
+    List<dynamic> headers = ['Full Name', 'Email'];
+    
+    // Add a column for each Course
+    headers.addAll(courseNames);
+    
+    // Add Average
+    headers.add('SEMESTER AVERAGE');
+
+    List<List<dynamic>> rows = [headers];
+
+    // 2. Build Student Rows
+    for (var student in allStudents) {
+      List<dynamic> row = [
+        student.fullName,
+        student.email,
+      ];
+
+      double totalScoreSum = 0;
+      int coursesTaken = 0;
+
+      // Fill in grade for each course
+      for (var courseName in courseNames) {
+        // Get grade from the map, default to '-' if not enrolled
+        String grade = studentGrades[student.id]?[courseName] ?? '-';
+        row.add(grade);
+
+        final numericGrade = double.tryParse(grade);
+        if (numericGrade != null) {
+          totalScoreSum += numericGrade;
+          coursesTaken++;
+        }
+      }
+
+      String average = coursesTaken > 0 
+          ? (totalScoreSum / coursesTaken).toStringAsFixed(2) 
+          : '-';
+      row.add(average);
+
+      rows.add(row);
+    }
+
+    await _saveFile('${semesterName}_Summary_Report', rows);
+  }
+
   /// Helper: Save File Cross-Platform
   Future<void> _saveFile(String fileName, List<List<dynamic>> rows) async {
     String csvData = const ListToCsvConverter().convert(rows);
     
-    // Add UTF-8 BOM for Excel compatibility (Important for Vietnamese names)
+    // Add UTF-8 BOM
     final List<int> bytes = utf8.encode('\uFEFF$csvData'); 
     
     await FileSaver.instance.saveFile(

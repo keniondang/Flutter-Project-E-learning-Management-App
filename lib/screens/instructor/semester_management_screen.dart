@@ -1,3 +1,10 @@
+import 'package:elearning_management_app/providers/assignment_provider.dart';
+import 'package:elearning_management_app/providers/assignment_submission_provider.dart';
+import 'package:elearning_management_app/providers/instructor_course_provider.dart';
+import 'package:elearning_management_app/providers/quiz_attempt_provider.dart';
+import 'package:elearning_management_app/providers/quiz_provider.dart';
+import 'package:elearning_management_app/providers/student_provider.dart';
+import 'package:elearning_management_app/services/csv_export_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +20,8 @@ class SemesterManagementScreen extends StatefulWidget {
 }
 
 class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
+  bool _isExporting = false; // Loading state
+
   @override
   void initState() {
     super.initState();
@@ -166,17 +175,130 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
     );
   }
 
+  // --- NEW: Semester Export Logic ---
+  Future<void> _handleSemesterExport(Semester semester) async {
+    setState(() => _isExporting = true);
+    
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gathering semester data...')),
+      );
+
+      // 1. Get Providers
+      final courseProvider = context.read<InstructorCourseProvider>();
+      final studentProvider = context.read<StudentProvider>();
+      final assignmentProvider = context.read<AssignmentProvider>();
+      final submissionProvider = context.read<AssignmentSubmissionProvider>();
+      final quizProvider = context.read<QuizProvider>();
+      final attemptProvider = context.read<QuizAttemptProvider>();
+
+      // 2. Load all courses for this semester
+      await courseProvider.loadCourses(semester.id);
+      final courses = courseProvider.courses;
+
+      if (courses.isEmpty) {
+        throw Exception("No courses found in this semester.");
+      }
+
+      // 3. Load all students (to map IDs to Names and get Base List)
+      await studentProvider.loadAllStudents();
+      final allStudents = studentProvider.students;
+
+      // Data Structure: Map<StudentId, Map<CourseName, ScoreString>>
+      Map<String, Map<String, String>> studentGrades = {};
+
+      // Initialize map for all students
+      for (var s in allStudents) {
+        studentGrades[s.id] = {};
+      }
+
+      // 4. Iterate EVERY Course
+      for (var course in courses) {
+        // Load Course Content
+        await assignmentProvider.loadAllAssignments(course.id);
+        await quizProvider.loadAllQuizzes(course.id);
+        
+        final assignments = assignmentProvider.assignments;
+        final quizzes = quizProvider.quizzes;
+
+        // Load Enrollment for this course to filter relevant students
+        // Capture the returned list!
+        final enrolledStudents = await studentProvider.loadStudentsInCourse(course.id);
+        
+        // Process Enrolled Students
+        for (var student in enrolledStudents) {
+          double totalScore = 0;
+
+          // Calculate Assignment Scores
+          for (var assignment in assignments) {
+            // Fetch submission (cache or DB)
+            final sub = await submissionProvider.fetchStudentSubmission(assignment.id, student.id);
+            if (sub != null && sub.grade != null) {
+              totalScore += sub.grade!;
+            }
+          }
+
+          // Calculate Quiz Scores
+          for (var quiz in quizzes) {
+            // Load attempts
+            await attemptProvider.loadSubmissions(quiz.id); 
+            final bestAttempt = attemptProvider.getSubmissionForStudent(student.id);
+            
+            if (bestAttempt != null && bestAttempt.score != null) {
+              totalScore += bestAttempt.score!;
+            }
+          }
+
+          // Store the total score for this student in this course
+          studentGrades[student.id]?[course.name] = totalScore.toStringAsFixed(2);
+        }
+      }
+
+      // 5. Generate CSV
+      await CsvExportService().exportSemesterSummary(
+        semesterName: semester.name,
+        courseNames: courses.map((c) => c.name).toList(),
+        allStudents: allStudents,
+        studentGrades: studentGrades,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Semester Report exported to Downloads'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Semester Management', style: GoogleFonts.poppins()),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showAddEditDialog(),
-            tooltip: 'Add Semester',
-          ),
+          if (_isExporting)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => _showAddEditDialog(),
+              tooltip: 'Add Semester',
+            ),
         ],
       ),
       body: Consumer<SemesterProvider>(
@@ -243,7 +365,7 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
                     backgroundColor: semester.isCurrent
                         ? Colors.green
                         : Colors.grey[400],
-                    child: Icon(Icons.calendar_month, color: Colors.white),
+                    child: const Icon(Icons.calendar_month, color: Colors.white),
                   ),
                   title: Text(
                     semester.name,
@@ -281,6 +403,12 @@ class _SemesterManagementScreenState extends State<SemesterManagementScreen> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // --- EXPORT BUTTON ---
+                      IconButton(
+                        icon: const Icon(Icons.download, color: Colors.blue),
+                        tooltip: 'Export Report',
+                        onPressed: _isExporting ? null : () => _handleSemesterExport(semester),
+                      ),
                       IconButton(
                         icon: const Icon(Icons.edit, size: 20),
                         onPressed: () => _showAddEditDialog(semester),
