@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -24,11 +25,8 @@ class MessageProvider extends ChangeNotifier {
 
     try {
       // Fetch messages where (sender=Me AND receiver=Other) OR (sender=Other AND receiver=Me)
-      final response = await _supabase
-          .from('private_messages')
-          .select()
-          .or('and(sender_id.eq.$currentUserId,receiver_id.eq.$otherUserId),and(sender_id.eq.$otherUserId,receiver_id.eq.$currentUserId)')
-          .order('created_at', ascending: true);
+      final response = await _supabase.from('private_messages').select().or(
+          'and(sender_id.eq.$currentUserId,receiver_id.eq.$otherUserId),and(sender_id.eq.$otherUserId,receiver_id.eq.$currentUserId)');
 
       await box.putAll(Map.fromEntries(response.map((json) {
         final message = PrivateMessage.fromJson(json);
@@ -46,7 +44,8 @@ class MessageProvider extends ChangeNotifier {
         .where((x) =>
             (x.senderId == currentUserId && x.receiverId == otherUserId) ||
             (x.senderId == otherUserId && x.receiverId == currentUserId))
-        .toList();
+        .toList()
+        .sorted((a, b) => a.createdAt.compareTo(b.createdAt));
 
     _isLoading = false;
     notifyListeners();
@@ -63,12 +62,14 @@ class MessageProvider extends ChangeNotifier {
                 type: PostgresChangeFilterType.eq,
                 column: 'receiver_id',
                 value: currentUserId),
-            callback: (payload) {
+            callback: (payload) async {
               final message = PrivateMessage.fromJson(payload.newRecord);
 
               if (message.senderId == otherUserId) {
                 _messages.add(message);
                 notifyListeners();
+                final box = await Hive.openBox<PrivateMessage>(_boxName);
+                box.put(message.id, message);
               }
             })
         .onPostgresChanges(
