@@ -10,7 +10,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AnnouncementProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
+
   final _boxName = 'announcement-box';
+  final _boxCommentName = 'announcement-comment-box';
 
   List<Announcement> _announcements = [];
   List<Announcement> get announcements => _announcements;
@@ -46,7 +48,7 @@ class AnnouncementProvider extends ChangeNotifier {
           final results = await Future.wait([
             _fetchViewCount(id),
             _fetchCommentCount(id),
-            _checkIfViewed(id, currentUserId), 
+            _checkIfViewed(id, currentUserId),
             _fetchFileAttachmentPaths(id),
           ]);
 
@@ -137,7 +139,7 @@ class AnnouncementProvider extends ChangeNotifier {
           final results = await Future.wait([
             _fetchViewCount(id),
             _fetchCommentCount(id),
-            _checkIfViewed(id, currentUserId), 
+            _checkIfViewed(id, currentUserId),
           ]);
 
           return Announcement.fromJson(
@@ -299,22 +301,27 @@ class AnnouncementProvider extends ChangeNotifier {
   // --- SOCIAL METHODS ---
 
   Future<List<AnnouncementComment>> loadComments(String announcementId) async {
+    final box = await Hive.openBox<AnnouncementComment>(_boxCommentName);
+
     try {
       final response = await _supabase
           .from('announcement_comments')
           .select()
           .eq('announcement_id', announcementId);
 
-      return response
-          .map((json) => AnnouncementComment.fromJson(json))
-          .toList();
+      await box.putAll(Map.fromEntries(response.map((json) {
+        final announcementComment = AnnouncementComment.fromJson(json);
+
+        return MapEntry(announcementComment.id, announcementComment);
+      })));
     } catch (e) {
       print('Error loading announcement\'s comments: $e');
-      return [];
     }
+
+    return box.values.where((x) => x.announcementId == announcementId).toList();
   }
 
-  Future<Map<String, dynamic>?> addComment(
+  Future<AnnouncementComment?> addComment(
       String announcementId, String text, String userId) async {
     try {
       final response = await _supabase
@@ -327,7 +334,12 @@ class AnnouncementProvider extends ChangeNotifier {
           .select()
           .single();
 
-      return response;
+      final comment = AnnouncementComment.fromJson(response);
+      final box = await Hive.openBox<AnnouncementComment>(_boxCommentName);
+
+      box.put(comment.id, comment);
+
+      return comment;
     } catch (e) {
       _error = e.toString();
       print('Error adding comment: $e');
@@ -363,21 +375,27 @@ class AnnouncementProvider extends ChangeNotifier {
   }
 
   Future<List<ViewAnalytic>> fetchViewAnalytics(String announcementId) async {
+    final box = await Hive.openBox('announcement-view-analytics');
+
     try {
       final response = await _supabase
           .from('announcement_views')
           .select('user_id, viewed_at')
           .eq('announcement_id', announcementId);
 
-      return response.map((json) => ViewAnalytic.fromJson(json)).toList();
+      await box.put(announcementId,
+          response.map((json) => ViewAnalytic.fromJson(json)).toList());
     } catch (e) {
       print('Error fetching view analytics: $e');
-      return [];
     }
+
+    return box.get(announcementId) ?? [];
   }
 
   Future<List<DownloadAnalytic>> fetchDownloadAnalytics(
       String announcementId, String userId) async {
+    final box = await Hive.openBox('announcement-download-analytics');
+
     try {
       final response = await _supabase
           .from('announcement_downloads')
@@ -385,10 +403,12 @@ class AnnouncementProvider extends ChangeNotifier {
           .eq('announcement_id', announcementId)
           .eq('user_id', userId);
 
-      return response.map((json) => DownloadAnalytic.fromJson(json)).toList();
+      await box.put(announcementId + userId,
+          response.map((json) => DownloadAnalytic.fromJson(json)).toList());
     } catch (e) {
       print('Error fetching view analytics: $e');
-      return [];
     }
+
+    return box.get(announcementId + userId) ?? [];
   }
 }

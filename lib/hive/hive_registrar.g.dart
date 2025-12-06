@@ -8,10 +8,12 @@ import 'package:elearning_management_app/hive/hive_adapters.dart';
 extension HiveRegistrar on HiveInterface {
   void registerAdapters() {
     registerAdapter(AnnouncementAdapter());
+    registerAdapter(AnnouncementCommentAdapter());
     registerAdapter(AssignmentAdapter());
     registerAdapter(AssignmentSubmissionAdapter());
     registerAdapter(CourseAdapter());
     registerAdapter(CourseMaterialAdapter());
+    registerAdapter(DownloadAnalyticAdapter());
     registerAdapter(ForumAdapter());
     registerAdapter(ForumReplyAdapter());
     registerAdapter(GroupAdapter());
@@ -22,16 +24,19 @@ extension HiveRegistrar on HiveInterface {
     registerAdapter(SemesterAdapter());
     registerAdapter(StudentAdapter());
     registerAdapter(UserModelAdapter());
+    registerAdapter(ViewAnalyticAdapter());
   }
 }
 
 extension IsolatedHiveRegistrar on IsolatedHiveInterface {
   void registerAdapters() {
     registerAdapter(AnnouncementAdapter());
+    registerAdapter(AnnouncementCommentAdapter());
     registerAdapter(AssignmentAdapter());
     registerAdapter(AssignmentSubmissionAdapter());
     registerAdapter(CourseAdapter());
     registerAdapter(CourseMaterialAdapter());
+    registerAdapter(DownloadAnalyticAdapter());
     registerAdapter(ForumAdapter());
     registerAdapter(ForumReplyAdapter());
     registerAdapter(GroupAdapter());
@@ -42,5 +47,6 @@ extension IsolatedHiveRegistrar on IsolatedHiveInterface {
     registerAdapter(SemesterAdapter());
     registerAdapter(StudentAdapter());
     registerAdapter(UserModelAdapter());
+    registerAdapter(ViewAnalyticAdapter());
   }
 }

@@ -1,5 +1,4 @@
 import 'dart:io'; // Required for File object
-import 'dart:typed_data'; // Required for Uint8List
 import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:elearning_management_app/providers/assignment_submission_provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -52,7 +51,7 @@ class _AssignmentSubmissionScreenState
       setState(() {
         _existingSubmission = submission;
         _currentAttempt = (submission.attemptNumber) + 1;
-        
+
         // Pre-fill text so student can edit their previous work
         _submissionTextController.text = submission.submissionText ?? '';
       });
@@ -221,19 +220,18 @@ class _AssignmentSubmissionScreenState
     }
   }
 
-  Future<void> _handleFileDownload(String url, {bool isSubmission = false}) async {
+  Future<void> _handleFileDownload(String url,
+      {bool isSubmission = false}) async {
     final fileName = url.split('/').last;
 
     Uint8List? bytes;
-    
+
     if (isSubmission) {
       bytes = await context
           .read<AssignmentSubmissionProvider>()
           .fetchFileAttachment(url);
     } else {
-      bytes = await context
-          .read<AssignmentProvider>()
-          .fetchFileAttachment(url);
+      bytes = await context.read<AssignmentProvider>().fetchFileAttachment(url);
     }
 
     if (bytes != null) {
@@ -250,7 +248,7 @@ class _AssignmentSubmissionScreenState
   // Helper to remove timestamps from filenames for display
   String _cleanFileName(String path) {
     final fullName = path.split('/').last;
-    final regex = RegExp(r'^\d+_(.+)'); 
+    final regex = RegExp(r'^\d+_(.+)');
     final match = regex.firstMatch(fullName);
     if (match != null) {
       return match.group(1) ?? fullName;
@@ -340,11 +338,9 @@ class _AssignmentSubmissionScreenState
                     style: GoogleFonts.poppins(fontSize: 14),
                   ),
                   const SizedBox(height: 16),
-
                   _buildAttachments(),
                   if (widget.assignment.fileAttachments.isNotEmpty)
                     const SizedBox(height: 16),
-                  
                   const Divider(),
                   const SizedBox(height: 12),
                   Row(
@@ -369,19 +365,17 @@ class _AssignmentSubmissionScreenState
                     ],
                   ),
                   const SizedBox(height: 8),
-                  
                   if (_existingSubmission != null)
                     Row(
                       children: [
                         Icon(Icons.history, size: 20, color: Colors.grey[600]),
                         const SizedBox(width: 8),
                         Text(
-                          'Current Version: $_currentAttempt', 
+                          'Current Version: $_currentAttempt',
                           style: GoogleFonts.poppins(fontSize: 14),
                         ),
                       ],
                     ),
-
                   if (!widget.assignment.isPastDue)
                     Container(
                       margin: const EdgeInsets.only(top: 12),
@@ -429,15 +423,15 @@ class _AssignmentSubmissionScreenState
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.check_circle_outline, color: Colors.green[700]),
+                        Icon(Icons.check_circle_outline,
+                            color: Colors.green[700]),
                         const SizedBox(width: 8),
                         Text(
                           'Last Submission',
                           style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.green[800]
-                          ),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green[800]),
                         ),
                       ],
                     ),
@@ -485,7 +479,8 @@ class _AssignmentSubmissionScreenState
                       const SizedBox(height: 4),
                       Text(
                         _existingSubmission!.submissionText!,
-                        style: GoogleFonts.poppins(fontSize: 13, color: Colors.black87),
+                        style: GoogleFonts.poppins(
+                            fontSize: 13, color: Colors.black87),
                       ),
                     ],
 
@@ -502,14 +497,16 @@ class _AssignmentSubmissionScreenState
                         return ListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.attach_file, color: Colors.blue),
+                          leading:
+                              const Icon(Icons.attach_file, color: Colors.blue),
                           title: Text(
                             _cleanFileName(path),
                             style: GoogleFonts.poppins(fontSize: 13),
                           ),
                           trailing: IconButton(
                             icon: const Icon(Icons.download_rounded),
-                            onPressed: () => _handleFileDownload(path, isSubmission: true),
+                            onPressed: () =>
+                                _handleFileDownload(path, isSubmission: true),
                           ),
                         );
                       }).toList(),

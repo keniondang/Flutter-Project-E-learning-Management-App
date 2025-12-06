@@ -902,3 +902,123 @@ class ForumReplyAdapter extends TypeAdapter<ForumReply> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
+
+class AnnouncementCommentAdapter extends TypeAdapter<AnnouncementComment> {
+  @override
+  final typeId = 15;
+
+  @override
+  AnnouncementComment read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return AnnouncementComment(
+      id: fields[0] as String,
+      announcementId: fields[1] as String,
+      userId: fields[2] as String,
+      comment: fields[3] as String,
+      createdAt: fields[4] as DateTime,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, AnnouncementComment obj) {
+    writer
+      ..writeByte(5)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.announcementId)
+      ..writeByte(2)
+      ..write(obj.userId)
+      ..writeByte(3)
+      ..write(obj.comment)
+      ..writeByte(4)
+      ..write(obj.createdAt);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AnnouncementCommentAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class ViewAnalyticAdapter extends TypeAdapter<ViewAnalytic> {
+  @override
+  final typeId = 16;
+
+  @override
+  ViewAnalytic read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return ViewAnalytic(
+      userId: fields[0] as String,
+      viewedAt: fields[1] as DateTime,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, ViewAnalytic obj) {
+    writer
+      ..writeByte(2)
+      ..writeByte(0)
+      ..write(obj.userId)
+      ..writeByte(1)
+      ..write(obj.viewedAt);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ViewAnalyticAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class DownloadAnalyticAdapter extends TypeAdapter<DownloadAnalytic> {
+  @override
+  final typeId = 17;
+
+  @override
+  DownloadAnalytic read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return DownloadAnalytic(
+      fileName: fields[0] as String,
+      downloadedAt: fields[1] as DateTime,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, DownloadAnalytic obj) {
+    writer
+      ..writeByte(2)
+      ..writeByte(0)
+      ..write(obj.fileName)
+      ..writeByte(1)
+      ..write(obj.downloadedAt);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DownloadAnalyticAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}

@@ -169,21 +169,27 @@ class CourseMaterialProvider extends ChangeNotifier {
   }
 
   Future<List<ViewAnalytic>> fetchViewAnalytics(String materialId) async {
+    final box = await Hive.openBox('material-view-analytics');
+
     try {
       final response = await _supabase
           .from('material_views')
           .select('user_id, viewed_at')
           .eq('material_id', materialId);
 
-      return response.map((json) => ViewAnalytic.fromJson(json)).toList();
+      await box.put(materialId,
+          response.map((json) => ViewAnalytic.fromJson(json)).toList());
     } catch (e) {
       print('Error fetching view analytics: $e');
-      return [];
     }
+
+    return box.get(materialId) ?? [];
   }
 
   Future<List<DownloadAnalytic>> fetchDownloadAnalytics(
       String materialId, String userId) async {
+    final box = await Hive.openBox('material-download-analytics');
+
     try {
       final response = await _supabase
           .from('material_downloads')
@@ -191,10 +197,12 @@ class CourseMaterialProvider extends ChangeNotifier {
           .eq('material_id', materialId)
           .eq('user_id', userId);
 
-      return response.map((json) => DownloadAnalytic.fromJson(json)).toList();
+      await box.put(materialId + userId,
+          response.map((json) => DownloadAnalytic.fromJson(json)).toList());
     } catch (e) {
       print('Error fetching view analytics: $e');
-      return [];
     }
+
+    return box.get(materialId + userId) ?? [];
   }
 }
