@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart' hide Notification;
+import 'package:hive_ce/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification.dart';
 
 class NotificationProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final _boxName = 'notification-box';
 
   List<Notification> _notifications = [];
   List<Notification> get notifications => _notifications;
@@ -20,6 +22,8 @@ class NotificationProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    final box = await Hive.openBox<Notification>(_boxName);
+
     try {
       final response = await _supabase
           .from('notifications_to')
@@ -29,20 +33,23 @@ class NotificationProvider extends ChangeNotifier {
           .order('created_at', referencedTable: 'notifications')
           .limit(50);
 
-      _notifications = response.map((json) {
+      await box.putAll(Map.fromEntries(response.map((json) {
         final notificationJson = json['notifications'];
 
-        return Notification.fromJson(
-            json: notificationJson, isRead: json['is_read']);
-      }).toList();
+        final notification = Notification.fromJson(
+            json: notificationJson, userId: userId, isRead: json['is_read']);
 
-      _unreadCount = _notifications.where((n) => !n.isRead).length;
+        return MapEntry(notification.id, notification);
+      })));
     } catch (e) {
       print('Error loading notifications: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
+
+    _notifications = box.values.where((x) => x.userId == userId).toList();
+    _unreadCount = _notifications.where((n) => !n.isRead).length;
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   RealtimeChannel subscribeNotification(String userId) {
@@ -67,6 +74,9 @@ class NotificationProvider extends ChangeNotifier {
                 }
 
                 notifyListeners();
+
+                final box = await Hive.openBox<Notification>(_boxName);
+                await box.put(notification.id, notification);
               }
             })
         .subscribe();
@@ -80,10 +90,19 @@ class NotificationProvider extends ChangeNotifier {
           .eq('notification_id', notificationId)
           .eq('user_id', userId);
 
-      _notifications[notifications.indexWhere((x) => x.id == notificationId)]
-          .isRead = true;
-      _unreadCount -= 1;
-      notifyListeners();
+      final index = notifications.indexWhere((x) => x.id == notificationId);
+
+      if (index > -1) {
+        final notification = _notifications[index];
+        notification.isRead = true;
+
+        _notifications[index] = notification;
+        _unreadCount -= 1;
+        notifyListeners();
+
+        final box = await Hive.openBox<Notification>(_boxName);
+        await box.put(notification.id, notification);
+      }
     } catch (e) {
       print('Error marking notification as read: $e');
     }
@@ -101,6 +120,10 @@ class NotificationProvider extends ChangeNotifier {
 
       _unreadCount = 0;
       notifyListeners();
+
+      final box = await Hive.openBox<Notification>(_boxName);
+      await box.putAll(
+          Map.fromEntries(_notifications.map((x) => MapEntry(x.id, x))));
     } catch (e) {
       print('Error marking all notification as read: $e');
     }
@@ -140,7 +163,9 @@ class NotificationProvider extends ChangeNotifier {
         return null;
       } else {
         return Notification.fromJson(
-            json: response, isRead: request['is_read'] as bool);
+            json: response,
+            userId: request['user_id'],
+            isRead: request['is_read'] as bool);
       }
     } catch (e) {
       print('Error fetching notification: $e');
