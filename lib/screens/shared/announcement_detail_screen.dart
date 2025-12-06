@@ -89,12 +89,9 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     if (mounted) {
       if (response != null) {
         setState(() {
-          final comment = AnnouncementComment.fromJson(
-              json: response,
-              userName: widget.currentUser.fullName,
-              userHasAvatar: widget.currentUser.hasAvatar);
+          final comment = AnnouncementComment.fromJson(response);
 
-          _comments.add(comment);
+          _comments.insert(0, comment);
         });
         _scrollToBottom();
       } else {
@@ -172,7 +169,28 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                   _buildAttachments(),
                   const SizedBox(height: 24),
                   const Divider(thickness: 1),
-                  _buildCommentsList(),
+                  Text(
+                    'Comments (${_comments.length})',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_isLoadingComments)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_comments.isEmpty)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Text(
+                          'No comments yet. Be the first to reply!',
+                          style: GoogleFonts.poppins(color: Colors.grey),
+                        ),
+                      ),
+                    )
+                  else
+                    _buildComments()
                 ],
               ),
             ),
@@ -192,7 +210,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
         CircleAvatar(
           radius: 24,
           backgroundColor: Colors.blue[100],
-          child: const Icon(Icons.person, color: Colors.blue),
+          child: const Icon(Icons.announcement, color: Colors.blue),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -275,83 +293,57 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     );
   }
 
-  Widget _buildCommentsList() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Comments (${_comments.length})',
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (_isLoadingComments)
-          const Center(child: CircularProgressIndicator())
-        else if (_comments.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Text(
-                'No comments yet. Be the first to reply!',
-                style: GoogleFonts.poppins(color: Colors.grey),
-              ),
-            ),
-          )
-        else
-          ..._comments.map((comment) => _buildCommentItem(comment)),
-      ],
+  Widget _buildComments() {
+    return FutureBuilder<List<MapEntry<String, UserModel?>>>(
+      future: Future.wait(_comments.map((x) => x.userId).toSet().map(
+          (x) async =>
+              MapEntry(x, await context.read<StudentProvider>().fetchUser(x)))),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final userMap =
+            Map.fromEntries(snapshot.data!.where((x) => x.value != null));
+
+        _comments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        return Column(
+            children: _comments
+                .map((x) => _buildCommentItem(x, userMap[x.userId]!))
+                .toList());
+      },
     );
   }
 
-  Widget _buildCommentItem(AnnouncementComment comment) {
+  Widget _buildCommentItem(AnnouncementComment comment, UserModel user) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (comment.userHasAvatar)
-            FutureBuilder<Uint8List?>(
-              future: context
-                  .read<StudentProvider>()
-                  .fetchAvatarBytes(comment.userId),
-              builder: (context, snapshot) {
-                switch (snapshot.connectionState) {
-                  case ConnectionState.done:
-                    final avatarBytes = snapshot.data;
-
-                    return CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.grey[300],
-                      backgroundImage:
-                          avatarBytes != null ? MemoryImage(avatarBytes) : null,
-                      child: avatarBytes != null
-                          ? null
-                          : Text(
-                              comment.userName.isNotEmpty
-                                  ? comment.userName[0].toUpperCase()
-                                  : '?',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 12, color: Colors.black87),
-                            ),
-                    );
-                  default:
-                    return const SizedBox(
-                        width: 8,
-                        height: 8,
-                        child: CircularProgressIndicator());
-                }
-              },
-            )
+          if (user.hasAvatar)
+            CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.grey[300],
+                backgroundImage: user.avatarBytes != null
+                    ? MemoryImage(user.avatarBytes! as Uint8List)
+                    : null,
+                child: user.avatarBytes != null
+                    ? null
+                    : Text(
+                        user.fullName.isNotEmpty
+                            ? user.fullName[0].toUpperCase()
+                            : '?',
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, color: Colors.black87),
+                      ))
           else
             CircleAvatar(
               radius: 16,
               backgroundColor: Colors.grey[300],
               child: Text(
-                comment.userName.isNotEmpty
-                    ? comment.userName[0].toUpperCase()
-                    : '?',
+                user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : '?',
                 style: GoogleFonts.poppins(fontSize: 12, color: Colors.black87),
               ),
             ),
@@ -370,7 +362,7 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        comment.userName,
+                        user.fullName,
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
@@ -490,12 +482,15 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
                 )
               else
                 Expanded(
-                  child: FutureBuilder<List<MapEntry<String, Student?>>>(
-                    future: Future.wait(viewers.map((x) async => MapEntry(
-                        x.userId,
-                        await context
-                            .read<StudentProvider>()
-                            .fetchUser(x.userId)))),
+                  child: FutureBuilder<List<MapEntry<String, UserModel?>>>(
+                    future: Future.wait(viewers
+                        .map((x) => x.userId)
+                        .toSet()
+                        .map((x) async => MapEntry(
+                            x,
+                            await context
+                                .read<StudentProvider>()
+                                .fetchUser(x)))),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const SizedBox(

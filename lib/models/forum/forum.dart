@@ -4,7 +4,6 @@ class Forum {
   final String title;
   final String content;
   final String createdBy;
-  final String createdByFullName;
   final int replyCount;
   final DateTime createdAt;
 
@@ -14,22 +13,18 @@ class Forum {
     required this.title,
     required this.content,
     required this.createdBy,
-    required this.createdByFullName,
     this.replyCount = 0,
     required this.createdAt,
   });
 
   factory Forum.fromJson(
-      {required Map<String, dynamic> json,
-      int? replyCount,
-      required String createdByFullName}) {
+      {required Map<String, dynamic> json, int? replyCount}) {
     return Forum(
       id: json['id'],
       courseId: json['course_id'],
       title: json['title'],
       content: json['content'],
       createdBy: json['created_by'],
-      createdByFullName: createdByFullName,
       replyCount: replyCount ?? 0,
       createdAt: DateTime.parse(json['created_at']),
     );

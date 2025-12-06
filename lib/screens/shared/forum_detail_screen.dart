@@ -13,12 +13,14 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 
 class ForumDetailScreen extends StatefulWidget {
   final Forum forum;
-  final UserModel user;
+  final UserModel forumPoster;
+  final UserModel currentUser;
 
   const ForumDetailScreen({
     super.key,
     required this.forum,
-    required this.user,
+    required this.forumPoster,
+    required this.currentUser,
   });
 
   @override
@@ -29,9 +31,6 @@ class _ForumDetailScreenState extends State<ForumDetailScreen> {
   final TextEditingController _replyController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  bool _isLoadingReplies = true;
-  bool _isPostingReply = false;
-
   @override
   void initState() {
     super.initState();
@@ -40,12 +39,6 @@ class _ForumDetailScreenState extends State<ForumDetailScreen> {
 
   Future<void> _loadReplies() async {
     await context.read<ForumReplyProvider>().loadForumReplies(widget.forum.id);
-    if (mounted) {
-      setState(() {
-        _isLoadingReplies = false;
-      });
-      // Optionally scroll to bottom if you prefer that behavior
-    }
   }
 
   void _scrollToBottom() {
@@ -61,19 +54,25 @@ class _ForumDetailScreenState extends State<ForumDetailScreen> {
   Future<void> _handleSendReply() async {
     if (_replyController.text.trim().isEmpty) return;
 
-    setState(() => _isPostingReply = true);
     final text = _replyController.text.trim();
 
     _replyController.clear();
     FocusScope.of(context).unfocus();
 
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()));
+
     final success = await context.read<ForumReplyProvider>().createForumReply(
           widget.forum.id,
           text,
-          widget.user,
+          widget.currentUser,
         );
 
     if (mounted) {
+      Navigator.pop(context);
+
       if (success) {
         _scrollToBottom();
       } else {
@@ -85,7 +84,6 @@ class _ForumDetailScreenState extends State<ForumDetailScreen> {
           ),
         );
       }
-      setState(() => _isPostingReply = false);
     }
   }
 
@@ -99,20 +97,50 @@ class _ForumDetailScreenState extends State<ForumDetailScreen> {
         children: [
           Expanded(
             child: SingleChildScrollView(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(),
-                  const SizedBox(height: 16),
-                  _buildContent(),
-                  const SizedBox(height: 24),
-                  const Divider(thickness: 1),
-                  _buildRepliesList(),
-                ],
-              ),
-            ),
+                controller: _scrollController,
+                padding: const EdgeInsets.all(16.0),
+                child: Consumer<ForumReplyProvider>(
+                  builder: (context, provider, child) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        child!,
+                        Text(
+                          'Replies (${provider.forumReplies.length})',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (provider.isLoading)
+                          const Center(child: CircularProgressIndicator())
+                        else if (provider.forumReplies.isEmpty)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: Text(
+                                'No replies yet. Be the first to reply!',
+                                style: GoogleFonts.poppins(color: Colors.grey),
+                              ),
+                            ),
+                          )
+                        else
+                          _buildReplies(provider.forumReplies),
+                      ],
+                    );
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(),
+                      const SizedBox(height: 16),
+                      _buildContent(),
+                      const SizedBox(height: 24),
+                      const Divider(thickness: 1),
+                    ],
+                  ),
+                )),
           ),
           _buildReplyInput(),
         ],
@@ -121,18 +149,22 @@ class _ForumDetailScreenState extends State<ForumDetailScreen> {
   }
 
   Widget _buildHeader() {
-    // Assuming Forum model has createdBy or similar info.
-    // AnnouncementDetailScreen uses a static icon for the main post, so we mirror that style.
     final date =
         DateFormat('MMM dd, yyyy • HH:mm').format(widget.forum.createdAt);
 
     return Row(
       children: [
-        CircleAvatar(
-          radius: 24,
-          backgroundColor: Colors.blue[100],
-          child: const Icon(Icons.person, color: Colors.blue),
-        ),
+        (widget.forumPoster.hasAvatar)
+            ? CircleAvatar(
+                radius: 24,
+                child: null,
+                backgroundImage:
+                    MemoryImage(widget.forumPoster.avatarBytes! as Uint8List))
+            : CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.blue[100],
+                child: const Icon(Icons.person, color: Colors.blue),
+              ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -146,7 +178,7 @@ class _ForumDetailScreenState extends State<ForumDetailScreen> {
                 ),
               ),
               Text(
-                'Posted by ${widget.forum.createdByFullName} • $date',
+                'Posted by ${widget.forumPoster.fullName} • $date',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   color: Colors.grey[600],
@@ -171,87 +203,90 @@ class _ForumDetailScreenState extends State<ForumDetailScreen> {
     );
   }
 
-  Widget _buildRepliesList() {
-    // Access replies from provider
-    final replies = context.watch<ForumReplyProvider>().forumReplies;
+  // Widget _buildRepliesList() {
+  //   // Access replies from provider
+  //   final replies = context.watch<ForumReplyProvider>().forumReplies;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Replies (${replies.length})',
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (_isLoadingReplies)
-          const Center(child: CircularProgressIndicator())
-        else if (replies.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Text(
-                'No replies yet. Be the first to reply!',
-                style: GoogleFonts.poppins(color: Colors.grey),
-              ),
-            ),
-          )
-        else
-          ...replies.map((reply) => _buildReplyItem(reply)),
-      ],
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       Text(
+  //         'Replies (${replies.length})',
+  //         style: GoogleFonts.poppins(
+  //           fontSize: 16,
+  //           fontWeight: FontWeight.w600,
+  //         ),
+  //       ),
+  //       const SizedBox(height: 16),
+  //       if (_isLoadingReplies)
+  //         const Center(child: CircularProgressIndicator())
+  //       else if (replies.isEmpty)
+  //         Center(
+  //           child: Padding(
+  //             padding: const EdgeInsets.symmetric(vertical: 20),
+  //             child: Text(
+  //               'No replies yet. Be the first to reply!',
+  //               style: GoogleFonts.poppins(color: Colors.grey),
+  //             ),
+  //           ),
+  //         )
+  //       else
+  //         ...replies.map((reply) => _buildReplyItem(reply)),
+  //     ],
+  //   );
+  // }
+
+  Widget _buildReplies(List<ForumReply> replies) {
+    return FutureBuilder<List<MapEntry<String, UserModel?>>>(
+      future: Future.wait(replies.map((x) => x.userId).toSet().map((x) async =>
+          MapEntry(x, await context.read<StudentProvider>().fetchUser(x)))),
+      builder: (context, snapshot) {
+        switch (snapshot.connectionState) {
+          case ConnectionState.done:
+            final userMap =
+                Map.fromEntries(snapshot.data!.where((x) => x.value != null));
+
+            replies.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+            return Column(
+                children: replies
+                    .map((x) => _buildReplyItem(x, userMap[x.userId]!))
+                    .toList());
+          default:
+            return const Center(child: CircularProgressIndicator());
+        }
+      },
     );
   }
 
-  Widget _buildReplyItem(ForumReply reply) {
+  Widget _buildReplyItem(ForumReply reply, UserModel user) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Logic for displaying Avatar using FutureBuilder and StudentProvider
-          if (reply.userHasAvatar)
-            FutureBuilder<Uint8List?>(
-              future: context
-                  .read<StudentProvider>()
-                  .fetchAvatarBytes(reply.userId),
-              builder: (context, snapshot) {
-                switch (snapshot.connectionState) {
-                  case ConnectionState.done:
-                    final avatarBytes = snapshot.data;
-                    return CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.grey[300],
-                      backgroundImage:
-                          avatarBytes != null ? MemoryImage(avatarBytes) : null,
-                      child: avatarBytes != null
-                          ? null
-                          : Text(
-                              reply.userFullName.isNotEmpty
-                                  ? reply.userFullName[0].toUpperCase()
-                                  : '?',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 12, color: Colors.black87),
-                            ),
-                    );
-                  default:
-                    return const SizedBox(
-                      width: 32,
-                      height: 32,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    );
-                }
-              },
-            )
+          if (user.hasAvatar)
+            CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.grey[300],
+                backgroundImage: user.avatarBytes != null
+                    ? MemoryImage(user.avatarBytes! as Uint8List)
+                    : null,
+                child: user.avatarBytes != null
+                    ? null
+                    : Text(
+                        user.fullName.isNotEmpty
+                            ? user.fullName[0].toUpperCase()
+                            : '?',
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, color: Colors.black87),
+                      ))
           else
             CircleAvatar(
               radius: 16,
               backgroundColor: Colors.grey[300],
               child: Text(
-                reply.userFullName.isNotEmpty
-                    ? reply.userFullName[0].toUpperCase()
-                    : '?',
+                user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : '?',
                 style: GoogleFonts.poppins(fontSize: 12, color: Colors.black87),
               ),
             ),
@@ -270,7 +305,7 @@ class _ForumDetailScreenState extends State<ForumDetailScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        reply.userFullName,
+                        user.fullName,
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
@@ -335,19 +370,10 @@ class _ForumDetailScreenState extends State<ForumDetailScreen> {
           const SizedBox(width: 8),
           CircleAvatar(
             backgroundColor: Colors.blue,
-            child: _isPostingReply
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                    onPressed: _handleSendReply,
-                  ),
+            child: IconButton(
+              icon: const Icon(Icons.send, color: Colors.white, size: 20),
+              onPressed: _handleSendReply,
+            ),
           ),
         ],
       ),

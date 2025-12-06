@@ -305,15 +305,11 @@ class AnnouncementProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('announcement_comments')
-          .select('*, users(full_name, has_avatar)')
-          .eq('announcement_id', announcementId)
-          .order('created_at', ascending: true);
+          .select()
+          .eq('announcement_id', announcementId);
 
       return response
-          .map((json) => AnnouncementComment.fromJson(
-              json: json,
-              userName: json['users']['full_name'],
-              userHasAvatar: json['users']['has_avatar']))
+          .map((json) => AnnouncementComment.fromJson(json))
           .toList();
     } catch (e) {
       print('Error loading announcement\'s comments: $e');
@@ -321,7 +317,6 @@ class AnnouncementProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ UPDATED: Now requires userId explicitly
   Future<Map<String, dynamic>?> addComment(
       String announcementId, String text, String userId) async {
     try {
@@ -330,18 +325,16 @@ class AnnouncementProvider extends ChangeNotifier {
           .insert({
             'announcement_id': announcementId,
             'user_id': userId,
-            'comment': text,
+            'comment': text
           })
           .select()
           .single();
 
-      notifyListeners();
       return response;
     } catch (e) {
       _error = e.toString();
       print('Error adding comment: $e');
 
-      notifyListeners();
       return null;
     }
   }

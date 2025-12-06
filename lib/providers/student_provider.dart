@@ -670,8 +670,14 @@ class StudentProvider extends ChangeNotifier {
     return box.values.where((x) => x.courseIds.contains(courseId)).toList();
   }
 
-  Future<Student?> fetchUser(String userId) async {
+  Future<UserModel?> fetchUser(String userId) async {
     try {
+      final index = _students.indexWhere((x) => x.id == userId);
+
+      if (index > -1) {
+        return _students[index];
+      }
+
       final box = await Hive.openBox<Student>(_boxName);
 
       if (box.containsKey(userId)) {
