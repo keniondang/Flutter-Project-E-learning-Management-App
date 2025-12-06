@@ -1,7 +1,7 @@
 import 'package:elearning_management_app/providers/announcement_provider.dart';
 import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:elearning_management_app/providers/course_material_provider.dart';
-import 'package:elearning_management_app/providers/group_provider.dart'; // <--- Added Import
+import 'package:elearning_management_app/providers/group_provider.dart';
 import 'package:elearning_management_app/providers/quiz_provider.dart';
 import 'package:elearning_management_app/providers/student_provider.dart';
 import 'package:elearning_management_app/providers/student_quiz_provider.dart';
@@ -70,8 +70,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
         ),
         bottom: TabBar(
           controller: _tabController,
-          // You can customize colors here if needed, otherwise it uses Theme
-          labelColor: Colors.grey, 
+          labelColor: Colors.grey,
           unselectedLabelColor: Colors.white,
           indicatorColor: Colors.blue,
           tabs: const [
@@ -232,9 +231,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     _loadData();
   }
 
-  // --- NEW HELPER: Build Audience Badge ---
+  // --- Helper: Build Audience Badge ---
   Widget _buildTargetBadge(String scopeType, List<String> targetGroups) {
-    // 1. If assigned to everyone
     if (scopeType == 'all') {
       return Container(
         margin: const EdgeInsets.only(left: 8),
@@ -257,7 +255,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
       );
     }
 
-    // 2. If assigned to specific groups
     final allGroups = context.read<GroupProvider>().groups;
     final groupNames = allGroups
         .where((g) => targetGroups.contains(g.id))
@@ -303,13 +300,79 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     );
   }
 
+  // --- NEW: Dynamic Status Chip for Assignments ---
+  Widget _buildAssignmentStatusChip(Assignment assignment, bool isStudent) {
+    // 1. Instructor View
+    if (!isStudent) {
+      if (assignment.isPastDue) {
+        return Chip(
+          label: const Text('Closed', style: TextStyle(color: Colors.grey)),
+          backgroundColor: Colors.grey[200],
+        );
+      }
+      return const Chip(
+        label: Text('Open'),
+        backgroundColor: Colors.greenAccent,
+      );
+    }
+
+    // 2. Student View
+    return FutureBuilder<AssignmentSubmission?>(
+      future: context
+          .read<AssignmentSubmissionProvider>()
+          .fetchStudentSubmission(assignment.id, widget.user.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+        }
+
+        final submission = snapshot.data;
+
+        // A. GRADED
+        if (submission != null && submission.grade != null) {
+          return Chip(
+            avatar: const Icon(Icons.check_circle, size: 16, color: Colors.white),
+            label: Text('Graded: ${submission.grade}',
+                style: const TextStyle(color: Colors.white, fontSize: 11)),
+            backgroundColor: Colors.teal,
+          );
+        }
+
+        // B. SUBMITTED
+        if (submission != null) {
+          return const Chip(
+            label: Text('Submitted', style: TextStyle(color: Colors.white)),
+            backgroundColor: Colors.blue,
+          );
+        }
+
+        // C. MISSING
+        if (assignment.isPastDue) {
+          return Chip(
+            label: const Text('Missing', style: TextStyle(color: Colors.red)),
+            backgroundColor: Colors.red[100],
+          );
+        }
+
+        // D. ASSIGNED
+        return Chip(
+          label: const Text('Assigned'),
+          backgroundColor: Colors.green[100],
+        );
+      },
+    );
+  }
+
   // ---------------- CLASSWORK TAB -----------------
 
   Widget _buildClassworkTab() {
     final assignmentProvider = context.watch<AssignmentProvider>();
     final quizProvider = context.watch<QuizProvider>();
     final materialProvider = context.watch<CourseMaterialProvider>();
-    // final studentQuizProvider = context.watch<StudentQuizProvider>(); // Uncomment if used
 
     if (assignmentProvider.isLoading ||
         quizProvider.isLoading ||
@@ -368,13 +431,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                         ? 'Submissions: ${assignment.submissionCount ?? 0}'
                         : 'Due: ${_formatDate(assignment.dueDate)}',
                     style: GoogleFonts.poppins(fontSize: 12)),
-                trailing: assignment.isPastDue
-                    ? Chip(
-                        label: const Text('Past Due'),
-                        backgroundColor: Colors.red[100])
-                    : Chip(
-                        label: const Text('Open'),
-                        backgroundColor: Colors.green[100]),
+                
+                // --- UPDATED: Use dynamic status chip ---
+                trailing: _buildAssignmentStatusChip(assignment, isStudent),
+                
                 onTap: () {
                   if (isStudent) {
                     Navigator.push(
@@ -508,7 +568,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                 ),
               ),
               const SizedBox(width: 8),
-              // Compact Sort Button
               InkWell(
                 onTap: () {
                   setState(() {
@@ -608,7 +667,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                 CircleAvatar(
                                   backgroundColor: Colors.blue[100],
                                   radius: 16,
-                                  child: Icon(Icons.announcement,
+                                  child: Icon(Icons.person,
                                       size: 20, color: Colors.blue[700]),
                                 ),
                                 const SizedBox(width: 12),
@@ -617,7 +676,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      // Modified Header Row to include Badge
                                       Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
@@ -749,7 +807,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   Future<void> _loadData() async {
     if (!mounted) return;
 
-    // ✅ ADDED: Always load groups so we can display names in the badges
     await context.read<GroupProvider>().loadGroups(widget.course.id);
 
     if (widget.user.role == 'student') {

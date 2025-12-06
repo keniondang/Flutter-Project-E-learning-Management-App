@@ -38,13 +38,21 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
       await box
           .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
         final id = json['id'] as String;
-        // Handle potential missing column gracefully
-        final hasAttachments = json['has_attachments'] as bool? ?? false;
+        
+        // 1. Try to get files from the new DB column first (Faster)
+        List<String> files = [];
+        if (json['submission_files'] != null) {
+          files = List<String>.from(json['submission_files']);
+        } 
+        // 2. Fallback: If column is empty but flag is true, fetch from Storage (Legacy support)
+        else if (json['has_attachments'] == true) {
+          files = await _fetchFileAttachmentPaths(id);
+        }
 
         final submission = AssignmentSubmission.fromJson(
             json: json,
-            submissionFiles:
-                hasAttachments ? await _fetchFileAttachmentPaths(id) : null);
+            submissionFiles: files // ✅ Explicitly pass the files
+        );
 
         return MapEntry(submission.id, submission);
       }))));
@@ -73,15 +81,17 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
                 value: assignmentId),
             callback: (payload) async {
               final json = payload.newRecord;
-
-              final id = json['id'] as String;
-              final hasAttachments = json['has_attachments'] as bool? ?? false;
+              
+              // Handle Realtime files
+              List<String> files = [];
+              if (json['submission_files'] != null) {
+                 files = List<String>.from(json['submission_files']);
+              }
 
               final submission = AssignmentSubmission.fromJson(
                   json: json,
-                  submissionFiles: hasAttachments
-                      ? await _fetchFileAttachmentPaths(id)
-                      : null);
+                  submissionFiles: files
+              );
 
               _submissions.add(submission);
               notifyListeners();
@@ -92,7 +102,7 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
         .subscribe();
   }
 
-  // ✅ FIXED: Fetch ONLY the LATEST submission for a student
+  // ✅ FIXED: Correctly parses 'submission_files' column
   Future<AssignmentSubmission?> fetchStudentSubmission(
       String assignmentId, String studentId) async {
     final box = await Hive.openBox<AssignmentSubmission>(_boxName);
@@ -103,15 +113,25 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
           .select()
           .eq('assignment_id', assignmentId)
           .eq('student_id', studentId)
-          .order('attempt_number', ascending: false) // ✅ Get Highest Attempt
-          .limit(1) // ✅ Take only 1 row
-          .maybeSingle(); // ✅ Now this is safe
+          .order('attempt_number', ascending: false) // Get latest version
+          .limit(1)
+          .maybeSingle();
 
       if (response == null) {
         return null;
       }
 
-      final submission = AssignmentSubmission.fromJson(json: response);
+      // ✅ FIX: Extract the array from JSON
+      List<String> files = [];
+      if (response['submission_files'] != null) {
+        files = List<String>.from(response['submission_files']);
+      }
+
+      // ✅ FIX: Pass the extracted list to the model
+      final submission = AssignmentSubmission.fromJson(
+        json: response, 
+        submissionFiles: files 
+      );
 
       await box.put(submission.id, submission);
 
@@ -120,7 +140,7 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
     } catch (e) {
       print('Error loading submission: $e');
 
-      // Fallback to local cache: Find the one with highest attempt_number
+      // Fallback to local cache
       final studentSubmissions = box.values
           .where((x) =>
               x.assignmentId == assignmentId && x.studentId == studentId)
@@ -137,7 +157,7 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ FIXED: Get the LATEST submission from memory list (For Instructor View)
+  // Get a single submission by student ID from memory
   AssignmentSubmission? getSubmissionForStudent(String studentId) {
     try {
       final studentSubmissions =
@@ -174,22 +194,24 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
       });
 
       final box = await Hive.openBox<AssignmentSubmission>(_boxName);
-      final submission = box.get(submissionId)!;
-
-      submission.grade = grade;
-      submission.feedback = feedback;
-      submission.gradedAt = gradedAt;
-
-      await box.put(submission.id, submission);
-      _submissions[_submissions.indexWhere((x) => x.id == submission.id)] =
-          submission;
+      if (box.containsKey(submissionId)) {
+        final submission = box.get(submissionId)!;
+        submission.grade = grade;
+        submission.feedback = feedback;
+        submission.gradedAt = gradedAt;
+        await box.put(submission.id, submission);
+        
+        final index = _submissions.indexWhere((x) => x.id == submissionId);
+        if (index != -1) {
+           _submissions[index] = submission;
+        }
+      }
 
       notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
       print('Error grading submission: $e');
-
       notifyListeners();
       return false;
     }
@@ -213,7 +235,7 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
             'student_id': studentId,
             'submission_text': submissionText,
             'has_attachments': submissionFiles.isNotEmpty,
-            'submission_files': [],
+            'submission_files': [], // Placeholder
             'attempt_number': attemptNumber,
             'is_late': isLate,
             'submitted_at': submittedAt.toIso8601String()
@@ -227,8 +249,9 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
       // 2. Upload files
       if (submissionFiles.isNotEmpty) {
         filePaths = await Future.wait(submissionFiles.map((file) async {
-          final fileName =
-              '${DateTime.now().millisecondsSinceEpoch}_${file.name.replaceAll(' ', '_')}';
+          // Clean filename logic: timestamp_clean_name.pdf
+          final cleanName = file.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+          final fileName = '${DateTime.now().millisecondsSinceEpoch}_$cleanName';
           final path = '$submissionId/$fileName';
 
           try {
@@ -264,7 +287,6 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
       print('Error submitting: $e');
-
       notifyListeners();
       return false;
     }

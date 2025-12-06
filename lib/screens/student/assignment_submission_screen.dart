@@ -53,9 +53,7 @@ class _AssignmentSubmissionScreenState
         // If submission exists, next attempt is current + 1
         _currentAttempt = (submission.attemptNumber) + 1;
         
-        // Pre-fill text only if you want them to edit previous text
-        // Usually for resubmission, starting fresh or keeping old is a design choice.
-        // Keeping old text for editing:
+        // Pre-fill text for editing if desired
         _submissionTextController.text = submission.submissionText ?? '';
       });
     }
@@ -169,9 +167,6 @@ class _AssignmentSubmissionScreenState
       return;
     }
 
-    // --- REMOVED MAX ATTEMPT CHECK FOR "GOOGLE CLASSROOM" STYLE ---
-    // We allow unlimited resubmissions as long as the assignment is open.
-
     final now = DateTime.now();
     final isLate = now.isAfter(widget.assignment.dueDate);
 
@@ -226,11 +221,22 @@ class _AssignmentSubmissionScreenState
     }
   }
 
-  Future<void> _handleFileDownload(String url) async {
+  Future<void> _handleFileDownload(String url, {bool isSubmission = false}) async {
     final fileName = url.split('/').last;
 
-    final bytes =
-        await context.read<AssignmentProvider>().fetchFileAttachment(url);
+    Uint8List? bytes;
+    
+    if (isSubmission) {
+      // Download from submissions bucket
+      bytes = await context
+          .read<AssignmentSubmissionProvider>()
+          .fetchFileAttachment(url);
+    } else {
+      // Download from assignment materials bucket
+      bytes = await context
+          .read<AssignmentProvider>()
+          .fetchFileAttachment(url);
+    }
 
     if (bytes != null) {
       await FilePicker.platform.saveFile(fileName: fileName, bytes: bytes);
@@ -241,6 +247,18 @@ class _AssignmentSubmissionScreenState
             backgroundColor: Colors.red),
       );
     }
+  }
+
+  // Helper to make filenames look nicer (remove timestamp prefix)
+  String _cleanFileName(String path) {
+    final fullName = path.split('/').last;
+    // Pattern: matches "digits_filename"
+    final regex = RegExp(r'^\d+_(.+)'); 
+    final match = regex.firstMatch(fullName);
+    if (match != null) {
+      return match.group(1) ?? fullName;
+    }
+    return fullName;
   }
 
   Widget _buildAttachments() {
@@ -265,7 +283,7 @@ class _AssignmentSubmissionScreenState
           runSpacing: 8,
           children: widget.assignment.fileAttachments.map((url) {
             String fileName = url.split('/').last;
-
+            // Shorten for display
             if (fileName.length > 20) {
               fileName = '${fileName.substring(0, 15)}...';
             }
@@ -277,7 +295,7 @@ class _AssignmentSubmissionScreenState
                 style: GoogleFonts.poppins(color: Colors.white),
               ),
               backgroundColor: Colors.blueAccent,
-              onPressed: () => _handleFileDownload(url),
+              onPressed: () => _handleFileDownload(url, isSubmission: false),
             );
           }).toList(),
         ),
@@ -328,7 +346,7 @@ class _AssignmentSubmissionScreenState
                   ),
                   const SizedBox(height: 16),
 
-                  // --- Integrated Attachments Display ---
+                  // --- Course Attachments ---
                   _buildAttachments(),
                   if (widget.assignment.fileAttachments.isNotEmpty)
                     const SizedBox(height: 16),
@@ -358,7 +376,6 @@ class _AssignmentSubmissionScreenState
                   ),
                   const SizedBox(height: 8),
                   
-                  // --- CHANGED: Show "Version" instead of "Attempt x/y" ---
                   if (_existingSubmission != null)
                     Row(
                       children: [
@@ -460,6 +477,32 @@ class _AssignmentSubmissionScreenState
                         ),
                       ),
                     ],
+
+                    // --- ✅ NEW: List Previous Attached Files ---
+                    if (_existingSubmission!.submissionFiles.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Submitted Files:',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                      ),
+                      ..._existingSubmission!.submissionFiles.map((path) {
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.attach_file, color: Colors.blue),
+                          title: Text(
+                            _cleanFileName(path), // Uses cleaned name
+                            style: GoogleFonts.poppins(fontSize: 13),
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.download_rounded),
+                            onPressed: () => _handleFileDownload(path, isSubmission: true),
+                          ),
+                        );
+                      }).toList(),
+                    ]
                   ],
                 ),
               ),
