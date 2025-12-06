@@ -6,16 +6,16 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/student_provider.dart';
 
-class StudentProfileScreen extends StatefulWidget {
+class UserProfileScreen extends StatefulWidget {
   final UserModel user;
 
-  const StudentProfileScreen({super.key, required this.user});
+  const UserProfileScreen({super.key, required this.user});
 
   @override
-  State<StudentProfileScreen> createState() => _StudentProfileScreenState();
+  State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _StudentProfileScreenState extends State<StudentProfileScreen> {
+class _UserProfileScreenState extends State<UserProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _emailController;
