@@ -23,10 +23,9 @@ class CsvExportService {
     // Header
     List<List<dynamic>> rows = [
       [
-        'Student ID',
         'Full Name',
         'Email',
-        'Group', // Crucial for Group-based grading
+        'Group',
         'Status',
         'Submitted At',
         'Is Late',
@@ -42,7 +41,7 @@ class CsvExportService {
           .cast<AssignmentSubmission?>()
           .firstWhere((s) => s?.studentId == student.id, orElse: () => null);
 
-      final groupName = student.groupMap.values.join(', '); // Get student's group
+      final groupName = student.groupMap.values.join(', '); 
       
       String status = 'Not Submitted';
       String submittedAt = '-';
@@ -59,7 +58,6 @@ class CsvExportService {
       }
 
       rows.add([
-        student.id,
         student.fullName,
         student.email,
         groupName,
@@ -87,7 +85,6 @@ class CsvExportService {
     // Header
     List<List<dynamic>> rows = [
       [
-        'Student ID',
         'Full Name',
         'Email',
         'Attempt #',
@@ -106,7 +103,6 @@ class CsvExportService {
       // If no attempts
       if (studentAttempts.isEmpty) {
         rows.add([
-          student.id,
           student.fullName,
           student.email,
           '0',
@@ -119,13 +115,11 @@ class CsvExportService {
         continue;
       }
 
-      // If multiple attempts, add a row for EACH attempt (or just the best one if you prefer)
-      // Here we list ALL attempts as it provides more detail for the instructor
+      // If multiple attempts, add a row for EACH attempt
       for (var attempt in studentAttempts) {
         final percentage = (attempt.score ?? 0) / (quiz.totalPoints == 0 ? 1 : quiz.totalPoints) * 100;
         
         rows.add([
-          student.id,
           student.fullName,
           student.email,
           attempt.attemptNumber,
@@ -154,7 +148,7 @@ class CsvExportService {
     required List<QuizAttempt> allAttempts,
   }) async {
     // 1. Build Header Row
-    List<dynamic> headers = ['Student ID', 'Full Name', 'Email', 'Group'];
+    List<dynamic> headers = ['Full Name', 'Email', 'Group'];
     
     // Add columns for Assignments
     for (var a in assignments) {
@@ -172,10 +166,9 @@ class CsvExportService {
     // 2. Build Student Rows
     for (var student in students) {
       double totalStudentScore = 0;
-      double maxPossibleScore = 0;
+      double maxPossibleScore = 0; 
 
       List<dynamic> row = [
-        student.id,
         student.fullName,
         student.email,
         student.groupMap.values.join(', '),
@@ -206,7 +199,6 @@ class CsvExportService {
 
         double bestScore = 0;
         if (studentAttempts.isNotEmpty) {
-           // Get max score from attempts
            bestScore = studentAttempts
                .map((a) => a.score ?? 0.0)
                .reduce((a, b) => a > b ? a : b);
@@ -227,11 +219,67 @@ class CsvExportService {
     await _saveFile('${courseName}_Final_Gradebook', rows);
   }
 
+  /// ---------------------------------------------------------
+  /// 4. EXPORT SEMESTER SUMMARY
+  /// Requirement: Matrix of Students vs Courses for the whole semester
+  /// ---------------------------------------------------------
+  Future<void> exportSemesterSummary({
+    required String semesterName,
+    required List<String> courseNames,
+    required List<Student> allStudents,
+    // Map<StudentId, Map<CourseName, Score>>
+    required Map<String, Map<String, String>> studentGrades,
+  }) async {
+    // 1. Build Header Row
+    List<dynamic> headers = ['Full Name', 'Email'];
+    
+    // Add a column for each Course
+    headers.addAll(courseNames);
+    
+    // Add Average
+    headers.add('SEMESTER AVERAGE');
+
+    List<List<dynamic>> rows = [headers];
+
+    // 2. Build Student Rows
+    for (var student in allStudents) {
+      List<dynamic> row = [
+        student.fullName,
+        student.email,
+      ];
+
+      double totalScoreSum = 0;
+      int coursesTaken = 0;
+
+      // Fill in grade for each course
+      for (var courseName in courseNames) {
+        // Get grade from the map, default to '-' if not enrolled
+        String grade = studentGrades[student.id]?[courseName] ?? '-';
+        row.add(grade);
+
+        final numericGrade = double.tryParse(grade);
+        if (numericGrade != null) {
+          totalScoreSum += numericGrade;
+          coursesTaken++;
+        }
+      }
+
+      String average = coursesTaken > 0 
+          ? (totalScoreSum / coursesTaken).toStringAsFixed(2) 
+          : '-';
+      row.add(average);
+
+      rows.add(row);
+    }
+
+    await _saveFile('${semesterName}_Summary_Report', rows);
+  }
+
   /// Helper: Save File Cross-Platform
   Future<void> _saveFile(String fileName, List<List<dynamic>> rows) async {
     String csvData = const ListToCsvConverter().convert(rows);
     
-    // Add UTF-8 BOM for Excel compatibility (Important for Vietnamese names)
+    // Add UTF-8 BOM
     final List<int> bytes = utf8.encode('\uFEFF$csvData'); 
     
     await FileSaver.instance.saveFile(

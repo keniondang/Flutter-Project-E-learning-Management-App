@@ -1,8 +1,9 @@
-import 'dart:io'; // Required for File object
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:elearning_management_app/providers/assignment_submission_provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart'; // Required for kIsWeb
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -33,8 +34,10 @@ class _AssignmentSubmissionScreenState
 
   AssignmentSubmission? _existingSubmission;
   int _currentAttempt = 1;
-
   bool _isLoadingSubmission = true;
+
+  // Helper to check if max attempts reached
+  bool get _isMaxAttemptsReached => _currentAttempt > widget.assignment.maxAttempts;
 
   @override
   void initState() {
@@ -50,10 +53,13 @@ class _AssignmentSubmissionScreenState
     if (submission != null) {
       setState(() {
         _existingSubmission = submission;
-        _currentAttempt = (submission.attemptNumber) + 1;
-
-        // Pre-fill text so student can edit their previous work
-        _submissionTextController.text = submission.submissionText ?? '';
+        // Prepare next attempt number
+        _currentAttempt = submission.attemptNumber + 1;
+        
+        // Only pre-fill text if we are allowed to submit again
+        if (!_isMaxAttemptsReached) {
+          _submissionTextController.text = submission.submissionText ?? '';
+        }
       });
     }
 
@@ -61,6 +67,8 @@ class _AssignmentSubmissionScreenState
   }
 
   Future<void> _pickFiles() async {
+    if (_isMaxAttemptsReached) return; // Prevent picking if locked
+
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
@@ -68,7 +76,7 @@ class _AssignmentSubmissionScreenState
         allowedExtensions: widget.assignment.allowedFileTypes
             .map((x) => x.substring(1))
             .toList(),
-        withData: true, // Important for Web
+        withData: true, 
       );
 
       if (result != null) {
@@ -91,6 +99,7 @@ class _AssignmentSubmissionScreenState
   }
 
   void _removeFile(int index) {
+    if (_isMaxAttemptsReached) return;
     setState(() {
       _submissionFiles.removeAt(index);
     });
@@ -156,6 +165,8 @@ class _AssignmentSubmissionScreenState
   }
 
   Future<void> _submitAssignment() async {
+    if (_isMaxAttemptsReached) return;
+
     if (_submissionTextController.text.isEmpty && _submissionFiles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -220,18 +231,19 @@ class _AssignmentSubmissionScreenState
     }
   }
 
-  Future<void> _handleFileDownload(String url,
-      {bool isSubmission = false}) async {
+  Future<void> _handleFileDownload(String url, {bool isSubmission = false}) async {
     final fileName = url.split('/').last;
 
     Uint8List? bytes;
-
+    
     if (isSubmission) {
       bytes = await context
           .read<AssignmentSubmissionProvider>()
           .fetchFileAttachment(url);
     } else {
-      bytes = await context.read<AssignmentProvider>().fetchFileAttachment(url);
+      bytes = await context
+          .read<AssignmentProvider>()
+          .fetchFileAttachment(url);
     }
 
     if (bytes != null) {
@@ -245,10 +257,9 @@ class _AssignmentSubmissionScreenState
     }
   }
 
-  // Helper to remove timestamps from filenames for display
   String _cleanFileName(String path) {
     final fullName = path.split('/').last;
-    final regex = RegExp(r'^\d+_(.+)');
+    final regex = RegExp(r'^\d+_(.+)'); 
     final match = regex.firstMatch(fullName);
     if (match != null) {
       return match.group(1) ?? fullName;
@@ -305,8 +316,14 @@ class _AssignmentSubmissionScreenState
         widget.assignment.dueDate.difference(now).inHours % 24;
 
     String buttonText;
+    bool isButtonEnabled = true;
+
     if (!widget.assignment.isOpen) {
       buttonText = 'Assignment Closed';
+      isButtonEnabled = false;
+    } else if (_isMaxAttemptsReached) {
+      buttonText = 'Max Attempts Reached';
+      isButtonEnabled = false;
     } else if (_existingSubmission != null) {
       buttonText = 'Resubmit Assignment';
     } else {
@@ -318,6 +335,31 @@ class _AssignmentSubmissionScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // --- WARNING BANNER if max attempts reached ---
+          if (_isMaxAttemptsReached)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange[300]!),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.lock, color: Colors.orange),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'You have used all ${widget.assignment.maxAttempts} allowed attempts for this assignment.',
+                      style: GoogleFonts.poppins(color: Colors.orange[900], fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // --- ASSIGNMENT INFO CARD ---
           Card(
             child: Padding(
@@ -338,9 +380,11 @@ class _AssignmentSubmissionScreenState
                     style: GoogleFonts.poppins(fontSize: 14),
                   ),
                   const SizedBox(height: 16),
+
                   _buildAttachments(),
                   if (widget.assignment.fileAttachments.isNotEmpty)
                     const SizedBox(height: 16),
+                  
                   const Divider(),
                   const SizedBox(height: 12),
                   Row(
@@ -365,18 +409,29 @@ class _AssignmentSubmissionScreenState
                     ],
                   ),
                   const SizedBox(height: 8),
-                  if (_existingSubmission != null)
-                    Row(
-                      children: [
-                        Icon(Icons.history, size: 20, color: Colors.grey[600]),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Current Version: $_currentAttempt',
-                          style: GoogleFonts.poppins(fontSize: 14),
+                  
+                  // ATTEMPT COUNTER
+                  Row(
+                    children: [
+                      Icon(
+                        _isMaxAttemptsReached ? Icons.lock : Icons.history, 
+                        size: 20, 
+                        color: _isMaxAttemptsReached ? Colors.orange : Colors.grey[600]
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        // Display "Attempt X of Y"
+                        'Attempt ${_isMaxAttemptsReached ? _currentAttempt - 1 : _currentAttempt} of ${widget.assignment.maxAttempts}', 
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: _isMaxAttemptsReached ? Colors.orange[800] : Colors.black87
                         ),
-                      ],
-                    ),
-                  if (!widget.assignment.isPastDue)
+                      ),
+                    ],
+                  ),
+
+                  if (!widget.assignment.isPastDue && !_isMaxAttemptsReached)
                     Container(
                       margin: const EdgeInsets.only(top: 12),
                       padding: const EdgeInsets.all(8),
@@ -423,15 +478,15 @@ class _AssignmentSubmissionScreenState
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.check_circle_outline,
-                            color: Colors.green[700]),
+                        Icon(Icons.check_circle_outline, color: Colors.green[700]),
                         const SizedBox(width: 8),
                         Text(
-                          'Last Submission',
+                          'Last Submission (Attempt ${_existingSubmission!.attemptNumber})',
                           style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.green[800]),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green[800]
+                          ),
                         ),
                       ],
                     ),
@@ -466,7 +521,6 @@ class _AssignmentSubmissionScreenState
                       ),
                     ],
 
-                    // --- ✅ ADDED: Display Submitted Text ---
                     if (_existingSubmission!.submissionText != null &&
                         _existingSubmission!.submissionText!.isNotEmpty) ...[
                       const SizedBox(height: 12),
@@ -479,12 +533,10 @@ class _AssignmentSubmissionScreenState
                       const SizedBox(height: 4),
                       Text(
                         _existingSubmission!.submissionText!,
-                        style: GoogleFonts.poppins(
-                            fontSize: 13, color: Colors.black87),
+                        style: GoogleFonts.poppins(fontSize: 13, color: Colors.black87),
                       ),
                     ],
 
-                    // --- Display Submitted Files ---
                     if (_existingSubmission!.submissionFiles.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       const Divider(),
@@ -497,16 +549,14 @@ class _AssignmentSubmissionScreenState
                         return ListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
-                          leading:
-                              const Icon(Icons.attach_file, color: Colors.blue),
+                          leading: const Icon(Icons.attach_file, color: Colors.blue),
                           title: Text(
                             _cleanFileName(path),
                             style: GoogleFonts.poppins(fontSize: 13),
                           ),
                           trailing: IconButton(
                             icon: const Icon(Icons.download_rounded),
-                            onPressed: () =>
-                                _handleFileDownload(path, isSubmission: true),
+                            onPressed: () => _handleFileDownload(path, isSubmission: true),
                           ),
                         );
                       }).toList(),
@@ -518,156 +568,154 @@ class _AssignmentSubmissionScreenState
             const SizedBox(height: 24),
           ],
 
-          // --- SUBMISSION FORM ---
-          Text(
-            _existingSubmission == null ? 'Your Work' : 'Resubmit Work',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _submissionTextController,
-            decoration: InputDecoration(
-              labelText: 'Submission Text',
-              hintText: 'Enter your answer or description...',
-              alignLabelWithHint: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+          // --- SUBMISSION FORM (Hide if max attempts reached) ---
+          if (!_isMaxAttemptsReached) ...[
+            Text(
+              _existingSubmission == null ? 'Your Work' : 'New Attempt',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            maxLines: 8,
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _submissionTextController,
+              decoration: InputDecoration(
+                labelText: 'Submission Text',
+                hintText: 'Enter your answer or description...',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              maxLines: 8,
+            ),
+            const SizedBox(height: 16),
 
-          // --- UPLOAD SECTION ---
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Your Attachments',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
+            // --- UPLOAD SECTION ---
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Your Attachments',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _pickFiles,
+                          icon: const Icon(Icons.attach_file, size: 18),
+                          label: const Text('Add File'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Allowed types: ${widget.assignment.allowedFileTypes.join(", ")}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      'Max size: ${(widget.assignment.maxFileSize / 1048576).toStringAsFixed(1)} MB',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+
+                    if (_submissionFiles.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: _submissionFiles.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final file = entry.value;
+                            return Column(
+                              children: [
+                                ListTile(
+                                  dense: true,
+                                  leading: _buildFilePreview(file),
+                                  title: Text(
+                                    file.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 13),
+                                  ),
+                                  subtitle: Text(
+                                    '${(file.size / 1024).toStringAsFixed(1)} KB',
+                                    style: GoogleFonts.poppins(fontSize: 11),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.delete_outline,
+                                        color: Colors.red),
+                                    onPressed: () => _removeFile(index),
+                                  ),
+                                ),
+                                if (index != _submissionFiles.length - 1)
+                                  const Divider(height: 1),
+                              ],
+                            );
+                          }).toList(),
                         ),
                       ),
-                      ElevatedButton.icon(
-                        onPressed: _pickFiles,
-                        icon: const Icon(Icons.attach_file, size: 18),
-                        label: const Text('Add File'),
+                    ] else ...[
+                      Container(
+                        margin: const EdgeInsets.only(top: 16),
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.cloud_upload,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No files attached',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Allowed types: ${widget.assignment.allowedFileTypes.join(", ")}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  Text(
-                    'Max size: ${(widget.assignment.maxFileSize / 1048576).toStringAsFixed(1)} MB',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-
-                  // Display Currently Selected Files (Before Upload)
-                  if (_submissionFiles.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[300]!),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        children: _submissionFiles.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final file = entry.value;
-                          return Column(
-                            children: [
-                              ListTile(
-                                dense: true,
-                                leading: _buildFilePreview(file),
-                                title: Text(
-                                  file.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 13),
-                                ),
-                                subtitle: Text(
-                                  '${(file.size / 1024).toStringAsFixed(1)} KB',
-                                  style: GoogleFonts.poppins(fontSize: 11),
-                                ),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete_outline,
-                                      color: Colors.red),
-                                  onPressed: () => _removeFile(index),
-                                ),
-                              ),
-                              if (index != _submissionFiles.length - 1)
-                                const Divider(height: 1),
-                            ],
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ] else ...[
-                    // Empty State
-                    Container(
-                      margin: const EdgeInsets.only(top: 16),
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[300]!),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.cloud_upload,
-                              size: 48,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'No files attached',
-                              style: GoogleFonts.poppins(
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 24),
+          ],
 
-          const SizedBox(height: 24),
-
-          // SUBMIT BUTTON
+          // SUBMIT BUTTON (Disabled if max attempts reached)
           SizedBox(
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: widget.assignment.isOpen ? _submitAssignment : null,
+              onPressed: isButtonEnabled ? _submitAssignment : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    widget.assignment.isOpen ? Colors.blue : Colors.grey,
+                backgroundColor: isButtonEnabled ? Colors.blue : Colors.grey,
               ),
               child: Text(
                 buttonText,
