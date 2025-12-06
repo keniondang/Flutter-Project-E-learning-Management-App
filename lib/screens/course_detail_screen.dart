@@ -300,9 +300,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     );
   }
 
-  // --- NEW: Dynamic Status Chip for Assignments ---
+  // --- Dynamic Status Chip for Assignments ---
   Widget _buildAssignmentStatusChip(Assignment assignment, bool isStudent) {
-    // 1. Instructor View
     if (!isStudent) {
       if (assignment.isPastDue) {
         return Chip(
@@ -316,7 +315,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
       );
     }
 
-    // 2. Student View
     return FutureBuilder<AssignmentSubmission?>(
       future: context
           .read<AssignmentSubmissionProvider>()
@@ -332,17 +330,16 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
 
         final submission = snapshot.data;
 
-        // A. GRADED
         if (submission != null && submission.grade != null) {
           return Chip(
-            avatar: const Icon(Icons.check_circle, size: 16, color: Colors.white),
+            avatar:
+                const Icon(Icons.check_circle, size: 16, color: Colors.white),
             label: Text('Graded: ${submission.grade}',
                 style: const TextStyle(color: Colors.white, fontSize: 11)),
             backgroundColor: Colors.teal,
           );
         }
 
-        // B. SUBMITTED
         if (submission != null) {
           return const Chip(
             label: Text('Submitted', style: TextStyle(color: Colors.white)),
@@ -350,7 +347,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
           );
         }
 
-        // C. MISSING
         if (assignment.isPastDue) {
           return Chip(
             label: const Text('Missing', style: TextStyle(color: Colors.red)),
@@ -358,12 +354,70 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
           );
         }
 
-        // D. ASSIGNED
         return Chip(
           label: const Text('Assigned'),
           backgroundColor: Colors.green[100],
         );
       },
+    );
+  }
+
+  // ✅ --- NEW: Quiz Start Confirmation Dialog ---
+  void _confirmStartQuiz(Quiz quiz) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Start Quiz?',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to start "${quiz.title}"?'),
+            const SizedBox(height: 12),
+            Row(children: [
+              const Icon(Icons.timer, size: 16, color: Colors.grey),
+              const SizedBox(width: 8),
+              Text('${quiz.durationMinutes} minutes'),
+            ]),
+            const SizedBox(height: 4),
+            Row(children: [
+              const Icon(Icons.refresh, size: 16, color: Colors.grey),
+              const SizedBox(width: 8),
+              Text('${quiz.maxAttempts} attempts allowed'),
+            ]),
+            const SizedBox(height: 12),
+            const Text(
+              'Once you start, the timer will begin and cannot be paused.',
+              style: TextStyle(
+                  fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => QuizTakingScreen(
+                    quiz: quiz,
+                    student: widget.user,
+                  ),
+                ),
+              ).then((_) => _loadData());
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child:
+                const Text('Start Now', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -373,6 +427,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     final assignmentProvider = context.watch<AssignmentProvider>();
     final quizProvider = context.watch<QuizProvider>();
     final materialProvider = context.watch<CourseMaterialProvider>();
+    
+    // ✅ Uncommented: Needed to check attempt eligibility
+    final studentQuizProvider = context.watch<StudentQuizProvider>(); 
 
     if (assignmentProvider.isLoading ||
         quizProvider.isLoading ||
@@ -432,7 +489,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                         : 'Due: ${_formatDate(assignment.dueDate)}',
                     style: GoogleFonts.poppins(fontSize: 12)),
                 
-                // --- UPDATED: Use dynamic status chip ---
                 trailing: _buildAssignmentStatusChip(assignment, isStudent),
                 
                 onTap: () {
@@ -490,12 +546,14 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                 onTap: () {
                   if (isStudent) {
                     if (quiz.isOpen) {
-                      Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => QuizTakingScreen(
-                                      quiz: quiz, student: widget.user)))
-                          .then((_) => _loadData());
+                      // ✅ UPDATED: Use canAttemptQuiz check and show dialog
+                      if (studentQuizProvider.canAttemptQuiz(quiz.id)) {
+                         _confirmStartQuiz(quiz); 
+                      } else {
+                         ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("You have used all attempts for this quiz."))
+                         );
+                      }
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text("This quiz is closed")));
