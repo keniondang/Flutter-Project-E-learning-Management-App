@@ -117,14 +117,20 @@ class QuizProvider extends ChangeNotifier {
 
   Future<int> _fetchSubmissionCount(String quizId) async {
     try {
+      // 1. Fetch all COMPLETED attempts, selecting only 'student_id'
       final response = await _supabase
           .from('quiz_attempts')
-          .select('id')
+          .select('student_id') 
           .eq('quiz_id', quizId)
-          .eq('is_completed', true)
-          .count(); // Only count completed attempts
+          .eq('is_completed', true); // Only count if they actually finished
 
-      return response.count;
+      // 2. Convert to Set to remove duplicate attempts by the same student
+      final uniqueStudents = (response as List)
+          .map((data) => data['student_id'] as String)
+          .toSet();
+
+      // 3. Return unique count
+      return uniqueStudents.length;
     } catch (e) {
       print('Error loading submission stats: $e');
       return 0;

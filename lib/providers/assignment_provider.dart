@@ -160,13 +160,19 @@ class AssignmentProvider extends ChangeNotifier {
 
   Future<int> _fetchSubmissionCount(String assignmentId) async {
     try {
+      // 1. Fetch ALL rows, but only select the 'student_id' column
       final response = await _supabase
           .from('assignment_submissions')
-          .select('id')
-          .eq('assignment_id', assignmentId)
-          .count();
+          .select('student_id') 
+          .eq('assignment_id', assignmentId);
 
-      return response.count;
+      // 2. Convert to a Set (which automatically removes duplicates)
+      final uniqueStudents = (response as List)
+          .map((data) => data['student_id'] as String)
+          .toSet();
+
+      // 3. Return the count of UNIQUE students
+      return uniqueStudents.length;
     } catch (e) {
       print('Error loading assignment stats: $e');
       return 0;
