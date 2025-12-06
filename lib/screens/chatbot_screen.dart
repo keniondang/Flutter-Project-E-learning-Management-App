@@ -1,251 +1,244 @@
-import 'dart:io';
-import 'package:flutter/material.dart';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../services/rag_service.dart';
 
 class ChatbotScreen extends StatefulWidget {
-  const ChatbotScreen({super.key});
+  const ChatbotScreen({Key? key}) : super(key: key);
 
   @override
   State<ChatbotScreen> createState() => _ChatbotScreenState();
 }
 
 class _ChatbotScreenState extends State<ChatbotScreen> {
-  final RagService _ragService = RagService();
+  final RagService _ragService = const RagService();
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
-  // Chat History
-  List<Map<String, String>> messages = [
-    {
-      "role": "bot", 
-      "text": "Hello! I am ready. Upload a PDF or ask me questions about existing documents."
-    }
+
+  bool _isLoading = false;
+
+  final List<_ChatMessage> _messages = [
+    _ChatMessage(
+      text: "Welcome! Upload a PDF to begin learning.",
+      isUser: false,
+    )
   ];
-  
-  bool _isUploading = false;
-  bool _isTyping = false;
-  String? _activeFile;
 
-  // --- ACTIONS ---
-
-  Future<void> _pickAndUploadPdf() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
-    );
-
-    if (result != null) {
-      File file = File(result.files.single.path!);
-      setState(() => _isUploading = true);
-      
-      try {
-        await _ragService.uploadPdf(file);
-        
-        // Clear memory when new file is added to avoid context confusion
-        await _ragService.clearMemory();
-        
-        setState(() {
-          _activeFile = result.files.single.name;
-          messages.add({
-            "role": "bot", 
-            "text": "✅ Analyzed $_activeFile. I'm ready to answer questions!"
-          });
-        });
-      } catch (e) {
-        _showError("Upload Error: $e");
-      } finally {
-        setState(() => _isUploading = false);
-      }
-    }
-  }
-
+  // =====================================================
+  // SEND MESSAGE
+  // =====================================================
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isLoading) return;
 
-    // 1. Add User Message
     setState(() {
-      messages.add({"role": "user", "text": text});
-      _isTyping = true;
+      _messages.add(_ChatMessage(text: text, isUser: true));
       _controller.clear();
+      _isLoading = true;
     });
     _scrollToBottom();
 
-    // 2. Get AI Response
-    final answer = await _ragService.askQuestion(text);
-
-    // 3. Add Bot Message
-    if (mounted) {
+    try {
+      final answer = await _ragService.askQuestion(text);
       setState(() {
-        _isTyping = false;
-        messages.add({"role": "bot", "text": answer});
+        _messages.add(_ChatMessage(text: answer, isUser: false));
       });
       _scrollToBottom();
+    } catch (e) {
+      setState(() {
+        _messages.add(_ChatMessage(
+          text: "Error: $e",
+          isUser: false,
+          isError: true,
+        ));
+      });
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _resetChat() async {
-    await _ragService.clearMemory();
-    setState(() {
-      messages.clear();
-      messages.add({
-        "role": "bot", 
-        "text": "Memory cleared. Starting a fresh conversation."
+  // =====================================================
+  // UPLOAD PDF FUNCTION (FULLY RESTORED)
+  // =====================================================
+  Future<void> _uploadPdf() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ["pdf"],
+      );
+
+      if (result == null) return;
+
+      final fileBytes = result.files.single.bytes!;
+      final filename = result.files.single.name;
+
+      setState(() {
+        _messages.add(_ChatMessage(
+          text: "Uploading $filename...",
+          isUser: false,
+        ));
       });
+      _scrollToBottom();
+
+      await _ragService.uploadPdf(fileBytes, filename);
+
+      setState(() {
+        _messages.add(_ChatMessage(
+          text: "Uploaded and added to knowledge base!",
+          isUser: false,
+        ));
+      });
+    } catch (e) {
+      setState(() {
+        _messages.add(_ChatMessage(
+          text: "Upload error: $e",
+          isUser: false,
+          isError: true,
+        ));
+      });
+    }
+  }
+
+  // =====================================================
+  // RESET CHAT
+  // =====================================================
+  Future<void> _resetChat() async {
+    await _ragService.resetChat();
+    setState(() {
+      _messages.clear();
+      _messages.add(_ChatMessage(
+        text: "Chat reset. Upload a PDF or ask a question.",
+        isUser: false,
+      ));
     });
+    _scrollToBottom();
   }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: Colors.red,
-    ));
-  }
-
+  // Scroll helper
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent + 120,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     });
   }
 
-  // --- UI BUILD ---
-
+  // =====================================================
+  // UI LAYOUT
+  // =====================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("AI Study Assistant"),
-        centerTitle: true,
+        title: Text("Learning Assistant",
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _resetChat,
-            tooltip: "Clear Memory",
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: "Upload PDF",
+            onPressed: _uploadPdf,
           ),
           IconButton(
-            icon: const Icon(Icons.upload_file),
-            onPressed: _isUploading ? null : _pickAndUploadPdf,
-            tooltip: "Upload PDF",
+            icon: const Icon(Icons.refresh),
+            tooltip: "Reset conversation",
+            onPressed: _resetChat,
           ),
         ],
       ),
+
       body: Column(
         children: [
-          // File Status Banner
-          if (_activeFile != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(8),
-              color: Colors.green.shade100,
-              child: Text(
-                "Active Document: $_activeFile",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold),
-              ),
-            ),
-
-          // Messages List
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: messages.length,
+              padding: const EdgeInsets.all(12),
+              itemCount: _messages.length,
               itemBuilder: (context, index) {
-                final msg = messages[index];
-                final isUser = msg['role'] == 'user';
-                return Align(
-                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.all(12),
-                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-                    decoration: BoxDecoration(
-                      color: isUser ? Colors.blue : Colors.grey[200],
-                      borderRadius: BorderRadius.circular(12).copyWith(
-                        bottomRight: isUser ? Radius.zero : null,
-                        bottomLeft: isUser ? null : Radius.zero,
-                      ),
-                    ),
-                    child: Text(
-                      msg['text']!,
-                      style: TextStyle(
-                        color: isUser ? Colors.white : Colors.black87,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ),
-                );
+                return _ChatBubble(message: _messages[index]);
               },
             ),
           ),
-          
-          // Loading Indicator
-          if (_isTyping || _isUploading)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 16, height: 16, 
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _isUploading ? "Reading Document..." : "Thinking...",
-                    style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-                  ),
-                ],
-              ),
-            ),
+          if (_isLoading) const LinearProgressIndicator(),
 
-          // Input Area
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))
-              ],
-            ),
+          SafeArea(
+            top: false,
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    textCapitalization: TextCapitalization.sentences,
-                    onSubmitted: (_) => _isTyping ? null : _sendMessage(),
-                    decoration: InputDecoration(
-                      hintText: "Ask about the document...",
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    maxLines: null,
+                    decoration: const InputDecoration(
+                      hintText: "Ask something…",
+                      border: OutlineInputBorder(),
                     ),
+                    onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: _isTyping ? Colors.grey : Colors.blue,
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                    onPressed: _isTyping ? null : _sendMessage, 
-                  ),
-                ),
+                IconButton(
+                  icon: const Icon(Icons.send),
+                  onPressed: _sendMessage,
+                )
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ChatMessage {
+  final String text;
+  final bool isUser;
+  final bool isError;
+
+  const _ChatMessage({
+    required this.text,
+    required this.isUser,
+    this.isError = false,
+  });
+}
+
+class _ChatBubble extends StatelessWidget {
+  final _ChatMessage message;
+
+  const _ChatBubble({super.key, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final alignment =
+        message.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+
+    final bubbleColor = message.isError
+        ? Colors.red.shade100
+        : message.isUser
+            ? Colors.blue.shade300
+            : Colors.grey.shade300;
+
+    final textColor =
+        message.isUser ? Colors.white : Colors.black87;
+
+    return Column(
+      crossAxisAlignment: alignment,
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.all(12),
+          constraints: const BoxConstraints(maxWidth: 600),
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Text(message.text, style: TextStyle(color: textColor)),
+        ),
+      ],
     );
   }
 }

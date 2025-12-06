@@ -1,68 +1,69 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 class RagService {
-  // Use 10.0.2.2 for Android Emulator
-  // Use '127.0.0.1' for iOS Simulator or Web
-  static final String _baseUrl = Platform.isAndroid 
-      ? 'http://10.0.2.2:8000' 
-      : 'http://127.0.0.1:8000';
+  // TODO: Replace this with your Railway deployed backend
+  static const String baseUrl = "https://your-app.up.railway.app";
 
-  /// Sends a question to the backend and gets the answer + citations
-  Future<String> askQuestion(String query) async {
-    final uri = Uri.parse('$_baseUrl/ask');
-    try {
-      final response = await http.post(
-        uri,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"query": query}),
+  const RagService();
+
+  // ================================
+  // ASK QUESTION
+  // ================================
+  Future<String> askQuestion(String question) async {
+    final url = Uri.parse("$baseUrl/ask");
+
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"query": question}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data["answer"] ?? "No response";
+    } else {
+      throw Exception(
+          "Failed to get answer: ${response.statusCode} ${response.body}");
+    }
+  }
+
+  // ================================
+  // RESET CHAT MEMORY
+  // ================================
+  Future<void> resetChat() async {
+    final url = Uri.parse("$baseUrl/reset");
+    final response = await http.post(url);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+          "Failed to reset chat: ${response.statusCode} ${response.body}");
+    }
+  }
+
+  // ================================
+  // UPLOAD PDF FILE FUNCTION
+  // ================================
+  Future<void> uploadPdf(Uint8List fileBytes, String filename) async {
+    final url = Uri.parse("$baseUrl/upload-pdf");
+
+    final request = http.MultipartRequest("POST", url)
+      ..files.add(
+        http.MultipartFile.fromBytes(
+          "file",
+          fileBytes,
+          filename: filename,
+          contentType: MediaType("application", "pdf"),
+        ),
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        // The backend now formats everything into this 'answer' key
-        return data['answer']; 
-      } else {
-        return "Error: Server responded with ${response.statusCode}";
-      }
-    } catch (e) {
-      return "Connection error: Is the Python backend running?";
-    }
-  }
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
 
-  /// Uploads a PDF to the backend to add to the knowledge base
-  Future<String> uploadPdf(File pdfFile) async {
-    final uri = Uri.parse('$_baseUrl/upload-pdf');
-    var request = http.MultipartRequest('POST', uri);
-
-    request.files.add(await http.MultipartFile.fromPath(
-      'file',
-      pdfFile.path,
-      contentType: MediaType('application', 'pdf'),
-    ));
-
-    try {
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        return "Success";
-      } else {
-        throw Exception('Failed to upload: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Error connecting to AI Server: $e');
-    }
-  }
-
-  /// Clears the AI's conversation memory
-  Future<void> clearMemory() async {
-    try {
-      await http.post(Uri.parse('$_baseUrl/reset'));
-    } catch (e) {
-      print("Failed to reset memory: $e");
+    if (response.statusCode != 200) {
+      throw Exception("Upload failed: ${response.statusCode} ${response.body}");
     }
   }
 }
