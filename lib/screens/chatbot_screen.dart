@@ -25,46 +25,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       isUser: false,
     )
   ];
-<<<<<<< HEAD
-  
-  bool _isUploading = false;
-  bool _isTyping = false;
-  String? _activeFile;
-
-  // --- ACTIONS ---
-
-  Future<void> _pickAndUploadPdf() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
-    );
-
-    if (result != null) {
-      File file = File(result.files.single.path!);
-      setState(() => _isUploading = true);
-      
-      try {
-        await _ragService.uploadPdf(file);
-        
-        // Clear memory when new file is added to avoid context confusion
-        await _ragService.clearMemory();
-        
-        setState(() {
-          _activeFile = result.files.single.name;
-          messages.add({
-            "role": "bot", 
-            "text": "Analyzed $_activeFile. I'm ready to answer questions!"
-          });
-        });
-      } catch (e) {
-        _showError("Upload Error: $e");
-      } finally {
-        setState(() => _isUploading = false);
-      }
-    }
-  }
-=======
->>>>>>> 0656ccf (chatbot new version)
 
   // =====================================================
   // SEND MESSAGE

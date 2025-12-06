@@ -7,14 +7,8 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-<<<<<<< HEAD
-# --- LangChain & RAG Imports ---
-from langchain_groq import ChatGroq
-from langchain_community.embeddings import HuggingFaceEmbeddings
-=======
 # LangChain + RAG
 from langchain_groq import ChatGroq
->>>>>>> 0656ccf (chatbot new version)
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
@@ -26,17 +20,11 @@ from langchain_core.messages import HumanMessage, AIMessage
 # CONFIG
 # ================================
 class Config:
-<<<<<<< HEAD
-    MODEL_NAME = "llama3-8b-8192"  # Ensure you have this pulled in 
-    EMBEDDING_MODEL = "all-MiniLM-L6-v2" 
-    CHROMA_PATH = "chroma_db_storage"
-=======
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     MODEL_NAME = "llama-3.1-8b-instant"
     EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
     CHROMA_PATH = "chroma_db"
     TOP_K = 4
->>>>>>> 0656ccf (chatbot new version)
     CHUNK_SIZE = 1000
     CHUNK_OVERLAP = 200
 
@@ -88,24 +76,12 @@ def rebuild_rag():
 
 
 def init_system():
-<<<<<<< HEAD
-    """Initializes the Vector DB and Chat Chain on startup."""
-    global vector_store, conversation_chain, memory
-    
-    # 1. Setup Embeddings
-    print(f"🔹 Initializing Embeddings ({Config.EMBEDDING_MODEL})...")
-    embeddings = HuggingFaceEmbeddings(model=Config.EMBEDDING_MODEL)
-
-    # 2. Load or Create Vector Store
-    # We use ChromaDB to store the PDF info
-=======
     global vector_store, llm
 
     embeddings = HuggingFaceEmbeddings(
         model_name=Config.EMBEDDING_MODEL
     )
 
->>>>>>> 0656ccf (chatbot new version)
     vector_store = Chroma(
         persist_directory=Config.CHROMA_PATH,
         collection_name="knowledgebase",
@@ -126,63 +102,6 @@ def init_system():
     else:
         print("⚠️ Knowledge base empty — upload PDFs.")
 
-<<<<<<< HEAD
-def create_chain():
-    """Creates the conversational chain using the current vector store."""
-    global vector_store, conversation_chain, memory
-    
-    llm = ChatGroq(
-        model=Config.MODEL_NAME,
-        temperature=0.3, # Low temperature for factual accuracy
-        api_key=os.environ.get("GROQ_API_KEY")
-    )
-    
-    retriever = vector_store.as_retriever(search_kwargs={"k": Config.TOP_K})
-    
-    conversation_chain = ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=retriever,
-        memory=memory,
-        return_source_documents=True, # vital for citations
-        verbose=True
-    )
-
-def format_response_with_citations(response_dict):
-    """
-    Extracts the answer and formats source citations nicely.
-    Matches the logic you saw in 'utils.py'
-    """
-    answer = response_dict['answer']
-    sources = response_dict.get('source_documents', [])
-    
-    if not sources:
-        return answer
-    
-    # Deduplicate sources
-    seen_files = set()
-    formatted_sources = []
-    
-    for doc in sources:
-        source_name = doc.metadata.get('source', 'Unknown Document')
-        # Sometimes path is full, just get filename
-        filename = os.path.basename(source_name)
-        
-        if filename not in seen_files:
-            formatted_sources.append(f"• {filename}")
-            seen_files.add(filename)
-            
-    if formatted_sources:
-        citation_text = "\n\n**Sources:**\n" + "\n".join(formatted_sources)
-        return answer + citation_text
-    
-    return answer
-
-# --- API ENDPOINTS ---
-
-class QueryRequest(BaseModel):
-    query: str
-=======
->>>>>>> 0656ccf (chatbot new version)
 
 @app.on_event("startup")
 async def startup():
