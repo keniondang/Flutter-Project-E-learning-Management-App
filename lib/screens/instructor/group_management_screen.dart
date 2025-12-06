@@ -119,7 +119,6 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                   ),
                 );
               } else if (mounted) {
-                // ✅ Show error message if duplicate or other error
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(provider.error ?? 'Failed to save group'),

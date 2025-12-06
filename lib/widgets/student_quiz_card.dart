@@ -145,7 +145,6 @@ class StudentQuizCard extends StatelessWidget {
                   const Divider(height: 1),
                   const SizedBox(height: 12),
 
-                  // ✅ ATTEMPT INDICATOR AND HIGHEST SCORE
                   Row(
                     children: [
                       // Attempt Counter

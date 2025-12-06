@@ -37,7 +37,6 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
     _checkAndStartQuiz();
   }
 
-  // ✅ --- NEW FUNCTION TO FIX MAX ATTEMPTS BUG --- ✅
   Future<void> _checkAndStartQuiz() async {
     try {
       // 1. Check for existing completed attempts
@@ -141,9 +140,9 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
             'quiz_id': widget.quiz.id,
             'student_id': widget.student.id,
             'attempt_number':
-                _currentAttemptNumber, // ✅ Use correct attempt number
+                _currentAttemptNumber,
             'started_at': DateTime.now().toIso8601String(),
-            'is_completed': false, // ✅ Set to false initially
+            'is_completed': false, 
           })
           .select()
           .single();
@@ -231,7 +230,7 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
             'submitted_at': DateTime.now().toIso8601String(),
             'score': score,
             'answers': _answers,
-            'is_completed': true, // ✅ Mark as completed
+            'is_completed': true, 
           })
           .eq('id', _attemptId!);
 

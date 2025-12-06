@@ -8,7 +8,7 @@ import 'package:elearning_management_app/providers/instructor_course_provider.da
 import 'package:elearning_management_app/providers/quiz_attempt_provider.dart';
 import 'package:elearning_management_app/providers/quiz_provider.dart';
 import 'package:elearning_management_app/providers/student_course_provider.dart';
-import 'package:elearning_management_app/providers/student_quiz_provider.dart'; // ✅ NEW
+import 'package:elearning_management_app/providers/student_quiz_provider.dart'; 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AnnouncementProvider()),
         ChangeNotifierProvider(create: (_) => AssignmentProvider()),
         ChangeNotifierProvider(create: (_) => QuizProvider()),
-        ChangeNotifierProvider(create: (_) => StudentQuizProvider()), // ✅ NEW
+        ChangeNotifierProvider(create: (_) => StudentQuizProvider()), 
         ChangeNotifierProvider(create: (_) => CourseMaterialProvider()),
         ChangeNotifierProvider(create: (_) => QuestionBankProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),

@@ -49,7 +49,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           _activeFile = result.files.single.name;
           messages.add({
             "role": "bot", 
-            "text": "✅ Analyzed $_activeFile. I'm ready to answer questions!"
+            "text": "Analyzed $_activeFile. I'm ready to answer questions!"
           });
         });
       } catch (e) {
