@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:elearning_management_app/models/analytic.dart';
 import 'package:elearning_management_app/models/announcement.dart';
-import 'package:elearning_management_app/models/student.dart';
 import 'package:elearning_management_app/models/user_model.dart';
 import 'package:elearning_management_app/providers/announcement_provider.dart';
 import 'package:elearning_management_app/providers/student_provider.dart';
@@ -82,15 +81,13 @@ class _AnnouncementDetailScreenState extends State<AnnouncementDetailScreen> {
     _commentController.clear();
     FocusScope.of(context).unfocus();
 
-    final response = await context
+    final comment = await context
         .read<AnnouncementProvider>()
         .addComment(widget.announcement.id, text, widget.currentUser.id);
 
     if (mounted) {
-      if (response != null) {
+      if (comment != null) {
         setState(() {
-          final comment = AnnouncementComment.fromJson(response);
-
           _comments.insert(0, comment);
         });
         _scrollToBottom();

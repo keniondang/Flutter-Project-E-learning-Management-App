@@ -1,11 +1,12 @@
-import 'package:elearning_management_app/models/forum/forum_reply.dart';
 import 'package:hive_ce/hive.dart';
 
+import '../models/analytic.dart';
 import '../models/announcement.dart';
 import '../models/assignment.dart';
 import '../models/course.dart';
 import '../models/course_material.dart';
 import '../models/forum/forum.dart';
+import '../models/forum/forum_reply.dart';
 import '../models/group.dart';
 import '../models/quiz.dart';
 import '../models/semester.dart';
@@ -28,5 +29,8 @@ import '../models/user_model.dart';
   AdapterSpec<AssignmentSubmission>(),
   AdapterSpec<Forum>(),
   AdapterSpec<ForumReply>(),
+  AdapterSpec<AnnouncementComment>(),
+  AdapterSpec<ViewAnalytic>(),
+  AdapterSpec<DownloadAnalytic>(),
 ])
 part 'hive_adapters.g.dart';
