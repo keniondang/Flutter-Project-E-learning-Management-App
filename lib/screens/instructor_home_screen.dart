@@ -3,6 +3,7 @@ import 'package:elearning_management_app/providers/group_provider.dart';
 import 'package:elearning_management_app/providers/instructor_course_provider.dart';
 import 'package:elearning_management_app/providers/quiz_provider.dart';
 import 'package:elearning_management_app/providers/student_provider.dart';
+import 'package:elearning_management_app/screens/shared/user_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -15,11 +16,24 @@ import 'instructor/course_management_screen.dart';
 import 'instructor/group_management_screen.dart';
 import 'instructor/student_management_screen.dart';
 
-class InstructorHomeScreen extends StatelessWidget {
+class InstructorHomeScreen extends StatefulWidget {
   final UserModel user;
+
+  const InstructorHomeScreen({super.key, required this.user});
+
+  @override
+  State<InstructorHomeScreen> createState() => _InstructorHomeScreenState();
+}
+
+class _InstructorHomeScreenState extends State<InstructorHomeScreen> {
+  late UserModel user;
   final AuthService _authService = AuthService();
 
-  InstructorHomeScreen({super.key, required this.user});
+  @override
+  void initState() {
+    super.initState();
+    user = widget.user;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +41,22 @@ class InstructorHomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('Instructor Dashboard', style: GoogleFonts.poppins()),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            tooltip: 'Edit Profile',
+            onPressed: () async {
+              final user = await Navigator.push(
+                context,
+                MaterialPageRoute<UserModel>(
+                  builder: (_) => UserProfileScreen(user: this.user),
+                ),
+              );
+
+              setState(() {
+                if (user != null) this.user = user;
+              });
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {

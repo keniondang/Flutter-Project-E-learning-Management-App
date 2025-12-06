@@ -337,8 +337,6 @@ types:
         index: 6
       createdBy:
         index: 7
-      createdByFullName:
-        index: 8
   ForumReply:
     typeId: 14
     nextIndex: 7
@@ -351,9 +349,5 @@ types:
         index: 2
       userId:
         index: 3
-      userFullName:
-        index: 4
       createdAt:
         index: 5
-      userHasAvatar:
-        index: 6

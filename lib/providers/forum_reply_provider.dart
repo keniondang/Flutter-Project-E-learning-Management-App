@@ -28,15 +28,12 @@ class ForumReplyProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('forum_replies')
-          .select('*, users(full_name, has_avatar)')
+          .select()
           .eq('forum_id', forumId)
           .order('created_at');
 
       await box.putAll(Map.fromEntries(response.map((json) {
-        final String fullName = json['users']['full_name'];
-        final bool hasAvatar = json['users']['has_avatar'];
-        final forumReply = ForumReply.fromJson(
-            json: json, userFullName: fullName, userHasAvatar: hasAvatar);
+        final forumReply = ForumReply.fromJson(json);
 
         return MapEntry(forumReply.id, forumReply);
       })));
@@ -65,10 +62,7 @@ class ForumReplyProvider extends ChangeNotifier {
           .select()
           .single();
 
-      final forumReply = ForumReply.fromJson(
-          json: response,
-          userFullName: user.fullName,
-          userHasAvatar: user.hasAvatar);
+      final forumReply = ForumReply.fromJson(response);
 
       final box = await Hive.openBox<ForumReply>(_boxName);
 

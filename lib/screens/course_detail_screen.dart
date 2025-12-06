@@ -26,8 +26,8 @@ import 'instructor/create_quiz_screen.dart';
 import 'instructor/question_bank_screen.dart';
 import 'instructor/quiz_results_screen.dart';
 import 'shared/course_people_tab.dart';
+import 'shared/material_viewer_screen.dart';
 import 'student/assignment_submission_screen.dart';
-import 'student/material_viewer_screen.dart';
 import 'student/quiz_taking_screen.dart';
 
 class CourseDetailScreen extends StatefulWidget {
@@ -515,7 +515,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                 CircleAvatar(
                                   backgroundColor: Colors.blue[100],
                                   radius: 16,
-                                  child: Icon(Icons.person,
+                                  child: Icon(Icons.announcement,
                                       size: 20, color: Colors.blue[700]),
                                 ),
                                 const SizedBox(width: 12),

@@ -260,7 +260,7 @@ class _MaterialViewerScreenState extends State<MaterialViewerScreen> {
                 )
               else
                 Expanded(
-                  child: FutureBuilder<List<MapEntry<String, Student?>>>(
+                  child: FutureBuilder<List<MapEntry<String, UserModel?>>>(
                     future: Future.wait(viewers
                         .map((x) => x.userId)
                         .toSet()

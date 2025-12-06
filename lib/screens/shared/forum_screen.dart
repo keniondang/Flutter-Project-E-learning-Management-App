@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:elearning_management_app/providers/forum_provider.dart';
+import 'package:elearning_management_app/providers/student_provider.dart';
 import 'package:elearning_management_app/screens/shared/forum_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -161,89 +164,111 @@ class _ForumScreenState extends State<ForumScreen> {
                 x.content.toLowerCase().contains(_filterQuery))
             .toList();
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: forums.length,
-          itemBuilder: (context, index) {
-            final forum = forums[index];
+        return FutureBuilder<List<MapEntry<String, UserModel?>>>(
+          future: Future.wait(forums.map((x) => x.createdBy).toSet().map(
+              (x) async => MapEntry(
+                  x, await context.read<StudentProvider>().fetchUser(x)))),
+          builder: (context, snapshot) {
+            switch (snapshot.connectionState) {
+              case ConnectionState.done:
+                final userMap = Map.fromEntries(
+                    snapshot.data!.where((x) => x.value != null));
 
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              elevation: 1,
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.blue[100],
-                  child: Icon(
-                    Icons.topic,
-                    color: Colors.blue[700],
-                  ),
-                ),
-                title: Text(
-                  forum.title,
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      forum.content,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(fontSize: 12),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Text(
-                          'By ${forum.createdByFullName}',
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: forums.length,
+                  itemBuilder: (context, index) {
+                    final forum = forums[index];
+                    final user = userMap[forum.createdBy]!;
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 1,
+                      child: ListTile(
+                        leading: user.hasAvatar
+                            ? CircleAvatar(
+                                child: null,
+                                backgroundImage:
+                                    MemoryImage(user.avatarBytes! as Uint8List))
+                            : CircleAvatar(
+                                backgroundColor: Colors.blue[100],
+                                child: Icon(
+                                  Icons.topic,
+                                  color: Colors.blue[700],
+                                ),
+                              ),
+                        title: Text(
+                          forum.title,
                           style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Icon(
-                          Icons.reply,
-                          size: 14,
-                          color: Colors.grey[600],
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              forum.content,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(fontSize: 12),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(
+                                  'By ${userMap[forum.createdBy]!.fullName}',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Icon(
+                                  Icons.reply,
+                                  size: 14,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${forum.replyCount} replies',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  DateFormat('MMM dd').format(forum.createdAt),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${forum.replyCount} replies',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          DateFormat('MMM dd').format(forum.createdAt),
-                          style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ForumDetailScreen(
-                        forum: forum,
-                        user: widget.user,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ForumDetailScreen(
+                                forum: forum,
+                                currentUser: widget.user,
+                                forumPoster: userMap[forum.createdBy]!,
+                              ),
+                            ),
+                          );
+
+                          _loadForums();
+                        },
                       ),
-                    ),
-                  );
-
-                  _loadForums();
-                },
-              ),
-            );
+                    );
+                  },
+                );
+              default:
+                return const Center(child: CircularProgressIndicator());
+            }
           },
         );
       },

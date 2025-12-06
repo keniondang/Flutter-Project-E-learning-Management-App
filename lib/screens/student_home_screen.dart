@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:elearning_management_app/models/course.dart';
 import 'package:elearning_management_app/providers/student_course_provider.dart';
-import 'package:elearning_management_app/screens/student/student_profile_screen.dart';
+import 'package:elearning_management_app/screens/shared/user_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -286,7 +286,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               final user = await Navigator.push(
                 context,
                 MaterialPageRoute<UserModel>(
-                  builder: (_) => StudentProfileScreen(user: this.user),
+                  builder: (_) => UserProfileScreen(user: this.user),
                 ),
               );
 
