@@ -21,7 +21,7 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  // Load all submissions for a single assignment
+  // Load all submissions for a single assignment (For Instructor)
   Future<void> loadAllSubmissions(String assignmentId) async {
     _isLoading = true;
     _error = null;
@@ -38,7 +38,8 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
       await box
           .putAll(Map.fromEntries(await Future.wait(response.map((json) async {
         final id = json['id'] as String;
-        final hasAttachments = json['has_attachments'] as bool;
+        // Handle potential missing column gracefully
+        final hasAttachments = json['has_attachments'] as bool? ?? false;
 
         final submission = AssignmentSubmission.fromJson(
             json: json,
@@ -74,7 +75,7 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
               final json = payload.newRecord;
 
               final id = json['id'] as String;
-              final hasAttachments = json['has_attachments'] as bool;
+              final hasAttachments = json['has_attachments'] as bool? ?? false;
 
               final submission = AssignmentSubmission.fromJson(
                   json: json,
@@ -91,6 +92,7 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
         .subscribe();
   }
 
+  // ✅ FIXED: Fetch ONLY the LATEST submission for a student
   Future<AssignmentSubmission?> fetchStudentSubmission(
       String assignmentId, String studentId) async {
     final box = await Hive.openBox<AssignmentSubmission>(_boxName);
@@ -101,7 +103,9 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
           .select()
           .eq('assignment_id', assignmentId)
           .eq('student_id', studentId)
-          .maybeSingle();
+          .order('attempt_number', ascending: false) // ✅ Get Highest Attempt
+          .limit(1) // ✅ Take only 1 row
+          .maybeSingle(); // ✅ Now this is safe
 
       if (response == null) {
         return null;
@@ -116,18 +120,36 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
     } catch (e) {
       print('Error loading submission: $e');
 
-      final result = box.values.firstWhereOrNull(
-          (x) => x.assignmentId == assignmentId && x.studentId == studentId);
+      // Fallback to local cache: Find the one with highest attempt_number
+      final studentSubmissions = box.values
+          .where((x) =>
+              x.assignmentId == assignmentId && x.studentId == studentId)
+          .toList();
+
+      if (studentSubmissions.isNotEmpty) {
+        studentSubmissions
+            .sort((a, b) => b.attemptNumber.compareTo(a.attemptNumber));
+        return studentSubmissions.first;
+      }
 
       notifyListeners();
-      return result;
+      return null;
     }
   }
 
-  // Get a single submission by student ID
+  // ✅ FIXED: Get the LATEST submission from memory list (For Instructor View)
   AssignmentSubmission? getSubmissionForStudent(String studentId) {
     try {
-      return _submissions.firstWhere((sub) => sub.studentId == studentId);
+      final studentSubmissions =
+          _submissions.where((sub) => sub.studentId == studentId).toList();
+
+      if (studentSubmissions.isEmpty) return null;
+
+      // Sort to ensure we return the latest version
+      studentSubmissions
+          .sort((a, b) => b.attemptNumber.compareTo(a.attemptNumber));
+
+      return studentSubmissions.first;
     } catch (e) {
       return null;
     }
@@ -183,6 +205,7 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
     required DateTime submittedAt,
   }) async {
     try {
+      // 1. Insert the submission record
       final response = await _supabase
           .from('assignment_submissions')
           .insert({
@@ -198,25 +221,42 @@ class AssignmentSubmissionProvider extends ChangeNotifier {
           .select()
           .single();
 
-      List<String> paths = [];
+      final submissionId = response['id'] as String;
+      List<String> filePaths = [];
 
+      // 2. Upload files
       if (submissionFiles.isNotEmpty) {
-        paths.addAll((await Future.wait(submissionFiles.map((file) async {
-          final id = response['id'] as String;
+        filePaths = await Future.wait(submissionFiles.map((file) async {
+          final fileName =
+              '${DateTime.now().millisecondsSinceEpoch}_${file.name.replaceAll(' ', '_')}';
+          final path = '$submissionId/$fileName';
 
-          if (file.bytes != null) {
-            return await _supabase.storage
-                .from('submissions_attachment')
-                .uploadBinary('$id/${file.name}', file.bytes!);
-          } else if (file.path != null) {
-            return await _supabase.storage
-                .from('submissions_attachment')
-                .upload('$id/${file.name}', File(file.path!));
+          try {
+            if (file.bytes != null) {
+              await _supabase.storage
+                  .from('submissions_attachment')
+                  .uploadBinary(path, file.bytes!);
+            } else if (file.path != null) {
+              await _supabase.storage
+                  .from('submissions_attachment')
+                  .upload(path, File(file.path!));
+            }
+            return path;
+          } catch (e) {
+            print('Error uploading file ${file.name}: $e');
+            return '';
           }
+        }));
 
-          return '';
-        })))
-          ..removeWhere((x) => x.isEmpty));
+        // Remove failed uploads
+        filePaths.removeWhere((path) => path.isEmpty);
+
+        // 3. Update record with file paths
+        if (filePaths.isNotEmpty) {
+          await _supabase
+              .from('assignment_submissions')
+              .update({'submission_files': filePaths}).eq('id', submissionId);
+        }
       }
 
       notifyListeners();
