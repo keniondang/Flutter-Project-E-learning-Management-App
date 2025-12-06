@@ -8,6 +8,8 @@ import '../models/course_material.dart';
 import '../models/forum/forum.dart';
 import '../models/forum/forum_reply.dart';
 import '../models/group.dart';
+import '../models/message.dart';
+import '../models/notification.dart';
 import '../models/quiz.dart';
 import '../models/semester.dart';
 import '../models/student.dart';
@@ -32,5 +34,7 @@ import '../models/user_model.dart';
   AdapterSpec<AnnouncementComment>(),
   AdapterSpec<ViewAnalytic>(),
   AdapterSpec<DownloadAnalytic>(),
+  AdapterSpec<PrivateMessage>(),
+  AdapterSpec<Notification>(),
 ])
 part 'hive_adapters.g.dart';
