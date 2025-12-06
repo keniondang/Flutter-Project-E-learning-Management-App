@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import '../../models/assignment.dart';
 import '../../models/student.dart';
 import '../../providers/assignment_submission_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class GradingScreen extends StatefulWidget {
   final AssignmentSubmission submission;
@@ -33,27 +32,82 @@ class _GradingScreenState extends State<GradingScreen> {
   late TextEditingController _feedbackController;
   bool _isSaving = false;
 
+  // --- NEW: State for History ---
+  late AssignmentSubmission _selectedSubmission;
+  List<AssignmentSubmission> _history = [];
+
   @override
   void initState() {
     super.initState();
+    _loadHistory();
+    _initializeControllers();
+  }
+
+  void _initializeControllers() {
     _gradeController = TextEditingController(
-      text: widget.submission.grade?.toString() ?? '',
+      text: _selectedSubmission.grade?.toString() ?? '',
     );
     _feedbackController = TextEditingController(
-      text: widget.submission.feedback ?? '',
+      text: _selectedSubmission.feedback ?? '',
     );
   }
 
+  void _updateControllers() {
+    setState(() {
+      _gradeController.text = _selectedSubmission.grade?.toString() ?? '';
+      _feedbackController.text = _selectedSubmission.feedback ?? '';
+    });
+  }
+
+  void _loadHistory() {
+    final provider = context.read<AssignmentSubmissionProvider>();
+    
+    // 1. Get all submissions for this student from the provider
+    // (Provider was already loaded in the previous screen)
+    final allSubmissions = provider.submissions
+        .where((s) => s.studentId == widget.student.id)
+        .toList();
+
+    // 2. Sort by attempt number descending (Latest first)
+    allSubmissions.sort((a, b) => b.attemptNumber.compareTo(a.attemptNumber));
+
+    // 3. Initialize state
+    setState(() {
+      _history = allSubmissions;
+      
+      // If for some reason history is empty, fallback to the passed submission
+      if (_history.isEmpty) {
+        _history = [widget.submission];
+      }
+
+      // Default to the passed submission if possible, otherwise the first (latest)
+      try {
+        _selectedSubmission = _history.firstWhere((s) => s.id == widget.submission.id);
+      } catch (e) {
+        _selectedSubmission = _history.first;
+      }
+    });
+  }
+
+  // --- Helper to clean filename ---
+  String _cleanFileName(String path) {
+    final fullName = path.split('/').last;
+    final regex = RegExp(r'^\d+_(.+)');
+    final match = regex.firstMatch(fullName);
+    if (match != null) {
+      return match.group(1) ?? fullName;
+    }
+    return fullName;
+  }
+
   Future<void> _handleFileDownload(String url) async {
-    final fileName = url.split('/').last;
+    final fileName = _cleanFileName(url); // Clean name for saving
 
     final bytes = await context
         .read<AssignmentSubmissionProvider>()
         .fetchFileAttachment(url);
 
     if (bytes != null) {
-      // Note: saveFile might behave differently on Web/Mobile,
-      // but keeping it as requested in previous snippets.
       await FilePicker.platform.saveFile(fileName: fileName, bytes: bytes);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,7 +136,7 @@ class _GradingScreenState extends State<GradingScreen> {
 
       final success =
           await context.read<AssignmentSubmissionProvider>().gradeSubmission(
-                submissionId: widget.submission.id,
+                submissionId: _selectedSubmission.id, // Grade the SELECTED version
                 grade: grade,
                 feedback: _feedbackController.text,
                 instructorId: widget.instructorId,
@@ -95,7 +149,7 @@ class _GradingScreenState extends State<GradingScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        // We don't pop immediately so they can keep editing or change versions
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -119,7 +173,7 @@ class _GradingScreenState extends State<GradingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Student Info
+            // --- Student Info Card ---
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -133,17 +187,59 @@ class _GradingScreenState extends State<GradingScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Text(
-                      'Submitted: ${DateFormat('MMM dd, yyyy HH:mm').format(widget.submission.submittedAt)}',
-                      style: GoogleFonts.poppins(fontSize: 12),
+                    const SizedBox(height: 12),
+                    
+                    // --- VERSION SELECTOR ---
+                    if (_history.length > 1) ...[
+                      DropdownButtonFormField<AssignmentSubmission>(
+                        value: _selectedSubmission,
+                        decoration: InputDecoration(
+                          labelText: 'Select Version to Grade',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        items: _history.map((submission) {
+                          final isLatest = submission.attemptNumber == _history.first.attemptNumber;
+                          return DropdownMenuItem(
+                            value: submission,
+                            child: Text(
+                              'Attempt ${submission.attemptNumber}${isLatest ? ' (Latest)' : ''}',
+                              style: GoogleFonts.poppins(fontWeight: isLatest ? FontWeight.bold : FontWeight.normal),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedSubmission = value;
+                              _updateControllers(); // Update form with this version's data
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Submitted: ${DateFormat('MMM dd, yyyy HH:mm').format(_selectedSubmission.submittedAt)}',
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                      ],
                     ),
-                    if (widget.submission.isLate)
-                      Text(
-                        ' (LATE)',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
+                    if (_selectedSubmission.isLate)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          'LATE SUBMISSION',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                   ],
@@ -152,7 +248,7 @@ class _GradingScreenState extends State<GradingScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Submission Content
+            // --- Submission Content ---
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -160,45 +256,65 @@ class _GradingScreenState extends State<GradingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Submission',
+                      'Submission Content',
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (widget.submission.submissionText != null &&
-                        widget.submission.submissionText!.isNotEmpty) ...[
+                    
+                    // Text Submission
+                    if (_selectedSubmission.submissionText != null &&
+                        _selectedSubmission.submissionText!.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Text(
-                        'Submitted Text:',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                        'Student Answer:',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500, color: Colors.grey[700]),
                       ),
+                      const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.all(12),
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.grey[100],
+                          color: Colors.grey[50],
                           borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[200]!),
                         ),
-                        child: Text(widget.submission.submissionText!),
+                        child: Text(_selectedSubmission.submissionText!),
                       ),
                     ],
-                    if (widget.submission.submissionFiles.isNotEmpty) ...[
+
+                    // File Attachments
+                    if (_selectedSubmission.submissionFiles.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       Text(
-                        'Submitted Files:',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                        'Attached Files:',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500, color: Colors.grey[700]),
                       ),
-                      ...widget.submission.submissionFiles.map((fileUrl) {
-                        return ListTile(
-                          leading: const Icon(Icons.insert_drive_file),
-                          title: Text(
-                            fileUrl.split('/').last,
-                            style: GoogleFonts.poppins(fontSize: 14),
+                      const SizedBox(height: 4),
+                      ..._selectedSubmission.submissionFiles.map((fileUrl) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[200]!),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          onTap: () => _handleFileDownload(fileUrl),
+                          child: ListTile(
+                            leading: const Icon(Icons.insert_drive_file, color: Colors.blue),
+                            title: Text(
+                              _cleanFileName(fileUrl),
+                              style: GoogleFonts.poppins(fontSize: 14),
+                            ),
+                            trailing: const Icon(Icons.download_rounded),
+                            onTap: () => _handleFileDownload(fileUrl),
+                          ),
                         );
                       }),
+                    ] else if (_selectedSubmission.submissionText == null || _selectedSubmission.submissionText!.isEmpty) ...[
+                       const Padding(
+                         padding: EdgeInsets.symmetric(vertical: 16.0),
+                         child: Center(child: Text("No content submitted.")),
+                       )
                     ],
                   ],
                 ),
@@ -206,7 +322,7 @@ class _GradingScreenState extends State<GradingScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Grading Form
+            // --- Grading Form ---
             Form(
               key: _formKey,
               child: Card(
@@ -267,9 +383,18 @@ class _GradingScreenState extends State<GradingScreen> {
                         height: 48,
                         child: ElevatedButton(
                           onPressed: _isSaving ? null : _submitGrade,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue[700],
+                            foregroundColor: Colors.white,
+                          ),
                           child: _isSaving
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white,
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Text('Save Grade'),
                         ),
