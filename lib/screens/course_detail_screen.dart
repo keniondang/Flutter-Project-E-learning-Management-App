@@ -362,7 +362,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     );
   }
 
-  // ✅ --- NEW: Quiz Start Confirmation Dialog ---
+  // ✅ Quiz Start Confirmation Dialog
   void _confirmStartQuiz(Quiz quiz) {
     showDialog(
       context: context,
@@ -427,9 +427,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     final assignmentProvider = context.watch<AssignmentProvider>();
     final quizProvider = context.watch<QuizProvider>();
     final materialProvider = context.watch<CourseMaterialProvider>();
-    
-    // ✅ Uncommented: Needed to check attempt eligibility
-    final studentQuizProvider = context.watch<StudentQuizProvider>(); 
+    final studentQuizProvider = context.watch<StudentQuizProvider>();
 
     if (assignmentProvider.isLoading ||
         quizProvider.isLoading ||
@@ -514,6 +512,14 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
           if (type == 'quiz') {
             final quiz = item as Quiz;
 
+            // ✅ Calculate Student Attempts
+            int myAttempts = 0;
+            if (isStudent) {
+              final attempts =
+                  studentQuizProvider.getAttemptsForQuiz(quiz.id);
+              myAttempts = attempts.where((a) => a.isCompleted).length;
+            }
+
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
@@ -533,11 +539,14 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                       _buildTargetBadge(quiz.scopeType, quiz.targetGroups),
                   ],
                 ),
+                
+                // ✅ UPDATED SUBTITLE: Shows Attempts X/Y for Students
                 subtitle: Text(
                     isInstructor
                         ? 'Submissions: ${quiz.submissionCount ?? 0}'
-                        : 'Closes: ${_formatDate(quiz.closeTime)}',
+                        : 'Attempts: $myAttempts/${quiz.maxAttempts}  •  Closes: ${_formatDate(quiz.closeTime)}',
                     style: GoogleFonts.poppins(fontSize: 12)),
+                
                 trailing: quiz.isPastDue
                     ? const Chip(label: Text('Closed'))
                     : quiz.isOpen
@@ -546,7 +555,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                 onTap: () {
                   if (isStudent) {
                     if (quiz.isOpen) {
-                      // ✅ UPDATED: Use canAttemptQuiz check and show dialog
                       if (studentQuizProvider.canAttemptQuiz(quiz.id)) {
                          _confirmStartQuiz(quiz); 
                       } else {
