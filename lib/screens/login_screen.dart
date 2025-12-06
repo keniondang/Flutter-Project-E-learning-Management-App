@@ -5,7 +5,6 @@ import '../services/auth_service.dart';
 import '../widgets/custom_text_field.dart';
 import 'instructor_home_screen.dart';
 import 'student_home_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,13 +19,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
-  bool _rememberMe = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSavedCredentials();
-  }
 
   Widget _buildCredentialRow(String label, String credentials) {
     return Row(
@@ -48,18 +40,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Future<void> _loadSavedCredentials() async {
-    // Load saved credentials if "Remember Me" was checked
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('remember_me') ?? false) {
-      setState(() {
-        _usernameController.text = prefs.getString('saved_username') ?? '';
-        _passwordController.text = prefs.getString('saved_password') ?? '';
-        _rememberMe = true;
-      });
-    }
-  }
-
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
@@ -72,18 +52,6 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = false);
 
       if (user != null) {
-        // Save credentials if remember me is checked
-        final prefs = await SharedPreferences.getInstance();
-        if (_rememberMe) {
-          await prefs.setBool('remember_me', true);
-          await prefs.setString('saved_username', _usernameController.text);
-          await prefs.setString('saved_password', _passwordController.text);
-        } else {
-          await prefs.remove('remember_me');
-          await prefs.remove('saved_username');
-          await prefs.remove('saved_password');
-        }
-
         // Navigate based on role
         if (mounted) {
           if (user.isInstructor) {
@@ -186,21 +154,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
 
-                    // Remember me checkbox
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _rememberMe,
-                          onChanged: (value) {
-                            setState(() => _rememberMe = value ?? false);
-                          },
-                        ),
-                        Text(
-                          'Remember me',
-                          style: GoogleFonts.poppins(fontSize: 14),
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: 24),
 
                     // Login button

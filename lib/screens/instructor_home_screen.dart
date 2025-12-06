@@ -232,7 +232,6 @@ class _InstructorHomeScreenState extends State<InstructorHomeScreen> {
                     ),
 
                     // --- TOTAL GROUPS (FIXED) ---
-                    // Changed from Consumer to Consumer2 to listen to GroupProvider changes
                     Consumer2<SemesterProvider, GroupProvider>(
                       builder:
                           (context, semesterProvider, groupProvider, child) {
@@ -245,10 +244,6 @@ class _InstructorHomeScreenState extends State<InstructorHomeScreen> {
                           );
                         }
 
-                        // We use FutureBuilder here, but because we are inside a Consumer2
-                        // listening to GroupProvider, if GroupProvider notifies listeners
-                        // (e.g. after adding a group), this whole block rebuilds,
-                        // triggering the Future to run again and fetch the new count.
                         return FutureBuilder(
                             future: groupProvider.countInSemester(
                                 semesterProvider.currentSemester!.id),
@@ -426,20 +421,7 @@ class _InstructorHomeScreenState extends State<InstructorHomeScreen> {
                     );
                   },
                 ),
-                _buildActionButton(
-                  context,
-                  'View Courses',
-                  Icons.class_,
-                  Colors.indigo,
-                  () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => CourseManagementScreen(user: user),
-                      ),
-                    );
-                  },
-                ),
+                // Removed 'View Courses' button
               ],
             ),
           ],
