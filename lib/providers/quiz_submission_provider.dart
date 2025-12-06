@@ -4,17 +4,13 @@ import 'package:csv/csv.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../models/quiz.dart';
-import '../models/student.dart'; // ✅ --- ADD THIS IMPORT --- ✅
+import '../models/student.dart'; 
 
 class QuizSubmissionProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
-  // ✅ --- Use the new model --- ✅
   List<QuizAttempt> _submissions = [];
   bool _isLoading = false;
   String? _error;
-
-  // ✅ --- Use the new model --- ✅
   List<QuizAttempt> get submissions => _submissions;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -33,7 +29,6 @@ class QuizSubmissionProvider extends ChangeNotifier {
           .eq('is_completed', true) // We only care about completed attempts
           .order('submitted_at', ascending: false);
       
-      // ✅ --- Parse into the new model --- ✅
       _submissions = (response as List)
           .map((json) => QuizAttempt.fromJson(json))
           .toList();
@@ -47,7 +42,6 @@ class QuizSubmissionProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ --- ADDED HELPER FUNCTION --- ✅
   // Gets the latest submission for a student
   QuizAttempt? getSubmissionForStudent(String studentId) {
     try {
@@ -64,8 +58,6 @@ class QuizSubmissionProvider extends ChangeNotifier {
     }
   }
 
-
-  // ✅ --- MODIFIED CSV EXPORT --- ✅
   // Now requires the full list of students to include those who haven't submitted
   Future<String?> exportSubmissionsToCSV(Quiz quiz, List<Student> allStudents) async {
     if (allStudents.isEmpty) {

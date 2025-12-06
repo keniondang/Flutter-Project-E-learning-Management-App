@@ -51,7 +51,6 @@ class QuizAttemptProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ UPDATED: Gets the HIGHEST scoring submission for a student
   QuizAttempt? getSubmissionForStudent(String studentId) {
     try {
       // Find all submissions for this student
@@ -80,7 +79,6 @@ class QuizAttemptProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ NEW: Get all attempts for a student (for viewing history)
   List<QuizAttempt> getAllAttemptsForStudent(String studentId) {
     var attempts = _submissions.where((s) => s.studentId == studentId).toList();
     attempts.sort((a, b) => a.attemptNumber.compareTo(b.attemptNumber));

@@ -22,8 +22,6 @@ class AnnouncementProvider extends ChangeNotifier {
   String? get error => _error;
 
   // --- CORE METHODS ---
-
-  // ✅ UPDATED: Now requires currentUserId to check "hasViewed" correctly
   Future<void> loadAllAnnouncements(
       String courseId, String currentUserId) async {
     _isLoading = true;
@@ -48,7 +46,7 @@ class AnnouncementProvider extends ChangeNotifier {
           final results = await Future.wait([
             _fetchViewCount(id),
             _fetchCommentCount(id),
-            _checkIfViewed(id, currentUserId), // ✅ Pass userId here
+            _checkIfViewed(id, currentUserId), 
             _fetchFileAttachmentPaths(id),
           ]);
 
@@ -63,7 +61,7 @@ class AnnouncementProvider extends ChangeNotifier {
           final results = await Future.wait([
             _fetchViewCount(id),
             _fetchCommentCount(id),
-            _checkIfViewed(id, currentUserId), // ✅ Pass userId here
+            _checkIfViewed(id, currentUserId),
           ]);
 
           return Announcement.fromJson(
@@ -124,7 +122,7 @@ class AnnouncementProvider extends ChangeNotifier {
           final results = await Future.wait([
             _fetchViewCount(id),
             _fetchCommentCount(id),
-            _checkIfViewed(id, currentUserId), // ✅ Pass userId here
+            _checkIfViewed(id, currentUserId),
             _fetchFileAttachmentPaths(id),
           ]);
 
@@ -139,7 +137,7 @@ class AnnouncementProvider extends ChangeNotifier {
           final results = await Future.wait([
             _fetchViewCount(id),
             _fetchCommentCount(id),
-            _checkIfViewed(id, currentUserId), // ✅ Pass userId here
+            _checkIfViewed(id, currentUserId), 
           ]);
 
           return Announcement.fromJson(
@@ -271,7 +269,6 @@ class AnnouncementProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ UPDATED: Now requires userId explicitly
   Future<bool> _checkIfViewed(String id, String userId) async {
     try {
       final res = await _supabase

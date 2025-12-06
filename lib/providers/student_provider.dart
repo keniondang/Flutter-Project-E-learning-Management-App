@@ -61,7 +61,6 @@ class StudentProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Student>(_boxName);
 
-    // ✅ FIX: Always fetch fresh enrollment data for the group
     try {
       final response = await _supabase
           .from('enrollments')
@@ -107,7 +106,6 @@ class StudentProvider extends ChangeNotifier {
   Future<List<Student>> loadStudentsInGroups(List<String> groupIds) async {
     final box = await Hive.openBox<Student>(_boxName);
 
-    // ✅ FIX: Always fetch fresh enrollment data for the group
     try {
       final response = await _supabase
           .from('enrollments')
@@ -577,7 +575,6 @@ class StudentProvider extends ChangeNotifier {
     return box.values.toList();
   }
 
-  // ✅ FIXED: Load all students enrolled in a specific course and update state
   Future<void> loadStudentsForCourse(String courseId) async {
     _isLoading = true;
     _error = null;
@@ -585,7 +582,6 @@ class StudentProvider extends ChangeNotifier {
 
     final box = await Hive.openBox<Student>(_boxName);
 
-    // ✅ FIX: Always fetch fresh enrollment data for this course
     try {
       final response = await _supabase
           .from('enrollments')
@@ -628,11 +624,9 @@ class StudentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ FIXED: Load all students enrolled in a specific course (no state update)
   Future<List<Student>> loadStudentsInCourse(String courseId) async {
     final box = await Hive.openBox<Student>(_boxName);
 
-    // ✅ FIX: Always fetch fresh enrollment data for this course
     try {
       final response = await _supabase
           .from('enrollments')

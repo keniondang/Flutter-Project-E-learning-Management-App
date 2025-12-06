@@ -45,7 +45,7 @@ class Quiz {
     this.attemptCount,
     this.highestScore,
     this.isCompleted,
-    this.submissionCount, // ✅ Add to constructor
+    this.submissionCount, 
     this.semesterId,
   });
 

@@ -138,7 +138,6 @@ class GroupProvider extends ChangeNotifier {
         return false;
       }
 
-      // ✅ FIX 1: Select semester_id from the relation
       final response = await _supabase.from('groups').insert({
         'course_id': courseId,
         'name': name.trim(),
@@ -148,13 +147,11 @@ class GroupProvider extends ChangeNotifier {
         String? courseName;
         String? semesterId;
 
-        // ✅ FIX 2: Extract semesterId properly
         if (json['courses'] != null) {
           courseName = json['courses']['name'];
           semesterId = json['courses']['semester_id'];
         }
 
-        // ✅ FIX 3: Pass semesterId to the model
         return Group.fromJson(
             json: json, courseName: courseName, semesterId: semesterId);
       }).first;
@@ -210,7 +207,6 @@ class GroupProvider extends ChangeNotifier {
         }
       }
 
-      // ✅ FIX 4: Select semester_id here too for consistency
       final response = await _supabase
           .from('groups')
           .update({'name': name.trim()})
@@ -232,7 +228,7 @@ class GroupProvider extends ChangeNotifier {
             json: json,
             courseName: courseName,
             studentCount: old!.studentCount,
-            semesterId: semesterId // ✅ Pass it here too
+            semesterId: semesterId 
             );
       }).first;
 
