@@ -6,8 +6,8 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
 
 # --- LangChain & RAG Imports ---
-from langchain_community.chat_models import ChatOllama
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_groq import ChatGroq
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -17,8 +17,8 @@ from langchain_core.documents import Document
 
 # --- CONFIGURATION ---
 class Config:
-    MODEL_NAME = "llama3:8b"  # Ensure you have this pulled in Ollama
-    EMBEDDING_MODEL = "llama3:8b" 
+    MODEL_NAME = "llama3-8b-8192"  # Ensure you have this pulled in 
+    EMBEDDING_MODEL = "all-MiniLM-L6-v2" 
     CHROMA_PATH = "chroma_db_storage"
     CHUNK_SIZE = 1000
     CHUNK_OVERLAP = 200
@@ -41,8 +41,8 @@ def init_system():
     
     # 1. Setup Embeddings
     print(f"🔹 Initializing Embeddings ({Config.EMBEDDING_MODEL})...")
-    embeddings = OllamaEmbeddings(model=Config.EMBEDDING_MODEL)
-    
+    embeddings = HuggingFaceEmbeddings(model=Config.EMBEDDING_MODEL)
+
     # 2. Load or Create Vector Store
     # We use ChromaDB to store the PDF info
     vector_store = Chroma(
@@ -70,10 +70,10 @@ def create_chain():
     """Creates the conversational chain using the current vector store."""
     global vector_store, conversation_chain, memory
     
-    llm = ChatOllama(
+    llm = ChatGroq(
         model=Config.MODEL_NAME,
         temperature=0.3, # Low temperature for factual accuracy
-        keep_alive="1h"
+        api_key=os.environ.get("GROQ_API_KEY")
     )
     
     retriever = vector_store.as_retriever(search_kwargs={"k": Config.TOP_K})
