@@ -1,6 +1,7 @@
 import 'package:elearning_management_app/providers/announcement_provider.dart';
 import 'package:elearning_management_app/providers/assignment_provider.dart';
 import 'package:elearning_management_app/providers/course_material_provider.dart';
+import 'package:elearning_management_app/providers/group_provider.dart'; // <--- Added Import
 import 'package:elearning_management_app/providers/quiz_provider.dart';
 import 'package:elearning_management_app/providers/student_provider.dart';
 import 'package:elearning_management_app/providers/student_quiz_provider.dart';
@@ -26,8 +27,8 @@ import 'instructor/create_quiz_screen.dart';
 import 'instructor/question_bank_screen.dart';
 import 'instructor/quiz_results_screen.dart';
 import 'shared/course_people_tab.dart';
-import 'shared/material_viewer_screen.dart';
 import 'student/assignment_submission_screen.dart';
+import 'shared/material_viewer_screen.dart';
 import 'student/quiz_taking_screen.dart';
 
 class CourseDetailScreen extends StatefulWidget {
@@ -69,7 +70,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
         ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.grey,
+          // You can customize colors here if needed, otherwise it uses Theme
+          labelColor: Colors.grey, 
           unselectedLabelColor: Colors.white,
           indicatorColor: Colors.blue,
           tabs: const [
@@ -230,13 +232,84 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     _loadData();
   }
 
+  // --- NEW HELPER: Build Audience Badge ---
+  Widget _buildTargetBadge(String scopeType, List<String> targetGroups) {
+    // 1. If assigned to everyone
+    if (scopeType == 'all') {
+      return Container(
+        margin: const EdgeInsets.only(left: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.public, size: 12, color: Colors.grey),
+            const SizedBox(width: 4),
+            Text(
+              'All',
+              style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey[800]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 2. If assigned to specific groups
+    final allGroups = context.read<GroupProvider>().groups;
+    final groupNames = allGroups
+        .where((g) => targetGroups.contains(g.id))
+        .map((g) => g.name)
+        .toList();
+
+    String label;
+    if (groupNames.isEmpty) {
+      label = '${targetGroups.length} Groups';
+    } else if (groupNames.length == 1) {
+      label = groupNames.first;
+    } else {
+      label = '${groupNames.length} Groups';
+    }
+
+    return Tooltip(
+      message: groupNames.join(', '),
+      child: Container(
+        margin: const EdgeInsets.only(left: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.amber[100],
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.group, size: 12, color: Colors.amber[900]),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                style: GoogleFonts.poppins(
+                    fontSize: 10,
+                    color: Colors.amber[900],
+                    fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ---------------- CLASSWORK TAB -----------------
 
   Widget _buildClassworkTab() {
     final assignmentProvider = context.watch<AssignmentProvider>();
     final quizProvider = context.watch<QuizProvider>();
     final materialProvider = context.watch<CourseMaterialProvider>();
-    final studentQuizProvider = context.watch<StudentQuizProvider>();
+    // final studentQuizProvider = context.watch<StudentQuizProvider>(); // Uncomment if used
 
     if (assignmentProvider.isLoading ||
         quizProvider.isLoading ||
@@ -276,8 +349,20 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                 leading: CircleAvatar(
                     backgroundColor: Colors.green[100],
                     child: Icon(Icons.assignment, color: Colors.green[700])),
-                title: Text(assignment.title,
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                title: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        assignment.title,
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isInstructor)
+                      _buildTargetBadge(
+                          assignment.scopeType, assignment.targetGroups),
+                  ],
+                ),
                 subtitle: Text(
                     isInstructor
                         ? 'Submissions: ${assignment.submissionCount ?? 0}'
@@ -313,19 +398,25 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
           if (type == 'quiz') {
             final quiz = item as Quiz;
 
-            if (isStudent) {
-              // Pre-calculate quiz attempts for better UX if needed
-              // final attempts = studentQuizProvider.getAttemptsForQuiz(quiz.id);
-            }
-
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
                 leading: CircleAvatar(
                     backgroundColor: Colors.purple[100],
                     child: Icon(Icons.quiz, color: Colors.purple[700])),
-                title: Text(quiz.title,
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                title: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        quiz.title,
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isInstructor)
+                      _buildTargetBadge(quiz.scopeType, quiz.targetGroups),
+                  ],
+                ),
                 subtitle: Text(
                     isInstructor
                         ? 'Submissions: ${quiz.submissionCount ?? 0}'
@@ -390,6 +481,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   }
 
   Widget _buildStreamTab() {
+    final isInstructor = widget.user.isInstructor;
+
     return Column(
       children: [
         // Search + Sorting Section (SAME ROW)
@@ -524,11 +617,25 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        announcement.title,
-                                        style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 16),
+                                      // Modified Header Row to include Badge
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              announcement.title,
+                                              style: GoogleFonts.poppins(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 16),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (isInstructor)
+                                            _buildTargetBadge(
+                                                announcement.scopeType,
+                                                announcement.targetGroups),
+                                        ],
                                       ),
                                       Text(
                                         'Posted on ${_formatDate(announcement.createdAt)}',
@@ -641,6 +748,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
 
   Future<void> _loadData() async {
     if (!mounted) return;
+
+    // ✅ ADDED: Always load groups so we can display names in the badges
+    await context.read<GroupProvider>().loadGroups(widget.course.id);
 
     if (widget.user.role == 'student') {
       final groupId = await context
